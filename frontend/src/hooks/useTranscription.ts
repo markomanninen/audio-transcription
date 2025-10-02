@@ -82,3 +82,38 @@ export const useSpeakers = (fileId: number | null) => {
     enabled: !!fileId,
   })
 }
+
+export const useUpdateSegment = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ segmentId, editedText }: { segmentId: number; editedText: string }) => {
+      const response = await apiClient.patch(`/api/transcription/segment/${segmentId}`, {
+        edited_text: editedText,
+      })
+      return response.data
+    },
+    onSuccess: (data, variables) => {
+      // Update the segment in the cache
+      queryClient.invalidateQueries({ queryKey: ['segments'] })
+    },
+  })
+}
+
+export const useUpdateSpeaker = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ speakerId, displayName }: { speakerId: number; displayName: string }) => {
+      const response = await apiClient.put(`/api/transcription/speaker/${speakerId}`, {
+        display_name: displayName,
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      // Update speakers and segments (since segments display speaker names)
+      queryClient.invalidateQueries({ queryKey: ['speakers'] })
+      queryClient.invalidateQueries({ queryKey: ['segments'] })
+    },
+  })
+}

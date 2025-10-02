@@ -1,15 +1,29 @@
-import { useSegments, useSpeakers } from '../../hooks/useTranscription'
+import { useState } from 'react'
+import { useSegments, useSpeakers, useUpdateSegment } from '../../hooks/useTranscription'
 import type { Segment } from '../../types'
 
 interface SegmentListProps {
   fileId: number
   onSegmentClick?: (segment: Segment) => void
+  onPlayRequest?: () => void
+  onPauseRequest?: () => void
   currentTime?: number
+  isPlaying?: boolean
 }
 
-export default function SegmentList({ fileId, onSegmentClick, currentTime = 0 }: SegmentListProps) {
+export default function SegmentList({
+  fileId,
+  onSegmentClick,
+  onPlayRequest,
+  onPauseRequest,
+  currentTime = 0,
+  isPlaying = false
+}: SegmentListProps) {
   const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useSegments(fileId)
   const { data: speakers } = useSpeakers(fileId)
+  const updateSegment = useUpdateSegment()
+  const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null)
+  const [editText, setEditText] = useState('')
 
   console.log('SegmentList render:', { fileId, segments, isLoading: segmentsLoading, error: segmentsError })
 
@@ -26,6 +40,23 @@ export default function SegmentList({ fileId, onSegmentClick, currentTime = 0 }:
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleStartEdit = (segment: Segment) => {
+    setEditingSegmentId(segment.id)
+    setEditText(segment.edited_text || segment.original_text)
+  }
+
+  const handleSaveEdit = async (segmentId: number) => {
+    if (editText.trim()) {
+      await updateSegment.mutateAsync({ segmentId, editedText: editText.trim() })
+      setEditingSegmentId(null)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingSegmentId(null)
+    setEditText('')
   }
 
   if (segmentsLoading) {
@@ -59,14 +90,15 @@ export default function SegmentList({ fileId, onSegmentClick, currentTime = 0 }:
       {segments.map((segment) => {
         const speaker = getSpeakerInfo(segment.speaker_id)
         const isActive = isSegmentActive(segment)
+        const isEditing = editingSegmentId === segment.id
 
         return (
           <div
             key={segment.id}
-            onClick={() => onSegmentClick?.(segment)}
             className={`
-              border rounded-lg p-4 cursor-pointer transition-all
-              ${isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}
+              border rounded-lg p-4 transition-all
+              ${isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
+              ${isEditing ? 'border-green-500' : ''}
             `}
           >
             <div className="flex items-start gap-3">
@@ -80,33 +112,122 @@ export default function SegmentList({ fileId, onSegmentClick, currentTime = 0 }:
 
               <div className="flex-1 min-w-0">
                 {/* Header with speaker and time */}
-                <div className="flex items-center gap-2 mb-2">
-                  {speaker && (
-                    <span
-                      className="px-2 py-1 rounded text-xs font-medium"
-                      style={{
-                        backgroundColor: `${speaker.color}20`,
-                        color: speaker.color,
-                      }}
-                    >
-                      {speaker.display_name}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    {speaker && (
+                      <span
+                        className="px-2 py-1 rounded text-xs font-medium"
+                        style={{
+                          backgroundColor: `${speaker.color}20`,
+                          color: speaker.color,
+                        }}
+                      >
+                        {speaker.display_name}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      {formatTime(segment.start_time)} - {formatTime(segment.end_time)}
                     </span>
+                  </div>
+
+                  {/* Playback and Edit controls */}
+                  {!isEditing ? (
+                    <div className="flex gap-1">
+                      {/* Play/Pause button */}
+                      {isPlaying && isActive ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onPauseRequest?.()
+                          }}
+                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Pause"
+                        >
+                          ⏸
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // If active segment, just resume playing from current position
+                            // If not active, seek to this segment's start
+                            if (isActive) {
+                              onPlayRequest?.()
+                            } else {
+                              onSegmentClick?.(segment)
+                            }
+                          }}
+                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title={isActive ? "Play" : "Jump to segment"}
+                        >
+                          ▶
+                        </button>
+                      )}
+
+                      {/* Replay button - only show if this segment is active */}
+                      {isActive && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Always seek to start of segment
+                            onSegmentClick?.(segment)
+                          }}
+                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          title="Replay segment from start"
+                        >
+                          ↻
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleStartEdit(segment)}
+                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Edit"
+                      >
+                        ✏️
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSaveEdit(segment.id)}
+                        disabled={updateSegment.isPending}
+                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   )}
-                  <span className="text-xs text-gray-500">
-                    {formatTime(segment.start_time)} - {formatTime(segment.end_time)}
-                  </span>
                 </div>
 
-                {/* Text content */}
-                <p className="text-gray-900">
-                  {segment.edited_text || segment.original_text}
-                </p>
+                {/* Text content - editable or display */}
+                {isEditing ? (
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    rows={3}
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <p className="text-gray-900">
+                      {segment.edited_text || segment.original_text}
+                    </p>
 
-                {/* Show if edited */}
-                {segment.edited_text && (
-                  <div className="mt-2 text-xs text-gray-500 italic">
-                    Original: {segment.original_text}
-                  </div>
+                    {/* Show if edited */}
+                    {segment.edited_text && (
+                      <div className="mt-2 text-xs text-gray-500 italic">
+                        Original: {segment.original_text}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

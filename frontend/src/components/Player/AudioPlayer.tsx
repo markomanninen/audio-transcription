@@ -5,6 +5,9 @@ interface AudioPlayerProps {
   currentTime?: number
   onTimeUpdate?: (time: number) => void
   onSeek?: (time: number) => void
+  shouldPlay?: boolean
+  shouldPause?: boolean
+  onPlayingChange?: (isPlaying: boolean) => void
 }
 
 export default function AudioPlayer({
@@ -12,11 +15,19 @@ export default function AudioPlayer({
   currentTime,
   onTimeUpdate,
   onSeek,
+  shouldPlay = false,
+  shouldPause = false,
+  onPlayingChange,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [localCurrentTime, setLocalCurrentTime] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Notify parent about playing state changes
+  useEffect(() => {
+    onPlayingChange?.(isPlaying)
+  }, [isPlaying, onPlayingChange])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -30,27 +41,82 @@ export default function AudioPlayer({
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration)
+      console.log('Audio loaded:', { duration: audio.duration, src: audio.src })
     }
 
     const handleEnded = () => {
       setIsPlaying(false)
     }
 
+    const handleError = (e: Event) => {
+      console.error('Audio error:', {
+        error: audio.error,
+        code: audio.error?.code,
+        message: audio.error?.message,
+        src: audio.src,
+        networkState: audio.networkState,
+        readyState: audio.readyState
+      })
+    }
+
+    const handleCanPlay = () => {
+      console.log('Audio can play:', { readyState: audio.readyState })
+    }
+
+    const handleStalled = () => {
+      console.warn('Audio stalled - network issue?')
+    }
+
+    const handleWaiting = () => {
+      console.log('Audio waiting for data...')
+    }
+
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
+    audio.addEventListener('canplay', handleCanPlay)
+    audio.addEventListener('stalled', handleStalled)
+    audio.addEventListener('waiting', handleWaiting)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
+      audio.removeEventListener('canplay', handleCanPlay)
+      audio.removeEventListener('stalled', handleStalled)
+      audio.removeEventListener('waiting', handleWaiting)
     }
   }, [onTimeUpdate])
 
-  // Sync external currentTime prop
+  // Handle play requests (resume from current position)
   useEffect(() => {
-    if (currentTime !== undefined && audioRef.current) {
-      audioRef.current.currentTime = currentTime
+    if (shouldPlay && audioRef.current) {
+      audioRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.error('Play error:', err))
+    }
+  }, [shouldPlay])
+
+  // Handle pause requests
+  useEffect(() => {
+    if (shouldPause && audioRef.current) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    }
+  }, [shouldPause])
+
+  // Sync external currentTime prop (for seeking from segment clicks/replay)
+  useEffect(() => {
+    const audio = audioRef.current
+    if (currentTime !== undefined && audio && Math.abs(audio.currentTime - currentTime) > 1) {
+      // Only seek if the difference is more than 1 second to avoid constant updates
+      audio.currentTime = currentTime
+      // Always start playing after seeking (segment click or replay)
+      audio.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.error('Playback error:', err))
     }
   }, [currentTime])
 
@@ -75,6 +141,17 @@ export default function AudioPlayer({
     }
   }
 
+  const handleReplay = () => {
+    const audio = audioRef.current
+    if (!audio) return
+
+    audio.currentTime = 0
+    setLocalCurrentTime(0)
+    if (isPlaying) {
+      audio.play().catch(err => console.error('Replay error:', err))
+    }
+  }
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
@@ -83,7 +160,7 @@ export default function AudioPlayer({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+      <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous" />
 
       <div className="space-y-4">
         {/* Timeline */}
@@ -109,6 +186,21 @@ export default function AudioPlayer({
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-4">
+          {/* Replay button */}
+          <button
+            onClick={handleReplay}
+            className="
+              w-10 h-10 rounded-full bg-gray-200 text-gray-700
+              flex items-center justify-center
+              hover:bg-gray-300 transition-colors
+              focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
+            "
+            title="Replay from beginning"
+          >
+            <span className="text-lg">↻</span>
+          </button>
+
+          {/* Play/Pause button */}
           <button
             onClick={togglePlayPause}
             className="
@@ -117,6 +209,7 @@ export default function AudioPlayer({
               hover:bg-blue-700 transition-colors
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
             "
+            title={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">

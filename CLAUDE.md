@@ -44,11 +44,16 @@ Docker-hosted audio interview transcription application with advanced editing ca
 - **`src/components/`**: React components
   - `Upload/`: Drag-drop file upload with progress
   - `Player/`: Audio player with waveform and sync
-  - `Editor/`: Segment-based text editor with speaker labels
-  - `Comparison/`: Side-by-side original vs edited view
-  - `Export/`: Format selection and preview
-- **`src/hooks/`**: Custom React hooks for audio sync, WebSocket, API
-- **`src/api/`**: API client with React Query integration
+  - `Dashboard/`: Project selector, file list, transcription progress
+  - `Transcription/`: Segment list with speaker labels and timestamps
+  - `Editor/`: Segment-based text editor (Phase 4)
+  - `Comparison/`: Side-by-side original vs edited view (Phase 5)
+  - `Export/`: Format selection and preview (Phase 6)
+- **`src/hooks/`**: Custom React hooks
+  - `useProjects`: Project CRUD operations
+  - `useUpload`: File upload with progress tracking
+  - `useTranscription`: Transcription status polling, segments, speakers
+- **`src/api/`**: Axios client with React Query integration
 - **`src/types/`**: TypeScript interfaces matching backend models
 
 ### Data Flow
@@ -175,15 +180,37 @@ Default is Ollama with `llama3.2:1b` model. To use OpenRouter:
 
 ### Audio Processing Pipeline
 
-Transcription jobs are async background tasks. Status tracked via WebSocket:
+Transcription jobs are async background tasks using FastAPI BackgroundTasks. Status tracked via polling:
 
 ```python
-# Backend pattern
-job = queue.enqueue(transcribe_audio, file_id)
-await websocket.send_json({"status": "processing", "progress": 0.45})
+# Backend pattern (app/api/transcription.py)
+@router.post("/{file_id}/start")
+async def start_transcription(file_id: int, background_tasks: BackgroundTasks):
+    background_tasks.add_task(transcription_service.transcribe_audio, file_id)
+    return {"status": "processing"}
 
-# Frontend pattern
-const { data } = useTranscriptionStatus(fileId); // WebSocket hook
+# Frontend pattern (useTranscription.ts)
+const { data: status } = useTranscriptionStatus(fileId, 2000); // Polls every 2s
+```
+
+### Project Management
+
+Projects are persisted in localStorage for convenience:
+
+```typescript
+// App.tsx pattern
+const [projectId, setProjectId] = useState<number | null>(() => {
+  const saved = localStorage.getItem('selectedProjectId')
+  return saved ? parseInt(saved) : null
+})
+
+useEffect(() => {
+  if (projectId) {
+    localStorage.setItem('selectedProjectId', projectId.toString())
+  }
+  // Clear selected file when project changes
+  setSelectedFileId(null)
+}, [projectId])
 ```
 
 ### Segment Editing
@@ -191,14 +218,15 @@ const { data } = useTranscriptionStatus(fileId); // WebSocket hook
 Edits auto-save but maintain history. Original text is immutable:
 
 ```typescript
-// Segment model
+// Segment model (types/index.ts)
 interface Segment {
-  id: string;
-  originalText: string;    // Never changes
-  editedText?: string;     // Latest user edit
-  speakerId: string;
-  startTime: number;
-  endTime: number;
+  id: number;
+  original_text: string;    // Never changes
+  edited_text?: string;     // Latest user edit
+  speaker_id?: number;
+  start_time: number;
+  end_time: number;
+  sequence: number;
 }
 ```
 

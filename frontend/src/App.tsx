@@ -6,6 +6,7 @@ import FileList from './components/Dashboard/FileList'
 import TranscriptionProgress from './components/Dashboard/TranscriptionProgress'
 import AudioPlayer from './components/Player/AudioPlayer'
 import SegmentList from './components/Transcription/SegmentList'
+import SpeakerManager from './components/Transcription/SpeakerManager'
 import ProjectSelector from './components/Dashboard/ProjectSelector'
 import ProjectEditor from './components/Dashboard/ProjectEditor'
 import type { Segment } from './types'
@@ -27,6 +28,9 @@ function MainApp() {
   })
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
   const [audioCurrentTime, setAudioCurrentTime] = useState(0)
+  const [shouldPlayAudio, setShouldPlayAudio] = useState(false)
+  const [shouldPauseAudio, setShouldPauseAudio] = useState(false)
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isEditingProject, setIsEditingProject] = useState(false)
   const createProject = useCreateProject()
   const { data: currentProject } = useProject(projectId)
@@ -58,6 +62,19 @@ function MainApp() {
 
   const handleSegmentClick = (segment: Segment) => {
     setAudioCurrentTime(segment.start_time)
+    setShouldPlayAudio(true)
+    // Reset shouldPlay after a brief moment so it doesn't interfere with future updates
+    setTimeout(() => setShouldPlayAudio(false), 100)
+  }
+
+  const handlePlayRequest = () => {
+    setShouldPlayAudio(true)
+    setTimeout(() => setShouldPlayAudio(false), 100)
+  }
+
+  const handlePauseRequest = () => {
+    setShouldPauseAudio(true)
+    setTimeout(() => setShouldPauseAudio(false), 100)
   }
 
   return (
@@ -175,10 +192,18 @@ function MainApp() {
 
                   {/* Audio Player */}
                   <AudioPlayer
-                    audioUrl={`/api/audio/${selectedFileId}`}
+                    audioUrl={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/audio/${selectedFileId}`}
                     currentTime={audioCurrentTime}
                     onTimeUpdate={setAudioCurrentTime}
+                    shouldPlay={shouldPlayAudio}
+                    shouldPause={shouldPauseAudio}
+                    onPlayingChange={setIsAudioPlaying}
                   />
+
+                  {/* Speaker Management */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <SpeakerManager fileId={selectedFileId} />
+                  </div>
 
                   {/* Transcription Segments */}
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -188,7 +213,10 @@ function MainApp() {
                     <SegmentList
                       fileId={selectedFileId}
                       currentTime={audioCurrentTime}
+                      isPlaying={isAudioPlaying}
                       onSegmentClick={handleSegmentClick}
+                      onPlayRequest={handlePlayRequest}
+                      onPauseRequest={handlePauseRequest}
                     />
                   </div>
                 </>

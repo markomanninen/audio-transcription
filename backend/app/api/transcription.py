@@ -59,6 +59,11 @@ class StartTranscriptionRequest(BaseModel):
     include_diarization: bool = True
 
 
+class SegmentUpdateRequest(BaseModel):
+    """Request to update a segment's edited text."""
+    edited_text: str
+
+
 def transcribe_task(audio_file_id: int, include_diarization: bool):
     """Background task for transcription."""
     from ..core.database import SessionLocal
@@ -208,3 +213,80 @@ async def get_speakers(
         )
         for s in speakers
     ]
+
+
+@router.patch("/segment/{segment_id}", response_model=SegmentResponse)
+async def update_segment(
+    segment_id: int,
+    request: SegmentUpdateRequest,
+    db: Session = Depends(get_db)
+) -> SegmentResponse:
+    """
+    Update a segment's edited text.
+
+    Args:
+        segment_id: ID of segment to update
+        request: Updated text
+        db: Database session
+
+    Returns:
+        Updated segment
+    """
+    segment = db.query(Segment).filter(Segment.id == segment_id).first()
+    if not segment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Segment {segment_id} not found"
+        )
+
+    segment.edited_text = request.edited_text
+    db.commit()
+    db.refresh(segment)
+
+    return SegmentResponse(
+        id=segment.id,
+        start_time=segment.start_time,
+        end_time=segment.end_time,
+        original_text=segment.original_text,
+        edited_text=segment.edited_text,
+        speaker_id=segment.speaker_id,
+        sequence=segment.sequence
+    )
+
+
+@router.put("/speaker/{speaker_id}", response_model=SpeakerResponse)
+async def update_speaker(
+    speaker_id: int,
+    request: dict,
+    db: Session = Depends(get_db)
+) -> SpeakerResponse:
+    """
+    Update a speaker's display name.
+
+    Args:
+        speaker_id: ID of speaker to update
+        request: New display name
+        db: Database session
+
+    Returns:
+        Updated speaker
+    """
+    speaker = db.query(Speaker).filter(Speaker.id == speaker_id).first()
+    if not speaker:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Speaker {speaker_id} not found"
+        )
+
+    if "display_name" in request:
+        speaker.display_name = request["display_name"]
+
+    db.commit()
+    db.refresh(speaker)
+
+    return SpeakerResponse(
+        id=speaker.id,
+        speaker_id=speaker.speaker_id,
+        display_name=speaker.display_name,
+        color=speaker.color
+    )
