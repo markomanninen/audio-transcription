@@ -30,7 +30,9 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 ## Development Phases
 
-### Phase 1: Project Foundation (Tests + Docs)
+**Status Legend**: ✅ Complete | 🚧 In Progress | ⏳ Pending
+
+### Phase 1: Project Foundation (Tests + Docs) ✅
 
 **Goal**: Set up project structure, Docker environment, and basic CI/CD
 
@@ -65,9 +67,15 @@ Docker-hosted web application for audio interview transcription with advanced ed
 - CLAUDE.md with project conventions
 - README.md with setup instructions
 
+**Status**: ✅ Complete
+- Docker environment functional
+- Testing framework set up (pytest, Vitest, Playwright)
+- CLAUDE.md created and maintained
+- README.md with setup instructions
+
 ---
 
-### Phase 2: Core Backend Services
+### Phase 2: Core Backend Services ✅
 
 **Goal**: Implement audio processing and transcription pipeline
 
@@ -103,14 +111,20 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 **Tests**:
 
-- Audio upload validation
-- Transcription accuracy (sample audio)
-- Speaker diarization accuracy
-- API endpoint responses
+- Audio upload validation ✅
+- Transcription accuracy (sample audio) ✅
+- Speaker diarization accuracy ✅
+- API endpoint responses ✅
+
+**Status**: ✅ Complete
+- Audio upload with validation working
+- Whisper transcription integrated
+- PyAnnote speaker diarization working
+- All database models and API endpoints implemented
 
 ---
 
-### Phase 3: Frontend - Upload & Transcription UI
+### Phase 3: Frontend - Upload & Transcription UI ✅
 
 **Goal**: User can upload files and view transcription progress
 
@@ -138,14 +152,21 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 **Tests**:
 
-- File upload flow
-- Progress tracking
-- Audio playback
-- Transcription rendering
+- File upload flow ✅
+- Progress tracking ✅
+- Audio playback ✅
+- Transcription rendering ✅
+
+**Status**: ✅ Complete
+- Drag-and-drop file upload working
+- Real-time transcription progress with polling
+- Audio player with timeline and controls
+- Segment display with speaker labels
+- Project management (create, select, edit) with localStorage
 
 ---
 
-### Phase 4: Advanced Editor Features
+### Phase 4: Advanced Editor Features ✅
 
 **Goal**: Rich editing experience with text-audio synchronization
 
@@ -173,51 +194,66 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 **Tests**:
 
-- Segment editing and persistence
-- Audio-text sync accuracy
-- Speaker operations
-- Diff calculation
+- Segment editing and persistence ✅
+- Audio-text sync accuracy ✅
+- Speaker operations ✅
+- Original vs edited text comparison ✅
+
+**Status**: ✅ Complete
+- Inline segment editing with Save/Cancel
+- Audio seek on segment click (play button)
+- Active segment highlighting during playback
+- Speaker renaming with SpeakerManager component
+- Synchronized play/pause/replay controls (main + segment level)
+- Original text shown below edited text in italic
 
 ---
 
-### Phase 5: AI-Powered Corrections
+### Phase 5: AI-Powered Corrections ✅
 
 **Goal**: Spell check, grammar correction, and formatting improvements
 
+**Status**: ✅ Complete
+
 **Tasks**:
 
-1. LLM service integration
-   - OpenRouter API client
-   - Ollama local client (llama3.2:1b)
-   - Service selection in settings
+1. LLM service integration ✅
+   - Base LLMProvider interface (abstract class)
+   - Ollama local client (llama3.2:1b) with health checks
+   - OpenRouter API client for cloud inference
+   - LLMService managing multiple providers
 
-2. Correction features
+2. Correction features ✅
    - Spell check per segment
    - Grammar correction
    - Punctuation improvement
-   - Batch processing option
+   - Correction types: grammar, spelling, punctuation, all
+   - Batch processing endpoint for multiple segments
 
-3. Review interface
-   - Suggestion highlighting
-   - Accept/reject individual changes
-   - Confidence scores
-   - Bulk accept/reject
+3. Review interface ✅
+   - CorrectionDialog component with visual diff
+   - Accept/reject individual suggestions
+   - Confidence scores with progress bar
+   - Change detection and display
+   - ✨ AI Correct button per segment
 
-4. Settings management
-   - LLM provider selection
-   - Model configuration
-   - API key management
+4. Settings management ✅
+   - LLMSettings component with provider dropdown
+   - Health status indicators (green/red dots)
+   - Provider selection persisted to localStorage
+   - Real-time health monitoring (30s intervals)
 
 **Tests**:
 
-- LLM API integration
-- Correction accuracy
-- Suggestion UI interaction
-- Settings persistence
+- LLM API integration ✅
+- Correction accuracy ✅
+- Batch correction ✅
+- Error handling ✅
+- Provider health checks ✅
 
 ---
 
-### Phase 6: Export Functionality
+### Phase 6: Export Functionality ✅
 
 **Goal**: Generate professional outputs in multiple formats
 
@@ -248,16 +284,68 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 **Tests**:
 
-- SRT format validation
-- HTML rendering
-- PDF generation
-- Export accuracy
+- SRT format validation ✅
+- HTML rendering ✅
+- TXT export ✅
+- Export accuracy ✅
+
+**Status**: ✅ Complete (Note: PDF skipped, TXT added instead)
+- SRT export with proper timestamps (HH:MM:SS,mmm)
+- HTML export with styled document and metadata
+- TXT export with plain text formatting
+- ExportDialog component with customizable options:
+  - Use edited vs original text toggle
+  - Include/exclude speaker names
+  - Include/exclude timestamps (HTML/TXT)
+- Export button in transcription UI
+- Files download with correct Content-Disposition headers
 
 ---
 
-### Phase 7: Polish & Production Readiness
+### Phase 7: UI/UX Enhancements ⏳
+
+**Goal**: Improve visual design, usability, and polish
+
+**Status**: ⏳ Planned (after Phase 5: AI)
+
+**Tasks**:
+
+1. Visual design improvements
+   - Better spacing and typography
+   - Consistent color scheme
+   - Professional styling for all components
+   - Loading spinners and skeletons
+
+2. Keyboard shortcuts
+   - Play/Pause: Spacebar
+   - Skip forward/back: Arrow keys
+   - Edit segment: E key
+   - Save edit: Ctrl+Enter
+
+3. Mobile responsiveness
+   - Responsive grid layouts
+   - Touch-friendly controls
+   - Mobile-optimized player
+
+4. Error handling UI
+   - User-friendly error messages
+   - Retry mechanisms
+   - Toast notifications
+
+5. Accessibility
+   - ARIA labels
+   - Keyboard navigation
+   - Screen reader support
+
+6. Optional: Dark mode
+
+---
+
+### Phase 8: Polish & Production Readiness ⏳
 
 **Goal**: Performance optimization, security, and deployment
+
+**Status**: ⏳ Future phase
 
 **Tasks**:
 

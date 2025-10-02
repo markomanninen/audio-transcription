@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useSegments, useSpeakers, useUpdateSegment } from '../../hooks/useTranscription'
+import { useCorrectSegment } from '../../hooks/useAICorrections'
+import { CorrectionDialog } from '../AI/CorrectionDialog'
 import type { Segment } from '../../types'
+import type { CorrectionResponse } from '../../api/aiCorrections'
 
 interface SegmentListProps {
   fileId: number
@@ -9,6 +12,7 @@ interface SegmentListProps {
   onPauseRequest?: () => void
   currentTime?: number
   isPlaying?: boolean
+  llmProvider?: string
 }
 
 export default function SegmentList({
@@ -17,13 +21,16 @@ export default function SegmentList({
   onPlayRequest,
   onPauseRequest,
   currentTime = 0,
-  isPlaying = false
+  isPlaying = false,
+  llmProvider = 'ollama'
 }: SegmentListProps) {
   const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useSegments(fileId)
   const { data: speakers } = useSpeakers(fileId)
   const updateSegment = useUpdateSegment()
+  const correctSegment = useCorrectSegment()
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
+  const [correction, setCorrection] = useState<CorrectionResponse | null>(null)
 
   console.log('SegmentList render:', { fileId, segments, isLoading: segmentsLoading, error: segmentsError })
 
@@ -59,6 +66,19 @@ export default function SegmentList({
     setEditText('')
   }
 
+  const handleAICorrect = async (segment: Segment) => {
+    try {
+      const result = await correctSegment.mutateAsync({
+        segment_id: segment.id,
+        provider: llmProvider,
+        correction_type: 'all'
+      })
+      setCorrection(result)
+    } catch (error) {
+      console.error('AI correction failed:', error)
+    }
+  }
+
   if (segmentsLoading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -86,8 +106,9 @@ export default function SegmentList({
   }
 
   return (
-    <div className="space-y-2">
-      {segments.map((segment) => {
+    <>
+      <div className="space-y-2">
+        {segments.map((segment) => {
         const speaker = getSpeakerInfo(segment.speaker_id)
         const isActive = isSegmentActive(segment)
         const isEditing = editingSegmentId === segment.id
@@ -180,6 +201,14 @@ export default function SegmentList({
                       )}
 
                       <button
+                        onClick={() => handleAICorrect(segment)}
+                        disabled={correctSegment.isPending}
+                        className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-50"
+                        title="AI Correct"
+                      >
+                        ✨
+                      </button>
+                      <button
                         onClick={() => handleStartEdit(segment)}
                         className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
                         title="Edit"
@@ -233,7 +262,14 @@ export default function SegmentList({
             </div>
           </div>
         )
-      })}
-    </div>
+        })}
+      </div>
+
+      <CorrectionDialog
+        correction={correction}
+        onClose={() => setCorrection(null)}
+        onAccept={() => setCorrection(null)}
+      />
+    </>
   )
 }

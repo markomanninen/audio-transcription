@@ -1,0 +1,65 @@
+/**
+ * AI correction API client
+ */
+import { apiClient } from './client'
+
+export interface CorrectionRequest {
+  segment_id: number
+  provider?: string
+  correction_type?: string
+}
+
+export interface BatchCorrectionRequest {
+  segment_ids: number[]
+  provider?: string
+  correction_type?: string
+}
+
+export interface CorrectionResponse {
+  segment_id: number
+  original_text: string
+  corrected_text: string
+  changes: string[]
+  confidence: number
+}
+
+export interface ProviderInfo {
+  name: string
+  available: boolean
+}
+
+/**
+ * Correct a single segment
+ */
+export const correctSegment = async (
+  request: CorrectionRequest
+): Promise<CorrectionResponse> => {
+  const response = await apiClient.post('/api/ai/correct-segment', request)
+  return response.data
+}
+
+/**
+ * Correct multiple segments
+ */
+export const correctBatch = async (
+  request: BatchCorrectionRequest
+): Promise<CorrectionResponse[]> => {
+  const response = await apiClient.post('/api/ai/correct-batch', request)
+  return response.data
+}
+
+/**
+ * List available LLM providers
+ */
+export const listProviders = async (): Promise<ProviderInfo[]> => {
+  const response = await apiClient.get('/api/ai/providers')
+  return response.data
+}
+
+/**
+ * Check health of LLM providers
+ */
+export const checkProviderHealth = async (): Promise<Record<string, boolean>> => {
+  const response = await apiClient.get('/api/ai/health')
+  return response.data
+}

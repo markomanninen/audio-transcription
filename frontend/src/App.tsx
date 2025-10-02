@@ -11,6 +11,7 @@ import SpeakerManager from './components/Transcription/SpeakerManager'
 import ProjectSelector from './components/Dashboard/ProjectSelector'
 import ProjectEditor from './components/Dashboard/ProjectEditor'
 import ExportDialog from './components/Export/ExportDialog'
+import { LLMSettings } from './components/Settings/LLMSettings'
 import type { Segment } from './types'
 
 const queryClient = new QueryClient({
@@ -35,9 +36,17 @@ function MainApp() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isEditingProject, setIsEditingProject] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [llmProvider, setLlmProvider] = useState<string>(() => {
+    return localStorage.getItem('llmProvider') || 'ollama'
+  })
   const createProject = useCreateProject()
   const { data: currentProject } = useProject(projectId)
   const { data: projectFiles } = useProjectFiles(projectId)
+
+  // Save LLM provider preference
+  useEffect(() => {
+    localStorage.setItem('llmProvider', llmProvider)
+  }, [llmProvider])
 
   // Get current selected file
   const selectedFile = projectFiles?.find(f => f.file_id === selectedFileId)
@@ -94,6 +103,10 @@ function MainApp() {
               Audio Transcription
             </h1>
             <div className="flex items-center gap-4">
+              <LLMSettings
+                selectedProvider={llmProvider}
+                onProviderChange={setLlmProvider}
+              />
               <div className="w-64">
                 <ProjectSelector
                   selectedProjectId={projectId}
@@ -233,6 +246,7 @@ function MainApp() {
                       onSegmentClick={handleSegmentClick}
                       onPlayRequest={handlePlayRequest}
                       onPauseRequest={handlePauseRequest}
+                      llmProvider={llmProvider}
                     />
                   </div>
 

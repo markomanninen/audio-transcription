@@ -4,27 +4,86 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 ## Features
 
-- **Audio Upload**: Drag-and-drop interface supporting multiple formats (MP3, WAV, M4A, WebM, OGG, FLAC)
-- **Auto-Transcription**: Powered by OpenAI Whisper with configurable model sizes
-- **Speaker Recognition**: Automatic speaker diarization using PyAnnote Audio
+### ✅ Implemented (Phases 1-6)
+
+- **Project Management**:
+  - Create and organize multiple transcription projects
+  - Switch between projects with dropdown selector
+  - Edit project names and descriptions
+  - Persistent project selection (localStorage)
+
+- **Audio Upload & Processing**:
+  - Drag-and-drop interface supporting multiple formats (MP3, WAV, M4A, WebM, OGG, FLAC)
+  - File validation (format, size, MIME type)
+  - Real-time upload progress
+  - Audio duration detection
+
+- **Auto-Transcription**:
+  - Powered by OpenAI Whisper (base model by default)
+  - Background processing with status tracking
+  - Real-time progress updates (polling)
+  - Automatic speaker diarization using PyAnnote Audio
+
 - **Interactive Editor**:
-  - Line-by-line editing with auto-save
-  - Audio-text synchronization
-  - Speaker management (rename, merge, reassign)
-  - Original vs edited text comparison
-- **AI Corrections**: Spell check and grammar correction via LLM
-  - Local: Ollama (llama3.2:1b) - default
-  - Cloud: OpenRouter API
-- **Multiple Export Formats**:
-  - SRT (subtitles with timestamps)
-  - HTML (formatted document)
-  - PDF (professional layout)
+  - Line-by-line editing with inline text areas
+  - Save/Cancel controls per segment
+  - Original text preserved (shown in italic when edited)
+  - Timestamps displayed (MM:SS format)
+  - Speaker color-coding and labels
+
+- **Speaker Management**:
+  - Rename speakers with inline editing
+  - Color-coded speaker visualization
+  - Speaker names in export outputs
+
+- **Advanced Playback Controls**:
+  - Main audio player with timeline scrubber
+  - Synchronized segment-level controls:
+    - ▶ Play: Continues from current position (or seeks if not active)
+    - ⏸ Pause: Only visible when segment is playing
+    - ↻ Replay: Restarts segment from beginning
+  - Active segment highlighting during playback
+  - Click segment timestamp to jump to audio position
+  - HTTP range request support for smooth streaming
+
+- **Export Formats**:
+  - **SRT**: Standard subtitles with HH:MM:SS,mmm timestamps
+  - **HTML**: Styled document with metadata and formatting
+  - **TXT**: Plain text with optional timestamps
+  - Customizable options:
+    - Use edited vs original text
+    - Include/exclude speaker names
+    - Include/exclude timestamps
+
+- **AI-Powered Corrections**:
+  - Spell check and grammar correction via LLM
+  - Local inference: Ollama (llama3.2:1b default)
+  - Cloud inference: OpenRouter API (optional)
+  - Provider selection with health status indicators
+  - Interactive review dialog for suggestions
+  - Accept/reject corrections per segment
+  - Shows detected changes and confidence scores
+
+### ⏳ Planned (Phase 7-8)
+
+- **UI/UX Enhancements** (Phase 7):
+  - Improved visual design
+  - Keyboard shortcuts
+  - Mobile responsiveness
+  - Dark mode
+  - Better error handling UI
+
+- **Production Polish** (Phase 8):
+  - Performance optimization
+  - Security hardening
+  - Monitoring and logging
 
 ## Tech Stack
 
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy, Whisper, PyAnnote Audio
-- **Frontend**: React 18, TypeScript, Tailwind CSS, React Query, WaveSurfer.js
-- **Infrastructure**: Docker Compose, Redis, Ollama, Nginx
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy, SQLite, OpenAI Whisper, PyAnnote Audio
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, React Query (TanStack Query), Axios
+- **Infrastructure**: Docker Compose, Ollama (for future AI features)
+- **Testing**: pytest (backend), Vitest (frontend), Playwright (E2E)
 
 ## Quick Start
 
@@ -69,18 +128,22 @@ Docker-hosted web application for audio interview transcription with advanced ed
    ```
 
 5. **Access the application**
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
 
 ### First Transcription
 
-1. Open http://localhost:3000
-2. Upload an audio file (drag-and-drop or click to browse)
-3. Wait for transcription to complete (progress shown in real-time)
-4. Edit transcription text as needed
-5. Use AI corrections for spell/grammar improvements
-6. Export in your preferred format (SRT, HTML, or PDF)
+1. **Open** http://localhost:5173
+2. **Create a project**: Click "New Project" and enter a name
+3. **Upload audio**: Drag and drop an audio file (or click to browse)
+4. **Start transcription**: Click the "Transcribe" button on your uploaded file
+5. **Wait for processing**: Real-time progress shown (typically 1-3 minutes for a 3-minute audio)
+6. **Review and edit**:
+   - Click ✏️ to edit any segment
+   - Click ▶ to play audio from that segment
+   - Rename speakers if needed
+7. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
 
 ## Development
 

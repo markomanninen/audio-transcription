@@ -1,0 +1,202 @@
+"""
+AI-powered text correction endpoints.
+"""
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import List, Optional, Dict, Any
+
+from ..core.database import get_db
+from ..models.segment import Segment
+from ..services.llm.llm_service import LLMService
+
+router = APIRouter(prefix="/api/ai", tags=["ai"])
+
+
+class SegmentCorrectionRequest(BaseModel):
+    """Request model for correcting a single segment."""
+    segment_id: int
+    provider: str = "ollama"
+    correction_type: str = "all"
+
+
+class BatchCorrectionRequest(BaseModel):
+    """Request model for correcting multiple segments."""
+    segment_ids: List[int]
+    provider: str = "ollama"
+    correction_type: str = "all"
+
+
+class CorrectionResponse(BaseModel):
+    """Response model for correction results."""
+    segment_id: int
+    original_text: str
+    corrected_text: str
+    changes: List[str]
+    confidence: float
+
+
+class ProviderInfo(BaseModel):
+    """Provider information model."""
+    name: str
+    available: bool
+
+
+@router.post("/correct-segment", response_model=CorrectionResponse)
+async def correct_segment(
+    request: SegmentCorrectionRequest,
+    db: Session = Depends(get_db)
+) -> CorrectionResponse:
+    """
+    Correct a single segment using specified LLM provider.
+
+    Args:
+        request: Correction request with segment_id, provider, correction_type
+        db: Database session
+
+    Returns:
+        Correction results with suggested changes
+
+    Raises:
+        HTTPException: If segment not found or provider unavailable
+    """
+    # Get segment
+    segment = db.query(Segment).filter(Segment.id == request.segment_id).first()
+    if not segment:
+        raise HTTPException(status_code=404, detail=f"Segment {request.segment_id} not found")
+
+    # Use edited text if available, otherwise original
+    text_to_correct = segment.edited_text or segment.original_text
+
+    # Get speaker context if available
+    context = ""
+    if segment.speaker:
+        context = f"Speaker: {segment.speaker.display_name or segment.speaker.label}"
+
+    # Initialize LLM service
+    llm_service = LLMService()
+
+    try:
+        # Perform correction
+        result = await llm_service.correct_text(
+            text=text_to_correct,
+            provider=request.provider,
+            context=context,
+            correction_type=request.correction_type
+        )
+
+        return CorrectionResponse(
+            segment_id=segment.id,
+            original_text=result["original_text"],
+            corrected_text=result["corrected_text"],
+            changes=result["changes"],
+            confidence=result["confidence"]
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ConnectionError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Correction failed: {str(e)}")
+
+
+@router.post("/correct-batch", response_model=List[CorrectionResponse])
+async def correct_batch(
+    request: BatchCorrectionRequest,
+    db: Session = Depends(get_db)
+) -> List[CorrectionResponse]:
+    """
+    Correct multiple segments using specified LLM provider.
+
+    Args:
+        request: Batch correction request with segment_ids, provider, correction_type
+        db: Database session
+
+    Returns:
+        List of correction results for each segment
+
+    Raises:
+        HTTPException: If any segment not found or provider unavailable
+    """
+    # Get all segments
+    segments = db.query(Segment).filter(Segment.id.in_(request.segment_ids)).all()
+
+    if len(segments) != len(request.segment_ids):
+        found_ids = {seg.id for seg in segments}
+        missing_ids = set(request.segment_ids) - found_ids
+        raise HTTPException(
+            status_code=404,
+            detail=f"Segments not found: {missing_ids}"
+        )
+
+    # Initialize LLM service
+    llm_service = LLMService()
+
+    results = []
+    for segment in segments:
+        # Use edited text if available, otherwise original
+        text_to_correct = segment.edited_text or segment.original_text
+
+        # Get speaker context if available
+        context = ""
+        if segment.speaker:
+            context = f"Speaker: {segment.speaker.display_name or segment.speaker.label}"
+
+        try:
+            # Perform correction
+            result = await llm_service.correct_text(
+                text=text_to_correct,
+                provider=request.provider,
+                context=context,
+                correction_type=request.correction_type
+            )
+
+            results.append(CorrectionResponse(
+                segment_id=segment.id,
+                original_text=result["original_text"],
+                corrected_text=result["corrected_text"],
+                changes=result["changes"],
+                confidence=result["confidence"]
+            ))
+
+        except Exception as e:
+            # Continue with other segments even if one fails
+            results.append(CorrectionResponse(
+                segment_id=segment.id,
+                original_text=text_to_correct,
+                corrected_text=text_to_correct,
+                changes=[f"Error: {str(e)}"],
+                confidence=0.0
+            ))
+
+    return results
+
+
+@router.get("/providers", response_model=List[ProviderInfo])
+async def list_providers() -> List[ProviderInfo]:
+    """
+    List available LLM providers.
+
+    Returns:
+        List of provider names and availability status
+    """
+    llm_service = LLMService()
+    provider_names = llm_service.list_providers()
+
+    return [
+        ProviderInfo(name=name, available=True)
+        for name in provider_names
+    ]
+
+
+@router.get("/health", response_model=Dict[str, bool])
+async def health_check() -> Dict[str, bool]:
+    """
+    Check health status of all LLM providers.
+
+    Returns:
+        Dictionary mapping provider names to health status
+    """
+    llm_service = LLMService()
+    return await llm_service.health_check_all()
