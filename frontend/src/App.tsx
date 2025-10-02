@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useCreateProject, useProject } from './hooks/useProjects'
+import { useProjectFiles } from './hooks/useUpload'
 import FileUploader from './components/Upload/FileUploader'
 import FileList from './components/Dashboard/FileList'
 import TranscriptionProgress from './components/Dashboard/TranscriptionProgress'
@@ -9,6 +10,7 @@ import SegmentList from './components/Transcription/SegmentList'
 import SpeakerManager from './components/Transcription/SpeakerManager'
 import ProjectSelector from './components/Dashboard/ProjectSelector'
 import ProjectEditor from './components/Dashboard/ProjectEditor'
+import ExportDialog from './components/Export/ExportDialog'
 import type { Segment } from './types'
 
 const queryClient = new QueryClient({
@@ -32,8 +34,13 @@ function MainApp() {
   const [shouldPauseAudio, setShouldPauseAudio] = useState(false)
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isEditingProject, setIsEditingProject] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const createProject = useCreateProject()
   const { data: currentProject } = useProject(projectId)
+  const { data: projectFiles } = useProjectFiles(projectId)
+
+  // Get current selected file
+  const selectedFile = projectFiles?.find(f => f.file_id === selectedFileId)
 
   // Save to localStorage when projectId changes
   useEffect(() => {
@@ -207,9 +214,18 @@ function MainApp() {
 
                   {/* Transcription Segments */}
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      Transcription
-                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        Transcription
+                      </h2>
+                      <button
+                        onClick={() => setShowExportDialog(true)}
+                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                      >
+                        <span>📥</span>
+                        <span>Export</span>
+                      </button>
+                    </div>
                     <SegmentList
                       fileId={selectedFileId}
                       currentTime={audioCurrentTime}
@@ -219,6 +235,15 @@ function MainApp() {
                       onPauseRequest={handlePauseRequest}
                     />
                   </div>
+
+                  {/* Export Dialog */}
+                  {showExportDialog && selectedFile && (
+                    <ExportDialog
+                      fileId={selectedFileId}
+                      filename={selectedFile.original_filename}
+                      onClose={() => setShowExportDialog(false)}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">

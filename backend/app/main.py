@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import init_db
-from .api import upload, transcription, audio
+from .api import upload, transcription, audio, export
 
 
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.add_middleware(
 app.include_router(upload.router)
 app.include_router(transcription.router)
 app.include_router(audio.router)
+app.include_router(export.router)
 
 
 @app.get("/")
