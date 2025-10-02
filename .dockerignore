@@ -1,0 +1,25 @@
+# Backend
+backend/__pycache__
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/.pytest_cache
+backend/htmlcov
+backend/.coverage
+backend/*.egg-info
+backend/data/audio/*
+backend/data/*.db
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/build
+frontend/.env
+frontend/.env.local
+
+# General
+.git
+.gitignore
+*.log
+.DS_Store
+*.md

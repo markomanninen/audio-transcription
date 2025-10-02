@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - audio-data:/app/data/audio
+      - db-data:/app/data
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///./data/transcriptions.db
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - redis
+      - ollama
+    networks:
+      - transcribe-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - transcribe-network
+
+  redis:
+    image: redis:7-alpine
+    # Remove external port exposure - only accessible within Docker network
+    volumes:
+      - redis-data:/data
+    networks:
+      - transcribe-network
+
+  ollama:
+    image: ollama/ollama:latest
+    # Remove external port exposure - only accessible within Docker network
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - transcribe-network
+
+volumes:
+  audio-data:
+  db-data:
+  redis-data:
+  ollama-data:
+
+networks:
+  transcribe-network:
+    driver: bridge
