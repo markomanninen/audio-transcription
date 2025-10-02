@@ -43,18 +43,22 @@ def test_get_transcription_status_invalid_file(client):
     assert response.status_code == 404
 
 
-def test_start_transcription(client, project_with_file):
+def test_start_transcription(client, project_with_file, test_db):
     """Test starting transcription."""
     file_id = project_with_file["file_id"]
 
-    response = client.post(
-        f"/api/transcription/{file_id}/start",
-        json={"include_diarization": True}
-    )
-    assert response.status_code == 202
-    data = response.json()
-    assert data["file_id"] == file_id
-    assert data["include_diarization"] is True
+    # Patch SessionLocal where it's imported (in the function)
+    with patch('app.core.database.SessionLocal') as mock_session:
+        mock_session.return_value = test_db
+
+        response = client.post(
+            f"/api/transcription/{file_id}/start",
+            json={"include_diarization": True}
+        )
+        assert response.status_code == 202
+        data = response.json()
+        assert data["file_id"] == file_id
+        assert data["include_diarization"] is True
 
 
 def test_get_segments_empty(client, project_with_file):

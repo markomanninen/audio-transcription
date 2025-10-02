@@ -3,13 +3,9 @@ Tests for AI correction endpoints.
 """
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from fastapi.testclient import TestClient
 
-from app.main import app
 from app.models.segment import Segment
 from app.models.speaker import Speaker
-
-client = TestClient(app)
 
 
 @pytest.fixture
@@ -39,7 +35,7 @@ def mock_llm_service():
         yield service_instance
 
 
-def test_correct_segment_success(test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+def test_correct_segment_success(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test successful segment correction."""
     segment = sample_segments[0]
 
@@ -64,7 +60,7 @@ def test_correct_segment_success(test_db, sample_project, sample_audio_file, sam
     assert 0 <= data["confidence"] <= 1
 
 
-def test_correct_segment_not_found(test_db, mock_llm_service):
+def test_correct_segment_not_found(client, test_db, mock_llm_service):
     """Test correction with non-existent segment."""
     response = client.post(
         "/api/ai/correct-segment",
@@ -79,7 +75,7 @@ def test_correct_segment_not_found(test_db, mock_llm_service):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_correct_segment_with_edited_text(test_db, sample_project, sample_audio_file, sample_segments_with_edits, mock_llm_service):
+def test_correct_segment_with_edited_text(client, test_db, sample_project, sample_audio_file, sample_segments_with_edits, mock_llm_service):
     """Test correction uses edited text when available."""
     segment = sample_segments_with_edits[0]
 
@@ -99,7 +95,7 @@ def test_correct_segment_with_edited_text(test_db, sample_project, sample_audio_
     assert call_args[1]["text"] == segment.edited_text
 
 
-def test_correct_segment_with_speaker_context(test_db, sample_project, sample_audio_file, sample_segments, sample_speakers, mock_llm_service):
+def test_correct_segment_with_speaker_context(client, test_db, sample_project, sample_audio_file, sample_segments, sample_speakers, mock_llm_service):
     """Test correction includes speaker context."""
     # Assign speaker to segment
     segment = sample_segments[0]
@@ -121,9 +117,9 @@ def test_correct_segment_with_speaker_context(test_db, sample_project, sample_au
     assert "Speaker" in call_args[1]["context"]
 
 
-def test_correct_batch_success(test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+def test_correct_batch_success(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test batch correction of multiple segments."""
-    segment_ids = [seg.id for seg in sample_segments[:3]]
+    segment_ids = [seg.id for seg in sample_segments[:3]]  # Use 3 segments
 
     response = client.post(
         "/api/ai/correct-batch",
@@ -145,7 +141,7 @@ def test_correct_batch_success(test_db, sample_project, sample_audio_file, sampl
         assert "changes" in result
 
 
-def test_correct_batch_partial_not_found(test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+def test_correct_batch_partial_not_found(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test batch correction with some invalid segment IDs."""
     valid_id = sample_segments[0].id
     invalid_id = 99999
@@ -162,7 +158,7 @@ def test_correct_batch_partial_not_found(test_db, sample_project, sample_audio_f
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_correct_batch_handles_individual_failures(test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+def test_correct_batch_handles_individual_failures(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test batch correction handles individual segment failures gracefully."""
     # Mock service to fail on second call
     mock_llm_service.correct_text = AsyncMock(side_effect=[
@@ -181,7 +177,7 @@ def test_correct_batch_handles_individual_failures(test_db, sample_project, samp
         }
     ])
 
-    segment_ids = [seg.id for seg in sample_segments[:3]]
+    segment_ids = [seg.id for seg in sample_segments[:3]]  # Use 3 segments
 
     response = client.post(
         "/api/ai/correct-batch",
@@ -208,7 +204,7 @@ def test_correct_batch_handles_individual_failures(test_db, sample_project, samp
     assert data[2]["confidence"] > 0
 
 
-def test_list_providers(test_db, mock_llm_service):
+def test_list_providers(client, test_db, mock_llm_service):
     """Test listing available LLM providers."""
     response = client.get("/api/ai/providers")
 
@@ -224,7 +220,7 @@ def test_list_providers(test_db, mock_llm_service):
         assert isinstance(provider["available"], bool)
 
 
-def test_health_check_providers(test_db, mock_llm_service):
+def test_health_check_providers(client, test_db, mock_llm_service):
     """Test health check of LLM providers."""
     response = client.get("/api/ai/health")
 
@@ -236,7 +232,7 @@ def test_health_check_providers(test_db, mock_llm_service):
     assert isinstance(data["ollama"], bool)
 
 
-def test_correction_type_validation(test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+def test_correction_type_validation(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test different correction types are passed correctly."""
     segment = sample_segments[0]
 
@@ -257,7 +253,7 @@ def test_correction_type_validation(test_db, sample_project, sample_audio_file, 
         assert call_args[1]["correction_type"] == correction_type
 
 
-def test_provider_unavailable_error(test_db, sample_project, sample_audio_file, sample_segments):
+def test_provider_unavailable_error(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test error when provider is unavailable."""
     with patch('app.api.ai_corrections.LLMService') as mock:
         service_instance = MagicMock()
@@ -278,7 +274,7 @@ def test_provider_unavailable_error(test_db, sample_project, sample_audio_file, 
         assert "not responding" in response.json()["detail"].lower()
 
 
-def test_invalid_provider_error(test_db, sample_project, sample_audio_file, sample_segments):
+def test_invalid_provider_error(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test error when provider doesn't exist."""
     with patch('app.api.ai_corrections.LLMService') as mock:
         service_instance = MagicMock()
@@ -297,3 +293,131 @@ def test_invalid_provider_error(test_db, sample_project, sample_audio_file, samp
 
         assert response.status_code == 400
         assert "not available" in response.json()["detail"].lower()
+
+
+def test_correct_segment_with_surrounding_context(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Test correction includes previous and next segments."""
+    # Use middle segment so it has both prev and next
+    segment = sample_segments[1]
+
+    response = client.post(
+        "/api/ai/correct-segment",
+        json={
+            "segment_id": segment.id,
+            "provider": "ollama"
+        }
+    )
+
+    assert response.status_code == 200
+
+    # Verify context includes Previous and Next
+    mock_llm_service.correct_text.assert_called_once()
+    call_args = mock_llm_service.correct_text.call_args
+    context = call_args[1]["context"]
+
+    assert "Previous:" in context
+    assert "Next:" in context
+
+
+def test_correct_segment_first_no_previous(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Test first segment has no previous context."""
+    segment = sample_segments[0]
+
+    response = client.post(
+        "/api/ai/correct-segment",
+        json={
+            "segment_id": segment.id,
+            "provider": "ollama"
+        }
+    )
+
+    assert response.status_code == 200
+
+    call_args = mock_llm_service.correct_text.call_args
+    context = call_args[1]["context"]
+
+    # Should not have Previous for first segment
+    assert "Previous:" not in context
+    # But should have Next
+    assert "Next:" in context
+
+
+def test_correct_segment_with_content_type_context(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Test correction includes project content type."""
+    # Set project content type
+    sample_project.content_type = "lyrics"
+    test_db.commit()
+
+    segment = sample_segments[0]
+
+    response = client.post(
+        "/api/ai/correct-segment",
+        json={
+            "segment_id": segment.id,
+            "provider": "ollama"
+        }
+    )
+
+    assert response.status_code == 200
+
+    # Verify context includes content type
+    call_args = mock_llm_service.correct_text.call_args
+    context = call_args[1]["context"]
+    assert "Content type: lyrics" in context
+
+
+def test_correct_batch_with_surrounding_context(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Test batch correction includes context for each segment."""
+    # Set content type
+    sample_project.content_type = "interview"
+    test_db.commit()
+
+    segment_ids = [seg.id for seg in sample_segments[:3]]
+
+    response = client.post(
+        "/api/ai/correct-batch",
+        json={
+            "segment_ids": segment_ids,
+            "provider": "ollama",
+            "correction_type": "all"
+        }
+    )
+
+    assert response.status_code == 200
+
+    # Should be called 3 times (once per segment)
+    assert mock_llm_service.correct_text.call_count == 3
+
+    # Check that context was different for each call (includes surrounding segments)
+    calls = mock_llm_service.correct_text.call_args_list
+
+    # First segment should not have Previous
+    first_context = calls[0][1]["context"]
+    assert "Previous:" not in first_context
+    assert "Content type: interview" in first_context
+
+    # Middle segment should have both
+    middle_context = calls[1][1]["context"]
+    assert "Previous:" in middle_context
+    assert "Next:" in middle_context
+
+
+def test_parse_correction_removes_context():
+    """Test that parsing removes included context from LLM response."""
+    from app.services.llm.ollama_provider import OllamaProvider
+
+    provider = OllamaProvider()
+    original = "But let go before it felt too right"  # 8 words
+
+    # LLM incorrectly included previous context (13 words total)
+    llm_response = "One bridge, one's held tight But let go before it felt too right."
+
+    result = provider._parse_correction(llm_response, original)
+
+    # Should extract only the portion close to 8 words (allow 50% tolerance)
+    result_words = len(result.split())
+    original_words = len(original.split())
+    assert result_words <= original_words * 1.5  # Within 50% of original length
+    assert "But let go" in result
+    # Should not be the full response
+    assert len(result) < len(llm_response)

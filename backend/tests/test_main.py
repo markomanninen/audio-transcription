@@ -2,13 +2,9 @@
 Tests for main application endpoints.
 """
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
-
-client = TestClient(app)
 
 
-def test_root_endpoint():
+def test_root_endpoint(client):
     """Test root endpoint returns healthy status."""
     response = client.get("/")
     assert response.status_code == 200
@@ -17,7 +13,7 @@ def test_root_endpoint():
     assert data["service"] == "audio-transcription-api"
 
 
-def test_health_endpoint():
+def test_health_endpoint(client):
     """Test health check endpoint."""
     response = client.get("/health")
     assert response.status_code == 200

@@ -67,35 +67,37 @@ async def analyze_project(
     sample_content = " ".join(sample_texts)
 
     # Build analysis prompt
-    analysis_prompt = f"""Analyze the following transcribed audio content and determine:
-1. The most appropriate content type
-2. A brief description of what this content is about
+    analysis_prompt = f"""You are an expert content analyzer. Analyze the transcribed audio and identify its content type.
 
-Content Types Available:
-- general: General transcription (default for mixed or unclear content)
-- interview: Interview or conversation between people
-- lyrics: Song lyrics or musical content
-- academic: Academic lecture, research presentation, or educational content
-- literature: Book narration, storytelling, or literary content
-- media: Podcast, radio show, or entertainment content
-- presentation: Business presentation, talk, or professional lecture
+CONTENT TYPES:
+- lyrics: Song lyrics with verse/chorus structure, poetic language, repetition
+- interview: Conversation, Q&A, dialogue between speakers
+- academic: Formal lecture, research, educational content with technical terms
+- literature: Story narration, book reading, fictional or narrative content
+- media: Podcast, radio show, casual entertainment content
+- presentation: Business talk, professional presentation, structured speech
+- general: Default for unclear or mixed content
 
-Transcribed Content Sample:
-{sample_content[:1000]}...
+SAMPLE TEXT:
+{sample_content[:800]}
 
-Current Project Name: {project.name}
+PROJECT INFO:
+Name: {project.name}
 Current Description: {project.description or "None"}
 
-Respond in the following JSON format:
-{{
-    "content_type": "one of the types above",
-    "confidence": 0.0-1.0,
-    "reasoning": "brief explanation of why you chose this type",
-    "suggested_description": "a concise 1-2 sentence description of the content"
-}}
+ANALYSIS RULES:
+1. Choose the type that BEST matches the content characteristics
+2. Be CONSISTENT: If reasoning says "lyrics", content_type MUST be "lyrics"
+3. Confidence 0.9+ only if very clear, 0.7-0.8 if likely, 0.5-0.6 if uncertain
+4. Keep description factual and concise (1-2 sentences)
 
-Return ONLY valid JSON, no other text.
-"""
+OUTPUT (JSON only):
+{{
+    "content_type": "<exact type from list above>",
+    "confidence": <0.5-1.0>,
+    "reasoning": "<why this type matches the content>",
+    "suggested_description": "<what this transcription contains>"
+}}"""
 
     # Initialize LLM service
     llm_service = LLMService()
@@ -162,8 +164,65 @@ Return ONLY valid JSON, no other text.
             else:
                 raise ValueError("Could not parse LLM response as JSON")
 
+        # Validate and correct inconsistencies
+        content_type = analysis.get("content_type", "general")
+        reasoning = analysis.get("reasoning", "").lower()
+
+        print(f"[DEBUG] Original content_type: {content_type}")
+        print(f"[DEBUG] Reasoning: {reasoning}")
+
+        # Check for type mentions in reasoning - prioritize most specific matches
+        # Use weighted scoring: some keywords are stronger indicators than others
+        type_keywords = {
+            "lyrics": [
+                ("lyrics", 3), ("song lyrics", 3), ("verse/chorus", 3),
+                ("verse", 2), ("chorus", 2), ("refrain", 2),
+                ("poetic", 1), ("repetition", 1)
+            ],
+            "interview": [
+                ("interview", 3), ("q&a", 3), ("conversation", 2),
+                ("dialogue", 2), ("speakers discussing", 2)
+            ],
+            "academic": [
+                ("academic", 3), ("lecture", 3), ("research", 2),
+                ("educational", 2), ("scholarly", 2)
+            ],
+            "literature": [
+                ("fiction", 3), ("novel", 3), ("story", 2),
+                ("tale", 2), ("book reading", 2)
+                # Removed "narrative flow" as it's too ambiguous
+            ],
+            "media": [
+                ("podcast", 3), ("radio show", 3), ("broadcast", 2),
+                ("show", 1)
+            ],
+            "presentation": [
+                ("presentation", 3), ("business talk", 2),
+                ("professional speech", 2)
+            ]
+        }
+
+        # Calculate weighted scores for each type
+        match_scores = {}
+        for type_name, keyword_weights in type_keywords.items():
+            score = sum(weight for keyword, weight in keyword_weights if keyword in reasoning)
+            if score > 0:
+                match_scores[type_name] = score
+
+        print(f"[DEBUG] Weighted match scores: {match_scores}")
+
+        # If we have matches, use the type with highest weighted score
+        if match_scores:
+            best_match = max(match_scores.items(), key=lambda x: x[1])
+            # Use matched type if score >= 2 (indicating strong match)
+            if best_match[1] >= 2:
+                content_type = best_match[0]
+                print(f"[DEBUG] Corrected to: {content_type} (weighted score: {best_match[1]})")
+
+        print(f"[DEBUG] Final content_type: {content_type}")
+
         return ProjectAnalysisResponse(
-            suggested_content_type=analysis.get("content_type", "general"),
+            suggested_content_type=content_type,
             confidence=float(analysis.get("confidence", 0.5)),
             reasoning=analysis.get("reasoning", "Analysis completed"),
             suggested_description=analysis.get("suggested_description")

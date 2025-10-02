@@ -72,9 +72,9 @@ export const AnalysisDialog: React.FC<AnalysisDialogProps> = ({
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-800">AI Project Analysis</h2>
+            <h2 className="text-2xl font-semibold text-gray-800">🔍 AI Content Analysis</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Analyze transcribed content to suggest content type and description
+              Detect content type to improve AI correction accuracy
             </p>
           </div>
           <button
@@ -87,10 +87,18 @@ export const AnalysisDialog: React.FC<AnalysisDialogProps> = ({
 
         {!analysis ? (
           <div className="space-y-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
               <p className="text-sm text-blue-800">
-                <strong>How it works:</strong> AI will analyze the first few segments of your
-                transcription to determine the content type and generate a description.
+                <strong>Why content type matters:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 space-y-1 ml-4">
+                <li>• <strong>Lyrics</strong>: Preserves verse structure, allows poetic license</li>
+                <li>• <strong>Academic</strong>: Ensures formal language and proper terminology</li>
+                <li>• <strong>Interview</strong>: Keeps conversational tone and natural speech</li>
+                <li>• <strong>Other types</strong>: Apply appropriate correction guidelines</li>
+              </ul>
+              <p className="text-xs text-blue-600 mt-2">
+                AI will analyze your transcription and suggest the best content type
               </p>
             </div>
 
@@ -173,26 +181,38 @@ export const AnalysisDialog: React.FC<AnalysisDialogProps> = ({
               </div>
             )}
 
+            {/* What happens next */}
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-800">
+                <strong>💡 What happens when you apply:</strong>
+              </p>
+              <ul className="text-xs text-purple-700 mt-2 space-y-1 ml-4">
+                <li>✓ Content type sets AI correction style for this project</li>
+                <li>✓ Description helps you organize multiple projects</li>
+                <li>✓ Click ✨ on any segment to get style-aware corrections</li>
+              </ul>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                 onClick={() => setAnalysis(null)}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Re-analyze
+                🔄 Re-analyze
               </button>
               <button
                 onClick={handleClose}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Dismiss
+                Cancel
               </button>
               <button
                 onClick={handleApply}
                 disabled={applyAnalysis.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-colors font-medium"
               >
-                {applyAnalysis.isPending ? 'Applying...' : 'Apply Suggestions'}
+                {applyAnalysis.isPending ? 'Applying...' : '✓ Apply & Use for Corrections'}
               </button>
             </div>
           </div>

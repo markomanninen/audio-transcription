@@ -68,7 +68,7 @@ async def correct_segment(
     # Use edited text if available, otherwise original
     text_to_correct = segment.edited_text or segment.original_text
 
-    # Build context with speaker and content type information
+    # Build context with speaker, content type, and surrounding segments
     context_parts = []
 
     if segment.speaker:
@@ -79,6 +79,32 @@ async def correct_segment(
         content_type = segment.audio_file.project.content_type
         if content_type and content_type != "general":
             context_parts.append(f"Content type: {content_type}")
+
+    # Get surrounding segments for context (1 before, 1 after)
+    if segment.audio_file_id:
+        # Get previous segment
+        prev_segment = db.query(Segment).filter(
+            Segment.audio_file_id == segment.audio_file_id,
+            Segment.sequence == segment.sequence - 1
+        ).first()
+
+        # Get next segment
+        next_segment = db.query(Segment).filter(
+            Segment.audio_file_id == segment.audio_file_id,
+            Segment.sequence == segment.sequence + 1
+        ).first()
+
+        # Add surrounding context
+        surrounding = []
+        if prev_segment:
+            prev_text = prev_segment.edited_text or prev_segment.original_text
+            surrounding.append(f"Previous: ...{prev_text[-80:]}" if len(prev_text) > 80 else f"Previous: {prev_text}")
+        if next_segment:
+            next_text = next_segment.edited_text or next_segment.original_text
+            surrounding.append(f"Next: {next_text[:80]}..." if len(next_text) > 80 else f"Next: {next_text}")
+
+        if surrounding:
+            context_parts.append(" ".join(surrounding))
 
     context = " | ".join(context_parts) if context_parts else ""
 
@@ -147,10 +173,45 @@ async def correct_batch(
         # Use edited text if available, otherwise original
         text_to_correct = segment.edited_text or segment.original_text
 
-        # Get speaker context if available
-        context = ""
+        # Build context with speaker, content type, and surrounding segments
+        context_parts = []
+
         if segment.speaker:
-            context = f"Speaker: {segment.speaker.display_name or segment.speaker.label}"
+            context_parts.append(f"Speaker: {segment.speaker.display_name or segment.speaker.label}")
+
+        # Get content type from project
+        if segment.audio_file and segment.audio_file.project:
+            content_type = segment.audio_file.project.content_type
+            if content_type and content_type != "general":
+                context_parts.append(f"Content type: {content_type}")
+
+        # Get surrounding segments for context (1 before, 1 after)
+        if segment.audio_file_id:
+            # Get previous segment
+            prev_segment = db.query(Segment).filter(
+                Segment.audio_file_id == segment.audio_file_id,
+                Segment.sequence == segment.sequence - 1
+            ).first()
+
+            # Get next segment
+            next_segment = db.query(Segment).filter(
+                Segment.audio_file_id == segment.audio_file_id,
+                Segment.sequence == segment.sequence + 1
+            ).first()
+
+            # Add surrounding context
+            surrounding = []
+            if prev_segment:
+                prev_text = prev_segment.edited_text or prev_segment.original_text
+                surrounding.append(f"Previous: ...{prev_text[-80:]}" if len(prev_text) > 80 else f"Previous: {prev_text}")
+            if next_segment:
+                next_text = next_segment.edited_text or next_segment.original_text
+                surrounding.append(f"Next: {next_text[:80]}..." if len(next_text) > 80 else f"Next: {next_text}")
+
+            if surrounding:
+                context_parts.append(" ".join(surrounding))
+
+        context = " | ".join(context_parts) if context_parts else ""
 
         try:
             # Perform correction

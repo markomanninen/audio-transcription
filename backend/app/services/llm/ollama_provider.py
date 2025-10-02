@@ -5,6 +5,7 @@ import httpx
 import json
 from typing import Dict, Any
 from .base import LLMProvider
+from .prompts import PromptBuilder
 
 
 class OllamaProvider(LLMProvider):
@@ -32,7 +33,7 @@ class OllamaProvider(LLMProvider):
         Returns:
             Correction results
         """
-        prompt = self._build_prompt(text, context, correction_type)
+        prompt = PromptBuilder.build_correction_prompt(text, context, correction_type)
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -77,145 +78,47 @@ class OllamaProvider(LLMProvider):
         except Exception:
             return False
 
-    def _build_prompt(self, text: str, context: str, correction_type: str) -> str:
-        """Build the correction prompt with context awareness."""
-        correction_instructions = {
-            "grammar": "Fix any grammatical errors",
-            "spelling": "Fix any spelling errors",
-            "punctuation": "Fix punctuation errors",
-            "all": "Fix spelling, grammar, and punctuation errors"
-        }
-
-        instruction = correction_instructions.get(correction_type, correction_instructions["all"])
-
-        # Detect content type from context or text characteristics
-        content_type = self._detect_content_type(context, text)
-        style_guide = self._get_style_guide(content_type)
-
-        prompt = f"""You are a professional text editor. {instruction} in the following text from an audio transcription.
-
-Content Type: {content_type}
-
-{style_guide}
-
-General Rules:
-1. Only fix errors, do not rephrase or change the meaning
-2. Preserve the original style and tone
-3. Do not add explanations or comments
-4. Return ONLY the corrected text, nothing else
-
-"""
-        if context:
-            prompt += f"Context: {context}\n\n"
-
-        prompt += f"Text to correct:\n{text}\n\nCorrected text:"
-
-        return prompt
-
-    def _detect_content_type(self, context: str, text: str) -> str:
-        """Detect the type of content being corrected."""
-        context_lower = context.lower() if context else ""
-        text_lower = text.lower()
-
-        # Check for explicit content type markers
-        if any(keyword in context_lower for keyword in ["lyrics", "song", "music"]):
-            return "lyrics"
-        elif any(keyword in context_lower for keyword in ["academic", "research", "paper", "thesis"]):
-            return "academic"
-        elif any(keyword in context_lower for keyword in ["interview", "conversation", "discussion"]):
-            return "interview"
-        elif any(keyword in context_lower for keyword in ["ebook", "book", "novel", "story"]):
-            return "literature"
-        elif any(keyword in context_lower for keyword in ["show", "podcast", "broadcast"]):
-            return "media"
-        elif any(keyword in context_lower for keyword in ["lecture", "presentation", "talk"]):
-            return "presentation"
-
-        # Heuristic detection based on text characteristics
-        if text.count("\n") > 3 and len(text.split()) < 50:  # Short lines, few words = likely lyrics
-            return "lyrics"
-        elif any(word in text_lower for word in ["therefore", "however", "furthermore", "consequently"]):
-            return "academic"
-
-        # Default to general transcription
-        return "general transcription"
-
-    def _get_style_guide(self, content_type: str) -> str:
-        """Get style-specific correction guidelines."""
-        style_guides = {
-            "lyrics": """Style Guide for Lyrics:
-- Preserve line breaks and verse structure
-- Allow poetic license and intentional grammar deviations
-- Keep repetitions and refrains intact
-- Maintain rhyme schemes where present
-- Fix only obvious spelling errors, not stylistic choices""",
-
-            "academic": """Style Guide for Academic Text:
-- Use formal language and proper terminology
-- Ensure logical connectors are correct (however, therefore, etc.)
-- Fix citation format inconsistencies
-- Maintain technical vocabulary accurately
-- Use complete sentences and proper punctuation""",
-
-            "interview": """Style Guide for Interview/Conversation:
-- Preserve conversational tone and natural speech patterns
-- Keep filler words if they add meaning (umm, well, you know)
-- Fix only clear errors, not colloquialisms
-- Maintain speaker's voice and personality
-- Allow incomplete sentences if contextually clear""",
-
-            "literature": """Style Guide for Literature/Books:
-- Maintain narrative voice and style
-- Preserve author's intentional stylistic choices
-- Fix only clear spelling and grammar errors
-- Keep dialogue natural and character-appropriate
-- Respect paragraph structure and pacing""",
-
-            "media": """Style Guide for Shows/Podcasts:
-- Keep casual, engaging tone
-- Preserve humor and personality
-- Allow informal language where appropriate
-- Fix technical errors but keep conversational flow
-- Maintain energy and enthusiasm in text""",
-
-            "presentation": """Style Guide for Lectures/Presentations:
-- Use clear, professional language
-- Fix technical terminology carefully
-- Maintain educational tone
-- Ensure logical flow between points
-- Keep examples and explanations intact""",
-
-            "general transcription": """Style Guide for General Transcription:
-- Fix clear spelling and grammar errors
-- Maintain natural speech patterns
-- Preserve meaning and intent
-- Use context to disambiguate homophones
-- Keep the transcription accurate to the spoken word"""
-        }
-
-        return style_guides.get(content_type, style_guides["general transcription"])
-
     def _parse_correction(self, llm_response: str, original: str) -> str:
         """
         Parse the LLM response to extract just the corrected text.
-        Sometimes LLMs add extra commentary.
+        Sometimes LLMs add extra commentary or include context.
         """
-        # Remove common prefixes
-        lines = llm_response.strip().split('\n')
+        response = llm_response.strip()
 
         # Skip any lines that look like metadata or commentary
+        lines = response.split('\n')
         cleaned_lines = []
         for line in lines:
             line = line.strip()
             # Skip empty lines and common LLM artifacts
-            if not line or line.startswith(("Here", "I ", "The corrected", "Corrected:")):
+            if not line or line.startswith(("Here", "I ", "The corrected", "Corrected:", "Context:")):
                 continue
             cleaned_lines.append(line)
 
-        corrected = ' '.join(cleaned_lines) if cleaned_lines else llm_response.strip()
+        corrected = ' '.join(cleaned_lines) if cleaned_lines else response
 
-        # If the correction is empty or too different, return original
-        if not corrected or len(corrected) < len(original) * 0.5:
+        # If LLM included context, try to extract just the target segment
+        # Look for the original text at the end of the response
+        original_words = original.strip().split()
+        if len(original_words) > 0:
+            # Check if response ends with something similar to original
+            response_words = corrected.split()
+
+            # Try to find where the actual correction starts by matching word count
+            # If word count is significantly larger, try to extract the last N words
+            if len(response_words) > len(original_words) * 1.5:
+                # LLM likely included context - take the portion that matches original length better
+                # Look for the last sentence or phrase that's closer to original length
+                for i in range(len(response_words)):
+                    candidate = ' '.join(response_words[i:])
+                    candidate_words = candidate.split()
+                    # If this portion is within 50% of original length, use it
+                    if abs(len(candidate_words) - len(original_words)) <= max(3, len(original_words) * 0.5):
+                        corrected = candidate
+                        break
+
+        # If the correction is empty or way too different, return original
+        if not corrected or len(corrected) < len(original) * 0.3:
             return original
 
         return corrected

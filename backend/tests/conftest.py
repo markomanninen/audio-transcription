@@ -17,32 +17,51 @@ from app.models.segment import Segment
 from app.models.speaker import Speaker
 
 
-# Test database URL (in-memory SQLite)
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
+# Test database URL (in-memory SQLite with shared cache for multiple connections)
+# Using a unique name per test ensures complete isolation
+import uuid
 
 
 @pytest.fixture(scope="function")
-def test_db():
-    """Create a test database session."""
-    engine = create_engine(
-        SQLALCHEMY_TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False}
-    )
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def test_engine():
+    """Create a test database engine with unique name for isolation."""
+    # Use file-based SQLite with unique name for proper isolation
+    db_name = f"/tmp/test_{uuid.uuid4().hex}.db"
+    test_db_url = f"sqlite:///{db_name}"
 
+    engine = create_engine(
+        test_db_url,
+        connect_args={"check_same_thread": False},
+        poolclass=None  # Disable connection pooling for tests
+    )
     # Create tables
     Base.metadata.create_all(bind=engine)
 
+    yield engine
+
+    # Drop tables and clean up
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
+
+    # Remove database file
+    import os
+    if os.path.exists(db_name):
+        os.remove(db_name)
+
+
+@pytest.fixture(scope="function")
+def test_db(test_engine):
+    """Create a test database session."""
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(scope="function")
-def client(test_db):
+@pytest.fixture
+def client(test_db, test_engine):
     """Create a test client with test database."""
     def override_get_db():
         try:
@@ -51,6 +70,7 @@ def client(test_db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -143,6 +163,14 @@ def sample_segments(test_db, sample_audio_file):
             end_time=20.0,
             original_text="This is the second segment.",
             sequence=1,
+            speaker_id=None
+        ),
+        Segment(
+            audio_file_id=sample_audio_file.id,
+            start_time=20.0,
+            end_time=30.0,
+            original_text="This is the third segment.",
+            sequence=2,
             speaker_id=None
         )
     ]

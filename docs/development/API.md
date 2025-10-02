@@ -233,6 +233,209 @@ All endpoints may return these standard error responses:
 
 ---
 
+## AI Analysis Endpoints
+
+### Analyze Project Content
+**POST** `/api/ai/analyze/project/{project_id}`
+
+Analyze project content and suggest content type using AI.
+
+**Parameters:**
+- `project_id` (path): ID of the project
+- `provider` (query, optional): LLM provider to use (default: "ollama")
+
+**Response:** `200 OK`
+```json
+{
+  "suggested_content_type": "lyrics",
+  "confidence": 0.95,
+  "reasoning": "Clear verse/chorus structure with poetic language and repetition",
+  "suggested_description": "Song lyrics with multiple verses and chorus"
+}
+```
+
+**How It Works:**
+1. Fetches first 10 segments from the project
+2. Sends sample text to LLM with analysis prompt
+3. LLM suggests content type with reasoning
+4. System validates consistency using weighted keyword scoring
+5. Returns suggestion with confidence
+
+**Weighted Keyword Scoring:**
+
+The system post-processes LLM responses for accuracy:
+
+| Content Type | Strong (3 pts) | Medium (2 pts) | Weak (1 pt) |
+|--------------|----------------|----------------|-------------|
+| Lyrics | "lyrics", "verse/chorus" | "verse", "chorus" | "poetic" |
+| Academic | "academic", "lecture" | "research", "educational" | "formal" |
+| Interview | "interview", "q&a" | "conversation" | "discussion" |
+| Literature | "fiction", "novel" | "story", "tale" | "narrative" |
+| Media | "podcast", "radio show" | "broadcast" | "show" |
+| Presentation | "presentation" | "business talk" | - |
+
+Requires score ≥ 2 for confident match. Corrects inconsistencies between suggested type and reasoning.
+
+**Errors:**
+- `404 Not Found`: Project not found
+- `400 Bad Request`: No segments available for analysis
+- `503 Service Unavailable`: LLM provider not responding
+
+---
+
+### Apply Analysis
+**POST** `/api/ai/analyze/project/{project_id}/apply`
+
+Apply suggested content type and description to project.
+
+**Parameters:**
+- `project_id` (path): ID of the project
+
+**Request Body:**
+```json
+{
+  "content_type": "lyrics",
+  "description": "Song lyrics with multiple verses"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "name": "My Project",
+  "content_type": "lyrics",
+  "description": "Song lyrics with multiple verses",
+  "updated": true
+}
+```
+
+**Errors:**
+- `404 Not Found`: Project not found
+
+---
+
+## AI Correction Endpoints
+
+### Correct Segment
+**POST** `/api/ai/correct-segment`
+
+Get AI correction suggestions for a single segment.
+
+**Request Body:**
+```json
+{
+  "segment_id": 123,
+  "provider": "ollama",
+  "correction_type": "all"
+}
+```
+
+**Parameters:**
+- `segment_id`: ID of the segment to correct
+- `provider` (optional): "ollama" or "openrouter" (default: "ollama")
+- `correction_type` (optional): "grammar", "spelling", "punctuation", or "all" (default: "all")
+
+**Context Included:**
+- **Speaker**: Speaker name/label if assigned
+- **Content Type**: From project settings (if not "general")
+- **Previous Segment**: Last 80 characters (if available)
+- **Next Segment**: First 80 characters (if available)
+
+**Response:** `200 OK`
+```json
+{
+  "segment_id": 123,
+  "original_text": "This is a test sentance with an error.",
+  "corrected_text": "This is a test sentence with an error.",
+  "changes": [
+    "\"sentance\" → \"sentence\""
+  ],
+  "confidence": 0.85
+}
+```
+
+**Errors:**
+- `404 Not Found`: Segment not found
+- `400 Bad Request`: Invalid provider
+- `503 Service Unavailable`: LLM provider not responding
+
+---
+
+### Correct Multiple Segments
+**POST** `/api/ai/correct-batch`
+
+Get AI corrections for multiple segments.
+
+**Request Body:**
+```json
+{
+  "segment_ids": [123, 124, 125],
+  "provider": "ollama",
+  "correction_type": "all"
+}
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "segment_id": 123,
+    "original_text": "First segment",
+    "corrected_text": "First segment",
+    "changes": [],
+    "confidence": 0.9
+  },
+  {
+    "segment_id": 124,
+    "original_text": "Second segment",
+    "corrected_text": "Second segment",
+    "changes": [],
+    "confidence": 0.9
+  }
+]
+```
+
+**Note**: Continues processing even if individual segments fail. Failed segments return with `confidence: 0.0` and error in `changes`.
+
+---
+
+### List LLM Providers
+**GET** `/api/ai/providers`
+
+List available LLM providers.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "name": "ollama",
+    "available": true
+  },
+  {
+    "name": "openrouter",
+    "available": true
+  }
+]
+```
+
+---
+
+### Check Provider Health
+**GET** `/api/ai/health`
+
+Check health status of all LLM providers.
+
+**Response:** `200 OK`
+```json
+{
+  "ollama": true,
+  "openrouter": false
+}
+```
+
+---
+
 ## Interactive Documentation
 
 When the server is running, visit:

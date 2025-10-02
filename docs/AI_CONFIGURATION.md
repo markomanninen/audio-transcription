@@ -50,7 +50,15 @@ The system automatically adapts its correction style based on the content type:
 
 ### Setting Content Type
 
-**Per Project**:
+**Option 1: Automatic Detection (Recommended)**:
+1. Click the 🔍 button in the app header
+2. Click "🔍 Analyze Content"
+3. Review the suggested content type, confidence score, and reasoning
+4. Click "✓ Apply & Use for Corrections" to apply
+
+The AI will analyze the first 10 segments and suggest the best content type.
+
+**Option 2: Manual Selection**:
 1. Open project settings (✏️ edit button)
 2. Select "Content Type" from dropdown
 3. Save
@@ -59,8 +67,9 @@ The selected content type will be used for all AI corrections in that project.
 
 **How It Works**:
 - System detects content type from project settings
-- Fallback: Auto-detection using keywords in speaker names or text characteristics
+- AI corrections include surrounding segments (previous & next) for context
 - Builds context-specific system prompt with appropriate style guidelines
+- Uses weighted keyword scoring for accurate auto-detection
 
 ## Provider Configuration
 
@@ -201,6 +210,101 @@ OPENROUTER_MODEL=anthropic/claude-3-haiku
 - Total per correction: ~330 tokens (input + output)
 - 1000 corrections ≈ $0.10-$0.50 (depending on model)
 
+## AI Content Analysis
+
+### Overview
+
+The app can automatically analyze your transcribed content and suggest the best content type, eliminating guesswork.
+
+### How to Use
+
+1. **Transcribe your audio first** - Analysis requires at least some transcribed segments
+2. **Click the 🔍 button** in the app header
+3. **Click "🔍 Analyze Content"** - The AI will analyze your project
+4. **Review the results**:
+   - **Suggested Content Type**: Best match (e.g., "lyrics", "academic")
+   - **Confidence Score**: 0.5-1.0 (higher = more confident)
+   - **Reasoning**: Why this type was chosen
+   - **Suggested Description**: Auto-generated project description
+5. **Apply or re-analyze**:
+   - Click "✓ Apply & Use for Corrections" to set the content type
+   - Click "🔄 Re-analyze" to try again
+   - Click "Cancel" to close without applying
+
+### How It Works
+
+**Analysis Process**:
+1. Fetches first 10 segments from your transcription
+2. Sends sample text to the LLM with analysis prompt
+3. LLM analyzes characteristics and suggests content type
+4. System validates consistency using weighted keyword scoring
+5. Returns suggestion with confidence and reasoning
+
+**Weighted Keyword Scoring**:
+
+The system post-processes LLM responses to ensure accuracy:
+
+| Content Type | Strong Indicators (3 pts) | Medium (2 pts) | Weak (1 pt) |
+|--------------|--------------------------|----------------|-------------|
+| Lyrics | "lyrics", "song lyrics", "verse/chorus" | "verse", "chorus", "refrain" | "poetic", "repetition" |
+| Academic | "academic", "lecture", "research" | "educational", "scholarly" | "formal" |
+| Interview | "interview", "q&a" | "conversation", "dialogue" | "discussion" |
+| Literature | "fiction", "novel" | "story", "tale", "book reading" | "narrative" |
+| Media | "podcast", "radio show" | "broadcast" | "show" |
+| Presentation | "presentation" | "business talk", "professional speech" | - |
+
+**Consistency Validation**:
+- Compares LLM's suggested type against reasoning text
+- Calculates weighted scores for each type based on keywords found
+- Requires score ≥ 2 for confident match
+- Corrects inconsistencies (e.g., if reasoning says "lyrics" but LLM said "academic", changes to "lyrics")
+
+**Confidence Levels**:
+- **0.9-1.0**: Very confident - Clear indicators present
+- **0.7-0.8**: Likely match - Some indicators found
+- **0.5-0.6**: Uncertain - Mixed signals, use with caution
+
+### Best Practices
+
+- **Run after transcription**: Need at least 5-10 segments for good results
+- **Review reasoning**: Read why the AI chose this type
+- **Check confidence**: Low confidence (<0.7) may need manual selection
+- **Re-analyze if needed**: Different segments may give different results
+- **Verify with content**: You know your content best - override if needed
+
+## Surrounding Context
+
+### Overview
+
+AI corrections now include surrounding segment text for better contextual understanding.
+
+### How It Works
+
+When correcting a segment, the system includes:
+- **Previous segment**: Last 80 characters (if available)
+- **Next segment**: First 80 characters (if available)
+- **Content type**: From project settings
+- **Speaker**: Speaker name/label (if assigned)
+
+**Example Context**:
+```
+Speaker: John Doe | Content type: lyrics | Previous: ...end of verse one | Next: beginning of chorus...
+```
+
+### Benefits
+
+1. **Better conversational flow**: Understands sentence continuation
+2. **Pronoun resolution**: Knows what "it", "they", "this" refers to
+3. **Maintains consistency**: Keeps terminology consistent across segments
+4. **Narrative coherence**: Respects story/argument progression
+5. **Improved accuracy**: Reduces context-dependent errors
+
+### Privacy Note
+
+Surrounding context is sent to the LLM provider along with the target segment. If using OpenRouter (cloud), this means adjacent segments are also sent to external APIs.
+
+For maximum privacy, use Ollama (local) which keeps all data on your machine.
+
 ## System Prompts
 
 The system automatically builds context-aware prompts based on:
@@ -234,42 +338,54 @@ Corrected text:
 
 ### Customizing Prompts
 
-Currently, prompts are defined in:
-- `backend/app/services/llm/ollama_provider.py` - `_get_style_guide()`
-- `backend/app/services/llm/openrouter_provider.py` - `_get_style_guide()`
+Prompts are centrally defined in `backend/app/services/llm/prompts.py` using the `PromptBuilder` class.
 
 To add custom style guides:
-1. Edit the `style_guides` dictionary in `_get_style_guide()`
-2. Add your content type to the detection logic in `_detect_content_type()`
-3. Restart the backend
+1. Edit `backend/app/services/llm/prompts.py`
+2. Add your content type to `_get_style_guide()` dictionary
+3. Add detection keywords to `_detect_content_type()` logic
+4. Restart the backend
 
 **Example**:
 ```python
+# In _get_style_guide() method
 "technical_documentation": """Style Guide for Technical Docs:
 - Use precise technical terminology
 - Maintain consistent formatting
 - Preserve code snippets and commands exactly
 - Fix only grammar/spelling, not technical content
 - Keep imperative mood for instructions"""
+
+# In _detect_content_type() method
+elif any(keyword in context_lower for keyword in ["technical", "documentation", "api", "code"]):
+    return "technical_documentation"
 ```
+
+All LLM providers (Ollama, OpenRouter) automatically use the shared `PromptBuilder`.
 
 ## Usage Workflow
 
 ### Step-by-Step
 
-1. **Set Content Type** (optional but recommended)
+1. **Analyze Content** (optional but recommended)
+   - Click 🔍 in header → "🔍 Analyze Content"
+   - Review confidence and reasoning
+   - Apply suggested content type
+
+2. **Or Set Content Type Manually**
    - Edit project → Select content type → Save
 
-2. **Select Provider**
+3. **Select Provider**
    - Click AI provider dropdown
    - Choose Ollama (local, free) or OpenRouter (cloud, paid)
 
-3. **Correct Segments**
+4. **Correct Segments**
    - Click ✨ button on any segment
+   - System automatically includes surrounding context
    - Review suggestion in dialog
    - Accept or reject
 
-4. **Review Changes**
+5. **Review Changes**
    - Original text shown in red background
    - Corrected text in green background
    - Specific changes listed
@@ -277,9 +393,10 @@ To add custom style guides:
 
 ### Tips
 
-- **Start with Ollama**: Free and private, good for most cases
+- **Start with content analysis**: Automatically sets optimal correction style
+- **Use Ollama for privacy**: All data stays on your machine, including context
 - **Use OpenRouter for quality**: Better for complex corrections, academic text
-- **Set content type early**: Ensures consistent correction style
+- **Check surrounding context**: System includes prev/next segments automatically
 - **Review suggestions**: AI isn't perfect, especially for domain-specific terms
 - **Batch corrections**: Use batch endpoint for multiple segments (API only, UI coming soon)
 

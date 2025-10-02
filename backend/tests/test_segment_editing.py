@@ -2,15 +2,9 @@
 Tests for segment editing and speaker management endpoints.
 """
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
 
 
-client = TestClient(app)
-
-
-def test_update_segment_success(test_db, sample_project, sample_audio_file, sample_segments):
+def test_update_segment_success(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test successfully updating a segment's edited text."""
     segment = sample_segments[0]
 
@@ -26,7 +20,7 @@ def test_update_segment_success(test_db, sample_project, sample_audio_file, samp
     assert data["original_text"] == "This is the first segment."
 
 
-def test_update_segment_not_found(test_db):
+def test_update_segment_not_found(client, test_db):
     """Test updating a non-existent segment."""
     response = client.patch(
         "/api/transcription/segment/99999",
@@ -37,7 +31,7 @@ def test_update_segment_not_found(test_db):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_update_segment_preserves_original(test_db, sample_project, sample_audio_file, sample_segments):
+def test_update_segment_preserves_original(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test that updating a segment preserves the original text."""
     segment = sample_segments[0]
     original_text = segment.original_text
@@ -53,7 +47,7 @@ def test_update_segment_preserves_original(test_db, sample_project, sample_audio
     assert data["edited_text"] == "Completely different text"  # Edited updated
 
 
-def test_update_segment_multiple_times(test_db, sample_project, sample_audio_file, sample_segments):
+def test_update_segment_multiple_times(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test updating a segment multiple times."""
     segment = sample_segments[0]
 
@@ -74,7 +68,7 @@ def test_update_segment_multiple_times(test_db, sample_project, sample_audio_fil
     assert response2.json()["edited_text"] == "Second edit"
 
 
-def test_update_speaker_success(test_db, sample_project, sample_speakers):
+def test_update_speaker_success(client, test_db, sample_project, sample_speakers):
     """Test successfully updating a speaker's display name."""
     speaker = sample_speakers[0]
 
@@ -91,7 +85,7 @@ def test_update_speaker_success(test_db, sample_project, sample_speakers):
     assert data["color"] == speaker.color  # Color unchanged
 
 
-def test_update_speaker_not_found(test_db):
+def test_update_speaker_not_found(client, test_db):
     """Test updating a non-existent speaker."""
     response = client.put(
         "/api/transcription/speaker/99999",
@@ -102,7 +96,7 @@ def test_update_speaker_not_found(test_db):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_update_speaker_preserves_other_fields(test_db, sample_project, sample_speakers):
+def test_update_speaker_preserves_other_fields(client, test_db, sample_project, sample_speakers):
     """Test that updating speaker name preserves other fields."""
     speaker = sample_speakers[0]
     original_color = speaker.color
@@ -119,7 +113,7 @@ def test_update_speaker_preserves_other_fields(test_db, sample_project, sample_s
     assert data["speaker_id"] == original_speaker_id
 
 
-def test_get_segments_after_editing(test_db, sample_project, sample_audio_file, sample_segments):
+def test_get_segments_after_editing(client, test_db, sample_project, sample_audio_file, sample_segments):
     """Test that edited segments are returned correctly in the list."""
     segment = sample_segments[0]
 

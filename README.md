@@ -58,12 +58,20 @@ Docker-hosted web application for audio interview transcription with advanced ed
 - **AI-Powered Corrections**:
   - **Context-Aware Prompts**: Automatically adapts to content type (lyrics, academic, interview, literature, media, presentation, general)
   - **Style-Specific Correction**: Different guidelines for each content type
+  - **Surrounding Context**: Includes previous and next segments (80 chars each) for better conversational flow understanding
   - **Local Inference**: Ollama integration (llama3.2:1b default, configurable)
   - **Cloud Inference**: OpenRouter API support (optional, multiple models)
   - **Provider Management**:
     - Quick provider switcher with health status indicators
     - Advanced settings dialog for model/API key configuration
     - Real-time health monitoring
+  - **AI Content Analysis**:
+    - 🔍 Analyze project button for automatic content type detection
+    - Analyzes first 10 segments to suggest content type
+    - Provides confidence score (0.5-1.0) and reasoning
+    - Suggests project description
+    - Weighted keyword scoring for accurate detection
+    - Visual explanations of how content type affects corrections
   - **Project-Level Content Type**: Set content type per project for consistent AI behavior
   - **Interactive Review**:
     - Visual diff showing original vs corrected text
@@ -146,11 +154,15 @@ Docker-hosted web application for audio interview transcription with advanced ed
 3. **Upload audio**: Drag and drop an audio file (or click to browse)
 4. **Start transcription**: Click the "Transcribe" button on your uploaded file
 5. **Wait for processing**: Real-time progress shown (typically 1-3 minutes for a 3-minute audio)
-6. **Review and edit**:
+6. **Analyze content** (optional):
+   - Click 🔍 to analyze project and detect content type
+   - Review confidence score and apply suggested content type
+7. **Review and edit**:
    - Click ✏️ to edit any segment
+   - Click ✨ for AI correction suggestions
    - Click ▶ to play audio from that segment
    - Rename speakers if needed
-7. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
+8. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
 
 ## Development
 
@@ -289,7 +301,13 @@ MAX_UPLOAD_SIZE=524288000  # 500MB in bytes
 
 ### AI Configuration
 
-**Setting Content Type**:
+**Automatic Content Type Detection**:
+1. Click 🔍 button in header
+2. Click "🔍 Analyze Content"
+3. Review suggested content type, confidence, and reasoning
+4. Click "✓ Apply & Use for Corrections"
+
+**Manual Content Type Setting**:
 1. Edit project settings (✏️ button)
 2. Select content type from dropdown:
    - General Transcription (default)
@@ -311,6 +329,8 @@ This helps AI corrections apply appropriate style guidelines.
 4. Settings saved to localStorage (browser-based)
 
 **Production**: Configure in `backend/.env` for server-side settings.
+
+See [AI Configuration Guide](docs/AI_CONFIGURATION.md) for detailed setup instructions.
 
 ### Frontend Environment Variables
 
