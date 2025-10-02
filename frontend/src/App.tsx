@@ -12,6 +12,8 @@ import ProjectSelector from './components/Dashboard/ProjectSelector'
 import ProjectEditor from './components/Dashboard/ProjectEditor'
 import ExportDialog from './components/Export/ExportDialog'
 import { LLMSettings } from './components/Settings/LLMSettings'
+import { AISettingsDialog } from './components/Settings/AISettingsDialog'
+import { AnalysisDialog } from './components/AI/AnalysisDialog'
 import type { Segment } from './types'
 
 const queryClient = new QueryClient({
@@ -36,6 +38,8 @@ function MainApp() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isEditingProject, setIsEditingProject] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [showAISettings, setShowAISettings] = useState(false)
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false)
   const [llmProvider, setLlmProvider] = useState<string>(() => {
     return localStorage.getItem('llmProvider') || 'ollama'
   })
@@ -106,6 +110,7 @@ function MainApp() {
               <LLMSettings
                 selectedProvider={llmProvider}
                 onProviderChange={setLlmProvider}
+                onOpenSettings={() => setShowAISettings(true)}
               />
               <div className="w-64">
                 <ProjectSelector
@@ -114,16 +119,28 @@ function MainApp() {
                 />
               </div>
               {projectId && (
-                <button
-                  onClick={() => setIsEditingProject(true)}
-                  className="
-                    px-3 py-2 text-gray-700 bg-gray-100 rounded-lg
-                    hover:bg-gray-200 transition-colors
-                  "
-                  title="Edit project"
-                >
-                  ✏️
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowAnalysisDialog(true)}
+                    className="
+                      px-3 py-2 text-purple-700 bg-purple-100 rounded-lg
+                      hover:bg-purple-200 transition-colors
+                    "
+                    title="Analyze project with AI"
+                  >
+                    🔍
+                  </button>
+                  <button
+                    onClick={() => setIsEditingProject(true)}
+                    className="
+                      px-3 py-2 text-gray-700 bg-gray-100 rounded-lg
+                      hover:bg-gray-200 transition-colors
+                    "
+                    title="Edit project"
+                  >
+                    ✏️
+                  </button>
+                </>
               )}
               <button
                 onClick={handleCreateProject}
@@ -151,6 +168,24 @@ function MainApp() {
           )}
         </div>
       </header>
+
+      {/* AI Settings Dialog */}
+      <AISettingsDialog
+        isOpen={showAISettings}
+        onClose={() => setShowAISettings(false)}
+        currentProvider={llmProvider}
+        onProviderChange={setLlmProvider}
+      />
+
+      {/* AI Analysis Dialog */}
+      {projectId && (
+        <AnalysisDialog
+          isOpen={showAnalysisDialog}
+          onClose={() => setShowAnalysisDialog(false)}
+          projectId={projectId}
+          currentProvider={llmProvider}
+        />
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 px-6">

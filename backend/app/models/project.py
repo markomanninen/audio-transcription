@@ -16,6 +16,12 @@ class Project(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        default="general",
+        comment="Type of content: lyrics, academic, interview, literature, media, presentation, general"
+    )
 
     # Relationships
     audio_files: Mapped[List["AudioFile"]] = relationship(

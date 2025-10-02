@@ -8,11 +8,13 @@ import { useProviders, useProviderHealth } from '../../hooks/useAICorrections'
 interface LLMSettingsProps {
   selectedProvider: string
   onProviderChange: (provider: string) => void
+  onOpenSettings?: () => void
 }
 
 export const LLMSettings: React.FC<LLMSettingsProps> = ({
   selectedProvider,
   onProviderChange,
+  onOpenSettings,
 }) => {
   const { data: providers, isLoading } = useProviders()
   const { data: health } = useProviderHealth()
@@ -138,6 +140,18 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                   <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1" />
                   Unavailable - Check configuration
                 </p>
+
+                {onOpenSettings && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false)
+                      onOpenSettings()
+                    }}
+                    className="w-full mt-3 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  >
+                    ⚙️ Advanced Settings
+                  </button>
+                )}
               </div>
             </div>
           </div>

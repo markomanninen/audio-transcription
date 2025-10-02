@@ -32,6 +32,7 @@ class ProjectCreateRequest(BaseModel):
     """Request model for creating a project."""
     name: str
     description: str | None = None
+    content_type: str | None = "general"
 
 
 class ProjectResponse(BaseModel):
@@ -39,6 +40,7 @@ class ProjectResponse(BaseModel):
     id: int
     name: str
     description: str | None
+    content_type: str | None
     created_at: datetime
 
     class Config:
@@ -64,7 +66,8 @@ async def create_project(
     """
     project = Project(
         name=request.name,
-        description=request.description
+        description=request.description,
+        content_type=request.content_type
     )
     db.add(project)
     db.commit()
@@ -108,6 +111,8 @@ async def update_project(
     project.name = request.name
     if request.description is not None:
         project.description = request.description
+    if request.content_type is not None:
+        project.content_type = request.content_type
 
     db.commit()
     db.refresh(project)

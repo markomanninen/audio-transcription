@@ -68,10 +68,19 @@ async def correct_segment(
     # Use edited text if available, otherwise original
     text_to_correct = segment.edited_text or segment.original_text
 
-    # Get speaker context if available
-    context = ""
+    # Build context with speaker and content type information
+    context_parts = []
+
     if segment.speaker:
-        context = f"Speaker: {segment.speaker.display_name or segment.speaker.label}"
+        context_parts.append(f"Speaker: {segment.speaker.display_name or segment.speaker.label}")
+
+    # Get content type from project
+    if segment.audio_file and segment.audio_file.project:
+        content_type = segment.audio_file.project.content_type
+        if content_type and content_type != "general":
+            context_parts.append(f"Content type: {content_type}")
+
+    context = " | ".join(context_parts) if context_parts else ""
 
     # Initialize LLM service
     llm_service = LLMService()

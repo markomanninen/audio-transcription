@@ -7,9 +7,20 @@ interface ProjectEditorProps {
   onClose: () => void
 }
 
+const CONTENT_TYPES = [
+  { value: 'general', label: 'General Transcription' },
+  { value: 'interview', label: 'Interview / Conversation' },
+  { value: 'lyrics', label: 'Song Lyrics' },
+  { value: 'academic', label: 'Academic / Research' },
+  { value: 'literature', label: 'Book / Literature' },
+  { value: 'media', label: 'Podcast / Show' },
+  { value: 'presentation', label: 'Lecture / Presentation' },
+]
+
 export default function ProjectEditor({ project, onClose }: ProjectEditorProps) {
   const [name, setName] = useState(project.name)
   const [description, setDescription] = useState(project.description || '')
+  const [contentType, setContentType] = useState(project.content_type || 'general')
   const updateProject = useUpdateProject()
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -17,7 +28,11 @@ export default function ProjectEditor({ project, onClose }: ProjectEditorProps) 
     updateProject.mutate(
       {
         projectId: project.id,
-        data: { name, description: description || undefined },
+        data: {
+          name,
+          description: description || undefined,
+          content_type: contentType,
+        },
       },
       {
         onSuccess: () => {
@@ -58,6 +73,27 @@ export default function ProjectEditor({ project, onClose }: ProjectEditorProps) 
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <label htmlFor="contentType" className="block text-sm font-medium text-gray-700 mb-1">
+              Content Type
+            </label>
+            <select
+              id="contentType"
+              value={contentType}
+              onChange={(e) => setContentType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {CONTENT_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              This helps AI corrections understand the style and context of your transcription
+            </p>
           </div>
 
           <div className="flex gap-3 justify-end">

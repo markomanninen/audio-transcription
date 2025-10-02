@@ -56,13 +56,20 @@ Docker-hosted web application for audio interview transcription with advanced ed
     - Include/exclude timestamps
 
 - **AI-Powered Corrections**:
-  - Spell check and grammar correction via LLM
-  - Local inference: Ollama (llama3.2:1b default)
-  - Cloud inference: OpenRouter API (optional)
-  - Provider selection with health status indicators
-  - Interactive review dialog for suggestions
-  - Accept/reject corrections per segment
-  - Shows detected changes and confidence scores
+  - **Context-Aware Prompts**: Automatically adapts to content type (lyrics, academic, interview, literature, media, presentation, general)
+  - **Style-Specific Correction**: Different guidelines for each content type
+  - **Local Inference**: Ollama integration (llama3.2:1b default, configurable)
+  - **Cloud Inference**: OpenRouter API support (optional, multiple models)
+  - **Provider Management**:
+    - Quick provider switcher with health status indicators
+    - Advanced settings dialog for model/API key configuration
+    - Real-time health monitoring
+  - **Project-Level Content Type**: Set content type per project for consistent AI behavior
+  - **Interactive Review**:
+    - Visual diff showing original vs corrected text
+    - Detailed change detection
+    - Confidence scores
+    - Accept/reject per segment
 
 ### ⏳ Planned (Phase 7-8)
 
@@ -260,16 +267,50 @@ Edit `backend/.env`:
 WHISPER_MODEL_SIZE=base  # tiny, base, small, medium, large
 # Smaller = faster but less accurate, larger = slower but more accurate
 
-# LLM Provider
-DEFAULT_LLM_PROVIDER=ollama  # or "openrouter"
-DEFAULT_LLM_MODEL=llama3.2:1b
+# LLM Services
+# Ollama (Local - Default)
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_MODEL=llama3.2:1b
+# Available models: llama3.2:1b, llama3.2:3b, llama3.1:8b, mistral:7b, phi3:mini, gemma2:2b
+# Pull with: docker-compose exec ollama ollama pull <model>
 
-# For OpenRouter (optional)
-OPENROUTER_API_KEY=your_key_here
+# OpenRouter (Cloud - Optional)
+OPENROUTER_API_KEY=your-api-key-here
+OPENROUTER_MODEL=anthropic/claude-3-haiku
+# Get API key from: https://openrouter.ai/keys
+# Available models: anthropic/claude-3-haiku, openai/gpt-4o-mini, google/gemini-pro
+
+# Default Provider
+DEFAULT_LLM_PROVIDER=ollama
 
 # Upload limits
 MAX_UPLOAD_SIZE=524288000  # 500MB in bytes
 ```
+
+### AI Configuration
+
+**Setting Content Type**:
+1. Edit project settings (✏️ button)
+2. Select content type from dropdown:
+   - General Transcription (default)
+   - Interview / Conversation
+   - Song Lyrics
+   - Academic / Research
+   - Book / Literature
+   - Podcast / Show
+   - Lecture / Presentation
+
+This helps AI corrections apply appropriate style guidelines.
+
+**Provider & Model Configuration**:
+1. Click the AI provider dropdown in header
+2. Select "⚙️ Advanced Settings"
+3. Configure:
+   - Ollama URL and model
+   - OpenRouter API key and model
+4. Settings saved to localStorage (browser-based)
+
+**Production**: Configure in `backend/.env` for server-side settings.
 
 ### Frontend Environment Variables
 

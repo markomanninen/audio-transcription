@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import init_db
-from .api import upload, transcription, audio, export, ai_corrections
+from .api import upload, transcription, audio, export, ai_corrections, ai_analysis
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.include_router(transcription.router)
 app.include_router(audio.router)
 app.include_router(export.router)
 app.include_router(ai_corrections.router)
+app.include_router(ai_analysis.router)
 
 
 @app.get("/")

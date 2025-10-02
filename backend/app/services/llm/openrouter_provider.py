@@ -89,7 +89,7 @@ class OpenRouterProvider(LLMProvider):
             return False
 
     def _build_prompt(self, text: str, context: str, correction_type: str) -> str:
-        """Build the correction prompt."""
+        """Build the correction prompt with context awareness."""
         correction_instructions = {
             "grammar": "Fix any grammatical errors",
             "spelling": "Fix any spelling errors",
@@ -99,9 +99,17 @@ class OpenRouterProvider(LLMProvider):
 
         instruction = correction_instructions.get(correction_type, correction_instructions["all"])
 
+        # Detect content type from context or text characteristics
+        content_type = self._detect_content_type(context, text)
+        style_guide = self._get_style_guide(content_type)
+
         prompt = f"""You are a professional text editor. {instruction} in the following text from an audio transcription.
 
-Rules:
+Content Type: {content_type}
+
+{style_guide}
+
+General Rules:
 1. Only fix errors, do not rephrase or change the meaning
 2. Preserve the original style and tone
 3. Do not add explanations or comments
@@ -114,6 +122,89 @@ Rules:
         prompt += f"Text to correct:\n{text}\n\nCorrected text:"
 
         return prompt
+
+    def _detect_content_type(self, context: str, text: str) -> str:
+        """Detect the type of content being corrected."""
+        context_lower = context.lower() if context else ""
+        text_lower = text.lower()
+
+        # Check for explicit content type markers
+        if any(keyword in context_lower for keyword in ["lyrics", "song", "music"]):
+            return "lyrics"
+        elif any(keyword in context_lower for keyword in ["academic", "research", "paper", "thesis"]):
+            return "academic"
+        elif any(keyword in context_lower for keyword in ["interview", "conversation", "discussion"]):
+            return "interview"
+        elif any(keyword in context_lower for keyword in ["ebook", "book", "novel", "story"]):
+            return "literature"
+        elif any(keyword in context_lower for keyword in ["show", "podcast", "broadcast"]):
+            return "media"
+        elif any(keyword in context_lower for keyword in ["lecture", "presentation", "talk"]):
+            return "presentation"
+
+        # Heuristic detection based on text characteristics
+        if text.count("\n") > 3 and len(text.split()) < 50:  # Short lines, few words = likely lyrics
+            return "lyrics"
+        elif any(word in text_lower for word in ["therefore", "however", "furthermore", "consequently"]):
+            return "academic"
+
+        # Default to general transcription
+        return "general transcription"
+
+    def _get_style_guide(self, content_type: str) -> str:
+        """Get style-specific correction guidelines."""
+        style_guides = {
+            "lyrics": """Style Guide for Lyrics:
+- Preserve line breaks and verse structure
+- Allow poetic license and intentional grammar deviations
+- Keep repetitions and refrains intact
+- Maintain rhyme schemes where present
+- Fix only obvious spelling errors, not stylistic choices""",
+
+            "academic": """Style Guide for Academic Text:
+- Use formal language and proper terminology
+- Ensure logical connectors are correct (however, therefore, etc.)
+- Fix citation format inconsistencies
+- Maintain technical vocabulary accurately
+- Use complete sentences and proper punctuation""",
+
+            "interview": """Style Guide for Interview/Conversation:
+- Preserve conversational tone and natural speech patterns
+- Keep filler words if they add meaning (umm, well, you know)
+- Fix only clear errors, not colloquialisms
+- Maintain speaker's voice and personality
+- Allow incomplete sentences if contextually clear""",
+
+            "literature": """Style Guide for Literature/Books:
+- Maintain narrative voice and style
+- Preserve author's intentional stylistic choices
+- Fix only clear spelling and grammar errors
+- Keep dialogue natural and character-appropriate
+- Respect paragraph structure and pacing""",
+
+            "media": """Style Guide for Shows/Podcasts:
+- Keep casual, engaging tone
+- Preserve humor and personality
+- Allow informal language where appropriate
+- Fix technical errors but keep conversational flow
+- Maintain energy and enthusiasm in text""",
+
+            "presentation": """Style Guide for Lectures/Presentations:
+- Use clear, professional language
+- Fix technical terminology carefully
+- Maintain educational tone
+- Ensure logical flow between points
+- Keep examples and explanations intact""",
+
+            "general transcription": """Style Guide for General Transcription:
+- Fix clear spelling and grammar errors
+- Maintain natural speech patterns
+- Preserve meaning and intent
+- Use context to disambiguate homophones
+- Keep the transcription accurate to the spoken word"""
+        }
+
+        return style_guides.get(content_type, style_guides["general transcription"])
 
     def _parse_correction(self, llm_response: str, original: str) -> str:
         """Parse the LLM response to extract just the corrected text."""
