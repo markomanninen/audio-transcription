@@ -83,7 +83,7 @@ gh repo create audio-transcription --public --description "AI-powered audio tran
 
 # Push to GitHub
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/audio-transcription.git
+git remote add origin https://github.com/markomanninen/audio-transcription.git
 git push -u origin main
 ```
 
