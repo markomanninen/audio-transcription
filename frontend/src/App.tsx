@@ -71,9 +71,39 @@ function App() {
     } else {
       localStorage.removeItem('selectedProjectId')
     }
-    // Clear selected file when project changes
-    setSelectedFileId(null)
   }, [projectId])
+
+  // Auto-select file when project changes or files load
+  useEffect(() => {
+    if (!projectId || !projectFiles || projectFiles.length === 0) {
+      setSelectedFileId(null)
+      return
+    }
+
+    // Try to restore last selected file for this project
+    const lastSelectedKey = `selectedFileId_${projectId}`
+    const lastSelectedId = localStorage.getItem(lastSelectedKey)
+
+    if (lastSelectedId) {
+      const fileExists = projectFiles.find(f => f.file_id === parseInt(lastSelectedId))
+      if (fileExists) {
+        setSelectedFileId(parseInt(lastSelectedId))
+        return
+      }
+    }
+
+    // Otherwise, auto-select the most recent file (first in the list)
+    if (projectFiles.length > 0) {
+      setSelectedFileId(projectFiles[0].file_id)
+    }
+  }, [projectId, projectFiles])
+
+  // Save selected file to localStorage
+  useEffect(() => {
+    if (projectId && selectedFileId) {
+      localStorage.setItem(`selectedFileId_${projectId}`, selectedFileId.toString())
+    }
+  }, [projectId, selectedFileId])
 
   const handleCreateProject = (name: string) => {
     createProject.mutate(
