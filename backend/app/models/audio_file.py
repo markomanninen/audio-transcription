@@ -32,6 +32,7 @@ class AudioFile(Base, TimestampMixin):
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # bytes
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # seconds
     format: Mapped[str] = mapped_column(String(10), nullable=False)  # mp3, wav, etc.
+    language: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO 639-1 code (en, fi, sv, etc.) or None for auto-detect
 
     # Transcription status
     transcription_status: Mapped[TranscriptionStatus] = mapped_column(

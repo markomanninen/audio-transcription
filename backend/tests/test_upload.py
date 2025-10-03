@@ -118,3 +118,79 @@ def test_list_files_invalid_project(client):
     """Test listing files for non-existent project."""
     response = client.get("/api/upload/files/99999")
     assert response.status_code == 404
+
+
+def test_upload_file_with_language(client, temp_audio_dir, sample_audio_content, test_db):
+    """Test uploading an audio file with language parameter."""
+    # Create project first
+    project_response = client.post(
+        "/api/upload/project",
+        json={"name": "Test Project"}
+    )
+    project_id = project_response.json()["id"]
+
+    # Upload file with language
+    files = {"file": ("test.wav", BytesIO(sample_audio_content), "audio/wav")}
+    data = {"language": "fi"}
+    response = client.post(f"/api/upload/file/{project_id}", files=files, data=data)
+
+    assert response.status_code == 201
+    response_data = response.json()
+    assert response_data["original_filename"] == "test.wav"
+    assert response_data["status"] == "pending"
+
+    # Verify language is stored using test_db
+    from app.models.audio_file import AudioFile
+    audio_file = test_db.query(AudioFile).filter(AudioFile.id == response_data["file_id"]).first()
+    assert audio_file is not None, "Audio file not found in database"
+    assert audio_file.language == "fi", f"Expected language 'fi' but got '{audio_file.language}'"
+
+
+def test_upload_file_with_autodetect_language(client, temp_audio_dir, sample_audio_content):
+    """Test uploading an audio file with auto-detect (empty string)."""
+    # Create project first
+    project_response = client.post(
+        "/api/upload/project",
+        json={"name": "Test Project"}
+    )
+    project_id = project_response.json()["id"]
+
+    # Upload file with empty language (auto-detect)
+    files = {"file": ("test.wav", BytesIO(sample_audio_content), "audio/wav")}
+    data = {"language": ""}
+    response = client.post(f"/api/upload/file/{project_id}", files=files, data=data)
+
+    assert response.status_code == 201
+
+    # Verify language is None in database (empty string should be treated as None)
+    from app.models.audio_file import AudioFile
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    audio_file = db.query(AudioFile).filter(AudioFile.id == response.json()["file_id"]).first()
+    # Empty string or None both mean auto-detect
+    assert audio_file.language in (None, "")
+    db.close()
+
+
+def test_upload_file_without_language(client, temp_audio_dir, sample_audio_content):
+    """Test uploading an audio file without language parameter (defaults to auto-detect)."""
+    # Create project first
+    project_response = client.post(
+        "/api/upload/project",
+        json={"name": "Test Project"}
+    )
+    project_id = project_response.json()["id"]
+
+    # Upload file without language parameter
+    files = {"file": ("test.wav", BytesIO(sample_audio_content), "audio/wav")}
+    response = client.post(f"/api/upload/file/{project_id}", files=files)
+
+    assert response.status_code == 201
+
+    # Verify language is None (auto-detect)
+    from app.models.audio_file import AudioFile
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    audio_file = db.query(AudioFile).filter(AudioFile.id == response.json()["file_id"]).first()
+    assert audio_file.language is None
+    db.close()

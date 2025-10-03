@@ -29,6 +29,7 @@ export default function SegmentList({
   const updateSegment = useUpdateSegment()
   const correctSegment = useCorrectSegment()
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null)
+  const [correctingSegmentId, setCorrectingSegmentId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
   const [correction, setCorrection] = useState<CorrectionResponse | null>(null)
 
@@ -68,6 +69,7 @@ export default function SegmentList({
 
   const handleAICorrect = async (segment: Segment) => {
     try {
+      setCorrectingSegmentId(segment.id)
       const result = await correctSegment.mutateAsync({
         segment_id: segment.id,
         provider: llmProvider,
@@ -76,6 +78,8 @@ export default function SegmentList({
       setCorrection(result)
     } catch (error) {
       console.error('AI correction failed:', error)
+    } finally {
+      setCorrectingSegmentId(null)
     }
   }
 
@@ -202,11 +206,15 @@ export default function SegmentList({
 
                       <button
                         onClick={() => handleAICorrect(segment)}
-                        disabled={correctSegment.isPending}
-                        className="px-2 py-1 text-xs text-purple-600 dark:text-purple-400 hover:bg-muted rounded transition-colors disabled:opacity-50"
+                        disabled={correctingSegmentId === segment.id}
+                        className="px-2 py-1 text-xs text-purple-600 dark:text-purple-400 hover:bg-muted rounded transition-colors disabled:opacity-50 relative"
                         title="AI Correct"
                       >
-                        ✨
+                        {correctingSegmentId === segment.id ? (
+                          <span className="inline-block animate-spin">⏳</span>
+                        ) : (
+                          '✨'
+                        )}
                       </button>
                       <button
                         onClick={() => handleStartEdit(segment)}

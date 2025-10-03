@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useUploadFile } from '../../hooks/useUpload'
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '../../constants/languages'
 
 interface FileUploaderProps {
   projectId: number
@@ -8,6 +9,7 @@ interface FileUploaderProps {
 
 export default function FileUploader({ projectId, onUploadComplete }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE)
   const uploadMutation = useUploadFile(projectId)
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -52,15 +54,45 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
   )
 
   const handleFileUpload = (file: File) => {
-    uploadMutation.mutate(file, {
-      onSuccess: (data) => {
-        onUploadComplete?.(data.file_id)
+    uploadMutation.mutate(
+      {
+        file,
+        language: selectedLanguage || undefined,
       },
-    })
+      {
+        onSuccess: (data) => {
+          onUploadComplete?.(data.file_id)
+        },
+      }
+    )
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
+      {/* Language Selector */}
+      <div className="flex items-center gap-3">
+        <label htmlFor="language-select" className="text-sm font-medium">
+          Transcription Language:
+        </label>
+        <select
+          id="language-select"
+          value={selectedLanguage}
+          onChange={(e) => setSelectedLanguage(e.target.value)}
+          className="px-3 py-2 border border-border rounded-lg focus-ring bg-input text-input-foreground"
+          disabled={uploadMutation.isPending}
+        >
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.nativeName}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground">
+          {selectedLanguage ? 'Selected language will be used for transcription' : 'Language will be auto-detected'}
+        </span>
+      </div>
+
+      {/* File Upload Area */}
       <div
         className={`
           relative border-2 border-dashed rounded-lg p-8 text-center bg-card

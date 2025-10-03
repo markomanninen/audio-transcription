@@ -2,13 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import type { AudioFile } from '../types'
 
+export interface UploadFileParams {
+  file: File
+  language?: string
+}
+
 export const useUploadFile = (projectId: number) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (file: File): Promise<AudioFile> => {
+    mutationFn: async (params: UploadFileParams): Promise<AudioFile> => {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', params.file)
+      if (params.language) {
+        formData.append('language', params.language)
+      }
 
       const response = await apiClient.post<AudioFile>(
         `/api/upload/file/${projectId}`,

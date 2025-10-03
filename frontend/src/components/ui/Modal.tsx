@@ -155,3 +155,4 @@ const Modal: React.FC<ModalProps> = ({
 Modal.displayName = 'Modal';
 
 export { Modal };
+export default Modal;

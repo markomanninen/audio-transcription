@@ -3,7 +3,8 @@ Ollama LLM provider for local inference.
 """
 import httpx
 import json
-from typing import Dict, Any
+import time
+from typing import Dict, Any, Optional
 from .base import LLMProvider
 from .prompts import PromptBuilder
 
@@ -11,29 +12,23 @@ from .prompts import PromptBuilder
 class OllamaProvider(LLMProvider):
     """Ollama provider for local LLM inference."""
 
-    def __init__(self, base_url: str = "http://ollama:11434", model: str = "llama3.2:1b"):
+    def __init__(self, base_url: str = "http://ollama:11434", model: str = "llama3.2:1b", db=None):
         self.base_url = base_url
         self.model = model
         self.timeout = 30.0
+        self.db = db  # Optional database session for logging
 
     async def correct_text(
         self,
         text: str,
         context: str = "",
-        correction_type: str = "grammar"
+        correction_type: str = "grammar",
+        segment_id: Optional[int] = None,
+        project_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """
-        Correct text using Ollama.
-
-        Args:
-            text: Text to correct
-            context: Optional context
-            correction_type: Type of correction
-
-        Returns:
-            Correction results
-        """
+        """Correct text using Ollama with logging."""
         prompt = PromptBuilder.build_correction_prompt(text, context, correction_type)
+        start_time = time.time()
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -44,7 +39,7 @@ class OllamaProvider(LLMProvider):
                         "prompt": prompt,
                         "stream": False,
                         "options": {
-                            "temperature": 0.3,  # Lower temperature for more deterministic corrections
+                            "temperature": 0.3,
                             "top_p": 0.9,
                         }
                     }
@@ -52,22 +47,92 @@ class OllamaProvider(LLMProvider):
                 response.raise_for_status()
 
                 result = response.json()
-                corrected_text = result.get("response", "").strip()
+                raw_response = result.get("response", "").strip()
+                corrected_text = self._parse_correction(raw_response, text)
 
-                # Parse the response to extract just the corrected text
-                corrected_text = self._parse_correction(corrected_text, text)
+                duration_ms = (time.time() - start_time) * 1000
+
+                # Log successful request
+                self._log_request(
+                    prompt=prompt,
+                    response=raw_response,
+                    original_text=text,
+                    context=context,
+                    corrected_text=corrected_text,
+                    duration_ms=duration_ms,
+                    segment_id=segment_id,
+                    project_id=project_id,
+                    status="success"
+                )
 
                 return {
                     "corrected_text": corrected_text,
                     "original_text": text,
                     "changes": self._detect_changes(text, corrected_text),
-                    "confidence": 0.85  # Ollama doesn't provide confidence scores
+                    "confidence": 0.85
                 }
 
-        except httpx.RequestError as e:
-            raise ConnectionError(f"Failed to connect to Ollama: {str(e)}")
-        except httpx.HTTPStatusError as e:
-            raise RuntimeError(f"Ollama request failed: {str(e)}")
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Log error
+            self._log_request(
+                prompt=prompt,
+                response="",
+                original_text=text,
+                context=context,
+                duration_ms=duration_ms,
+                segment_id=segment_id,
+                project_id=project_id,
+                status="error",
+                error_message=str(e)
+            )
+
+            if isinstance(e, httpx.RequestError):
+                raise ConnectionError(f"Failed to connect to Ollama: {str(e)}")
+            else:
+                raise RuntimeError(f"Ollama request failed: {str(e)}")
+
+    def _log_request(
+        self,
+        prompt: str,
+        response: str,
+        original_text: str = "",
+        context: str = "",
+        corrected_text: str = "",
+        duration_ms: float = 0,
+        segment_id: int = None,
+        project_id: int = None,
+        status: str = "success",
+        error_message: str = None
+    ):
+        """Log LLM request/response to database."""
+        if not self.db:
+            return
+
+        try:
+            from ...models.llm_log import LLMLog
+
+            log_entry = LLMLog(
+                provider="ollama",
+                model=self.model,
+                operation="correct_text",
+                prompt=prompt,
+                original_text=original_text,
+                context=context,
+                response=response,
+                corrected_text=corrected_text,
+                status=status,
+                error_message=error_message,
+                duration_ms=duration_ms,
+                segment_id=segment_id,
+                project_id=project_id
+            )
+            self.db.add(log_entry)
+            self.db.commit()
+        except Exception as e:
+            # Don't fail the request if logging fails
+            print(f"Failed to log LLM request: {e}")
 
     async def health_check(self) -> bool:
         """Check if Ollama is available."""

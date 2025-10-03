@@ -11,8 +11,9 @@ from ...core.config import settings
 class LLMService:
     """Service for managing LLM providers and text corrections."""
 
-    def __init__(self):
+    def __init__(self, db=None):
         self._providers: Dict[str, LLMProvider] = {}
+        self.db = db
         self._initialize_providers()
 
     def _initialize_providers(self):
@@ -23,7 +24,8 @@ class LLMService:
             ollama_model = getattr(settings, 'OLLAMA_MODEL', 'llama3.2:1b')
             self._providers['ollama'] = OllamaProvider(
                 base_url=ollama_url,
-                model=ollama_model
+                model=ollama_model,
+                db=self.db
             )
         except Exception as e:
             print(f"Warning: Could not initialize Ollama provider: {e}")
@@ -61,7 +63,9 @@ class LLMService:
         text: str,
         provider: str = "ollama",
         context: str = "",
-        correction_type: str = "all"
+        correction_type: str = "all",
+        segment_id: Optional[int] = None,
+        project_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Correct text using specified provider.
@@ -71,6 +75,8 @@ class LLMService:
             provider: Provider to use ("ollama" or "openrouter")
             context: Optional context
             correction_type: Type of correction
+            segment_id: Optional segment ID for logging
+            project_id: Optional project ID for logging
 
         Returns:
             Correction results
@@ -89,7 +95,13 @@ class LLMService:
         if not is_healthy:
             raise ConnectionError(f"Provider '{provider}' is not responding")
 
-        return await llm_provider.correct_text(text, context, correction_type)
+        return await llm_provider.correct_text(
+            text,
+            context,
+            correction_type,
+            segment_id=segment_id,
+            project_id=project_id
+        )
 
     async def health_check_all(self) -> Dict[str, bool]:
         """

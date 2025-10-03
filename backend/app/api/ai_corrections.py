@@ -108,8 +108,11 @@ async def correct_segment(
 
     context = " | ".join(context_parts) if context_parts else ""
 
-    # Initialize LLM service
-    llm_service = LLMService()
+    # Initialize LLM service with database session
+    llm_service = LLMService(db=db)
+
+    # Get project_id from segment
+    project_id = segment.audio_file.project_id if segment.audio_file else None
 
     try:
         # Perform correction
@@ -117,7 +120,9 @@ async def correct_segment(
             text=text_to_correct,
             provider=request.provider,
             context=context,
-            correction_type=request.correction_type
+            correction_type=request.correction_type,
+            segment_id=segment.id,
+            project_id=project_id
         )
 
         return CorrectionResponse(
@@ -165,8 +170,8 @@ async def correct_batch(
             detail=f"Segments not found: {missing_ids}"
         )
 
-    # Initialize LLM service
-    llm_service = LLMService()
+    # Initialize LLM service with database session
+    llm_service = LLMService(db=db)
 
     results = []
     for segment in segments:
@@ -213,13 +218,18 @@ async def correct_batch(
 
         context = " | ".join(context_parts) if context_parts else ""
 
+        # Get project_id from segment
+        project_id = segment.audio_file.project_id if segment.audio_file else None
+
         try:
             # Perform correction
             result = await llm_service.correct_text(
                 text=text_to_correct,
                 provider=request.provider,
                 context=context,
-                correction_type=request.correction_type
+                correction_type=request.correction_type,
+                segment_id=segment.id,
+                project_id=project_id
             )
 
             results.append(CorrectionResponse(

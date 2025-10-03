@@ -110,6 +110,7 @@
   /* Style select elements and their options */
   select {
     color-scheme: light dark;
+    height: 36px;
   }
 
   select option {

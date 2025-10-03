@@ -20,6 +20,8 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 - **Auto-Transcription**:
   - Powered by OpenAI Whisper (base model by default)
+  - **Multi-language support**: 22+ languages including Finnish, Swedish, Norwegian, etc.
+  - **Auto-detection** or manual language selection per file
   - Background processing with status tracking
   - Real-time progress updates (polling)
   - Automatic speaker diarization using PyAnnote Audio
@@ -130,39 +132,56 @@ Docker-hosted web application for audio interview transcription with advanced ed
 
 3. **Start services**
    ```bash
-   # Production mode
-   docker-compose up --build
-
-   # Development mode (with hot reload)
+   # Development mode (recommended - with hot reload)
    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+   # OR Production mode
+   docker-compose up --build
    ```
 
-4. **Pull Ollama model** (in a new terminal)
+   **Wait for startup to complete** (30-60 seconds). You'll see:
+   ```
+   ✓ Backend ready at http://localhost:8000
+   ✓ Frontend ready at http://localhost:5173 (dev) or http://localhost:3000 (prod)
+   ```
+
+4. **Pull Ollama model** (in a new terminal, while services are running)
    ```bash
    docker-compose exec ollama ollama pull llama3.2:1b
    ```
+   This downloads the AI model (~1GB). Takes 2-5 minutes depending on connection.
 
 5. **Access the application**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+
+   **Development mode:**
+   - 🌐 Frontend: **http://localhost:5173** ← Open this in your browser
+   - 🔧 Backend API: http://localhost:8000
+   - 📚 API Docs: http://localhost:8000/docs
+
+   **Production mode:**
+   - 🌐 Frontend: **http://localhost:3000** ← Open this in your browser
+   - 🔧 Backend API: http://localhost:8000
+   - 📚 API Docs: http://localhost:8000/docs
 
 ### First Transcription
 
 1. **Open** http://localhost:5173
 2. **Create a project**: Click "New Project" and enter a name
-3. **Upload audio**: Drag and drop an audio file (or click to browse)
-4. **Start transcription**: Click the "Transcribe" button on your uploaded file
-5. **Wait for processing**: Real-time progress shown (typically 1-3 minutes for a 3-minute audio)
-6. **Analyze content** (optional):
+3. **Select language** (optional): Choose transcription language from dropdown (defaults to auto-detect)
+   - 🌐 Auto-detect (default) - Whisper automatically detects the language
+   - Or select specific language: Finnish (Suomi), Swedish (Svenska), English, etc.
+4. **Upload audio**: Drag and drop an audio file (or click to browse)
+5. **Start transcription**: Click the "Transcribe" button on your uploaded file
+6. **Wait for processing**: Real-time progress shown (typically 1-3 minutes for a 3-minute audio)
+7. **Analyze content** (optional):
    - Click 🔍 to analyze project and detect content type
    - Review confidence score and apply suggested content type
-7. **Review and edit**:
+8. **Review and edit**:
    - Click ✏️ to edit any segment
    - Click ✨ for AI correction suggestions
    - Click ▶ to play audio from that segment
    - Rename speakers if needed
-8. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
+9. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
 
 ## Development
 
@@ -344,9 +363,38 @@ VITE_WS_URL=ws://localhost:8000/ws
 ## Troubleshooting
 
 ### Port conflicts
-If ports 3000, 8000, 6379, or 11434 are in use:
-- Stop conflicting services, or
-- Edit `docker-compose.yml` to use different ports
+**Symptom**: "Error: bind: address already in use" or services fail to start
+
+**Ports used:**
+- **5173** (dev) or **3000** (prod) - Frontend
+- **8000** - Backend API
+- 6379 - Redis (internal only, not exposed)
+- 11434 - Ollama (internal only, not exposed)
+
+**Solutions:**
+1. **Check what's using the port:**
+   ```bash
+   # macOS/Linux
+   lsof -i :5173
+   lsof -i :8000
+
+   # Or use netstat
+   netstat -an | grep LISTEN | grep -E '(5173|8000|3000)'
+   ```
+
+2. **Stop conflicting service:**
+   ```bash
+   # Kill process by PID (from lsof output)
+   kill -9 <PID>
+   ```
+
+3. **Use different ports** - Edit `docker-compose.yml`:
+   ```yaml
+   ports:
+     - "5174:5173"  # Change 5174 to any available port
+     - "8001:8000"  # Change 8001 to any available port
+   ```
+   Then access at http://localhost:5174 instead
 
 ### Transcription is slow
 - Use smaller Whisper model: `WHISPER_MODEL_SIZE=tiny` or `base`

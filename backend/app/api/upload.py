@@ -2,9 +2,10 @@
 Upload API endpoints.
 """
 from datetime import datetime
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 
 from ..core.database import get_db
 from ..services.audio_service import AudioService
@@ -123,6 +124,7 @@ async def update_project(
 async def upload_file(
     project_id: int,
     file: UploadFile = File(...),
+    language: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ) -> UploadResponse:
     """
@@ -172,6 +174,8 @@ async def upload_file(
 
     # Create database record
     file_format = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "mp3"
+    # Convert empty string to None for auto-detect
+    lang_code = language if language and language.strip() else None
     audio_file = AudioFile(
         project_id=project_id,
         filename=unique_filename,
@@ -180,6 +184,7 @@ async def upload_file(
         file_size=len(file_content),
         duration=duration,
         format=file_format,
+        language=lang_code,  # None for auto-detect, or ISO 639-1 code (en, fi, sv, etc.)
         transcription_status=TranscriptionStatus.PENDING
     )
 

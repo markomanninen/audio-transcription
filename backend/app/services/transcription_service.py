@@ -67,10 +67,12 @@ class TranscriptionService:
             self.load_model()
 
             # Transcribe with word-level timestamps
+            # Use specified language or auto-detect (None)
+            language = audio_file.language if audio_file.language else None
             result = self.model.transcribe(
                 wav_path,
                 word_timestamps=True,
-                language="en",  # Can be auto-detected or configured
+                language=language,  # Auto-detect if None, or use specified language code
                 task="transcribe"
             )
 
