@@ -120,6 +120,54 @@ async def update_project(
     return project
 
 
+@router.delete("/project/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+) -> None:
+    """
+    Delete a project and all associated data (files, segments, speakers, logs).
+    """
+    import os
+    from ..models.segment import Segment
+    from ..models.speaker import Speaker
+    from ..models.llm_log import LLMLog
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {project_id} not found"
+        )
+
+    # Get all audio files for this project
+    audio_files = db.query(AudioFile).filter(AudioFile.project_id == project_id).all()
+
+    # Delete physical audio files from disk
+    for audio_file in audio_files:
+        try:
+            if audio_file.file_path and os.path.exists(audio_file.file_path):
+                os.remove(audio_file.file_path)
+        except Exception as e:
+            print(f"Warning: Could not delete file {audio_file.file_path}: {e}")
+
+        # Delete segments for this audio file
+        db.query(Segment).filter(Segment.audio_file_id == audio_file.id).delete()
+
+        # Delete speakers for this audio file
+        db.query(Speaker).filter(Speaker.audio_file_id == audio_file.id).delete()
+
+    # Delete audio file records
+    db.query(AudioFile).filter(AudioFile.project_id == project_id).delete()
+
+    # Delete LLM logs for this project
+    db.query(LLMLog).filter(LLMLog.project_id == project_id).delete()
+
+    # Finally delete the project
+    db.delete(project)
+    db.commit()
+
+
 @router.post("/file/{project_id}", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_file(
     project_id: int,

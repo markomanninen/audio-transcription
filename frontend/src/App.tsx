@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useCreateProject, useProject } from './hooks/useProjects'
+import { useCreateProject, useProject, useDeleteProject } from './hooks/useProjects'
 import { useProjectFiles } from './hooks/useUpload'
 import FileUploader from './components/Upload/FileUploader'
 import FileList from './components/Dashboard/FileList'
@@ -10,6 +10,7 @@ import SpeakerManager from './components/Transcription/SpeakerManager'
 import ProjectSelector from './components/Dashboard/ProjectSelector'
 import ProjectEditor from './components/Dashboard/ProjectEditor'
 import CreateProjectDialog from './components/Dashboard/CreateProjectDialog'
+import DeleteProjectDialog from './components/Dashboard/DeleteProjectDialog'
 import ExportDialog from './components/Export/ExportDialog'
 import { LLMSettings } from './components/Settings/LLMSettings'
 import { AISettingsDialog } from './components/Settings/AISettingsDialog'
@@ -38,6 +39,7 @@ function App() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   const [isEditingProject, setIsEditingProject] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showAISettings, setShowAISettings] = useState(false)
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false)
@@ -50,6 +52,7 @@ function App() {
   const projectMenuRef = useRef<HTMLDivElement>(null)
   const toolsMenuRef = useRef<HTMLDivElement>(null)
   const createProject = useCreateProject()
+  const deleteProject = useDeleteProject()
   const { data: currentProject } = useProject(projectId)
   const { data: projectFiles } = useProjectFiles(projectId)
 
@@ -111,6 +114,17 @@ function App() {
     setShowTutorial(false)
   }
 
+  const handleDeleteProject = () => {
+    if (!projectId) return
+    deleteProject.mutate(projectId, {
+      onSuccess: () => {
+        setProjectId(null)
+        setShowDeleteDialog(false)
+        setShowProjectMenu(false)
+      }
+    })
+  }
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -144,7 +158,11 @@ function App() {
       <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto py-4 px-6">
           <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold">
+            <h1
+              className="text-2xl font-bold cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              onClick={() => setProjectId(null)}
+              title="Go to home page"
+            >
               Audio Transcription
             </h1>
             <div className="flex items-center gap-3">
@@ -187,6 +205,17 @@ function App() {
                       >
                         <span>🔍</span>
                         <span>AI Analysis</span>
+                      </button>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        onClick={() => {
+                          setShowDeleteDialog(true)
+                          setShowProjectMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors flex items-center gap-2"
+                      >
+                        <span>🗑️</span>
+                        <span>Delete Project</span>
                       </button>
                     </div>
                   )}
@@ -273,6 +302,15 @@ function App() {
         onClose={() => setShowCreateDialog(false)}
         onCreate={handleCreateProject}
         isCreating={createProject.isPending}
+      />
+
+      {/* Delete Project Dialog */}
+      <DeleteProjectDialog
+        isOpen={showDeleteDialog}
+        projectName={currentProject?.name || ''}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteProject}
+        isDeleting={deleteProject.isPending}
       />
 
       {/* AI Settings Dialog */}

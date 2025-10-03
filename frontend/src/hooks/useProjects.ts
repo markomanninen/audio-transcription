@@ -63,3 +63,16 @@ export const useUpdateProject = () => {
     },
   })
 }
+
+export const useDeleteProject = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (projectId: number): Promise<void> => {
+      await apiClient.delete(`/api/upload/project/${projectId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
