@@ -1,478 +1,283 @@
-# Audio Interview Transcription App
+# 🎙️ Audio Transcription
 
-Docker-hosted web application for audio interview transcription with advanced editing capabilities, speaker recognition, AI-powered corrections, and multiple export formats.
+AI-powered audio transcription application with speaker recognition, multi-language support, and intelligent editing capabilities. Perfect for transcribing interviews, podcasts, meetings, and more.
 
-## Features
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![Node](https://img.shields.io/badge/node-18+-green.svg)
+![Docker](https://img.shields.io/badge/docker-required-blue.svg)
 
-### ✅ Implemented (Phases 1-6)
+## ✨ Features
 
-- **Project Management**:
-  - Create and organize multiple transcription projects
-  - Switch between projects with dropdown selector
-  - Edit project names and descriptions
-  - Persistent project selection (localStorage)
+### Core Transcription
+- **🌍 Multi-language Support**: 22+ languages including English, Finnish, Swedish, French, German, Spanish, and more
+- **🎯 Auto Language Detection**: Automatically detects spoken language
+- **👥 Speaker Diarization**: Automatic speaker identification and labeling
+- **⚡ Fast Processing**: Powered by OpenAI Whisper (typically 1-3 minutes for 3-minute audio)
+- **📝 Multiple Output Formats**: Export as SRT, HTML, or TXT
 
-- **Audio Upload & Processing**:
-  - Drag-and-drop interface supporting multiple formats (MP3, WAV, M4A, WebM, OGG, FLAC)
-  - File validation (format, size, MIME type)
-  - Real-time upload progress
-  - Audio duration detection
+### AI-Powered Editing
+- **✨ Context-Aware Corrections**: Smart grammar and spelling fixes with segment context
+- **🔍 Content Analysis**: AI-powered project-wide analysis and summaries  
+- **🎨 Customizable Speakers**: Rename speakers and assign custom colors
+- **📊 LLM Monitoring**: Track and debug all AI interactions
 
-- **Auto-Transcription**:
-  - Powered by OpenAI Whisper (base model by default)
-  - **Multi-language support**: 22+ languages including Finnish, Swedish, Norwegian, etc.
-  - **Auto-detection** or manual language selection per file
-  - Background processing with status tracking
-  - Real-time progress updates (polling)
-  - Automatic speaker diarization using PyAnnote Audio
+### User Experience
+- **🎵 Built-in Audio Player**: Play, pause, and jump to specific segments
+- **✏️ Inline Editing**: Edit transcriptions directly with live preview
+- **🌓 Dark/Light Mode**: Comfortable viewing in any environment
+- **📖 Interactive Tutorial**: Step-by-step guide for new users
+- **💾 Auto-save**: Persistent storage of projects and preferences
+- **🗑️ Project Management**: Delete projects with all associated data
 
-- **Interactive Editor**:
-  - Line-by-line editing with inline text areas
-  - Save/Cancel controls per segment
-  - Original text preserved (shown in italic when edited)
-  - Timestamps displayed (MM:SS format)
-  - Speaker color-coding and labels
-
-- **Speaker Management**:
-  - Rename speakers with inline editing
-  - Color-coded speaker visualization
-  - Speaker names in export outputs
-
-- **Advanced Playback Controls**:
-  - Main audio player with timeline scrubber
-  - Synchronized segment-level controls:
-    - ▶ Play: Continues from current position (or seeks if not active)
-    - ⏸ Pause: Only visible when segment is playing
-    - ↻ Replay: Restarts segment from beginning
-  - Active segment highlighting during playback
-  - Click segment timestamp to jump to audio position
-  - HTTP range request support for smooth streaming
-
-- **Export Formats**:
-  - **SRT**: Standard subtitles with HH:MM:SS,mmm timestamps
-  - **HTML**: Styled document with metadata and formatting
-  - **TXT**: Plain text with optional timestamps
-  - Customizable options:
-    - Use edited vs original text
-    - Include/exclude speaker names
-    - Include/exclude timestamps
-
-- **AI-Powered Corrections**:
-  - **Context-Aware Prompts**: Automatically adapts to content type (lyrics, academic, interview, literature, media, presentation, general)
-  - **Style-Specific Correction**: Different guidelines for each content type
-  - **Surrounding Context**: Includes previous and next segments (80 chars each) for better conversational flow understanding
-  - **Local Inference**: Ollama integration (llama3.2:1b default, configurable)
-  - **Cloud Inference**: OpenRouter API support (optional, multiple models)
-  - **Provider Management**:
-    - Quick provider switcher with health status indicators
-    - Advanced settings dialog for model/API key configuration
-    - Real-time health monitoring
-  - **AI Content Analysis**:
-    - 🔍 Analyze project button for automatic content type detection
-    - Analyzes first 10 segments to suggest content type
-    - Provides confidence score (0.5-1.0) and reasoning
-    - Suggests project description
-    - Weighted keyword scoring for accurate detection
-    - Visual explanations of how content type affects corrections
-  - **Project-Level Content Type**: Set content type per project for consistent AI behavior
-  - **Interactive Review**:
-    - Visual diff showing original vs corrected text
-    - Detailed change detection
-    - Confidence scores
-    - Accept/reject per segment
-
-### ⏳ Planned (Phase 7-8)
-
-- **UI/UX Enhancements** (Phase 7):
-  - Improved visual design
-  - Keyboard shortcuts
-  - Mobile responsiveness
-  - Dark mode
-  - Better error handling UI
-
-- **Production Polish** (Phase 8):
-  - Performance optimization
-  - Security hardening
-  - Monitoring and logging
-
-## Tech Stack
-
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy, SQLite, OpenAI Whisper, PyAnnote Audio
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, React Query (TanStack Query), Axios
-- **Infrastructure**: Docker Compose, Ollama (for future AI features)
-- **Testing**: pytest (backend), Vitest (frontend), Playwright (E2E)
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose installed
+- Docker and Docker Compose
 - At least 4GB RAM available
-- 10GB free disk space (for models and audio storage)
+- 5GB disk space for Whisper models
 
-### Initial Setup
+### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd transcribe
+   git clone https://github.com/YOUR_USERNAME/audio-transcription.git
+   cd audio-transcription
    ```
 
-2. **Configure environment variables**
+2. **Configure environment** (optional)
    ```bash
-   # Backend
    cp backend/.env.example backend/.env
-
-   # Frontend
-   cp frontend/.env.example frontend/.env
-
-   # Edit backend/.env if you want to use OpenRouter (optional)
-   # Add your OPENROUTER_API_KEY if desired
+   # Edit backend/.env if you want to use OpenRouter for AI features
    ```
 
-3. **Start services**
+3. **Start the application**
    ```bash
-   # Development mode (recommended - with hot reload)
-   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-
-   # OR Production mode
-   docker-compose up --build
+   docker-compose up -d
    ```
 
-   **Wait for startup to complete** (30-60 seconds). You'll see:
-   ```
-   ✓ Backend ready at http://localhost:8000
-   ✓ Frontend ready at http://localhost:5173 (dev) or http://localhost:3000 (prod)
-   ```
+4. **Access the application**
+   - Frontend: http://localhost:5175
+   - Backend API: http://localhost:8000
+   - API Docs: http://localhost:8000/docs
 
-4. **Pull Ollama model** (in a new terminal, while services are running)
-   ```bash
-   docker-compose exec ollama ollama pull llama3.2:1b
-   ```
-   This downloads the AI model (~1GB). Takes 2-5 minutes depending on connection.
+The first startup will download the Whisper model (~1-2GB), which may take a few minutes.
 
-5. **Access the application**
+## 📖 Usage
 
-   **Development mode:**
-   - 🌐 Frontend: **http://localhost:5173** ← Open this in your browser
-   - 🔧 Backend API: http://localhost:8000
-   - 📚 API Docs: http://localhost:8000/docs
+### Basic Workflow
 
-   **Production mode:**
-   - 🌐 Frontend: **http://localhost:3000** ← Open this in your browser
-   - 🔧 Backend API: http://localhost:8000
-   - 📚 API Docs: http://localhost:8000/docs
+1. **Create a Project**
+   - Click "New Project"
+   - Enter project name and optional description
+   - Select content type (general, interview, podcast, etc.)
 
-### First Transcription
+2. **Upload Audio Files**
+   - Supported formats: MP3, WAV, M4A, WebM, OGG, FLAC
+   - Maximum file size: 500MB
+   - Select language or use auto-detect
 
-1. **Open** http://localhost:5173
-2. **Create a project**: Click "New Project" and enter a name
-3. **Select language** (optional): Choose transcription language from dropdown (defaults to auto-detect)
-   - 🌐 Auto-detect (default) - Whisper automatically detects the language
-   - Or select specific language: Finnish (Suomi), Swedish (Svenska), English, etc.
-4. **Upload audio**: Drag and drop an audio file (or click to browse)
-5. **Start transcription**: Click the "Transcribe" button on your uploaded file
-6. **Wait for processing**: Real-time progress shown (typically 1-3 minutes for a 3-minute audio)
-7. **Analyze content** (optional):
-   - Click 🔍 to analyze project and detect content type
-   - Review confidence score and apply suggested content type
-8. **Review and edit**:
-   - Click ✏️ to edit any segment
-   - Click ✨ for AI correction suggestions
-   - Click ▶ to play audio from that segment
-   - Rename speakers if needed
-9. **Export**: Click the purple "Export" button to download in SRT, HTML, or TXT format
+3. **Transcribe**
+   - Click "Transcribe" button
+   - Wait for processing (typically 1-3 minutes for 3-minute audio)
+   - View real-time progress
 
-## Development
+4. **Edit & Refine**
+   - Edit segments directly by clicking the edit icon
+   - Use AI suggestions (✨ button) for grammar corrections
+   - Rename speakers and customize colors
+   - Play audio segments to verify accuracy
 
-### Project Structure
+5. **Export**
+   - Click "Export" button
+   - Choose format: SRT (subtitles), HTML (styled), or TXT (plain text)
+   - Download your transcription
 
-```
-transcribe/
-├── backend/              # FastAPI backend
-│   ├── app/
-│   │   ├── api/         # Route handlers
-│   │   ├── services/    # Business logic
-│   │   ├── models/      # Database models
-│   │   ├── core/        # Config & dependencies
-│   │   └── workers/     # Background tasks
-│   ├── tests/           # Backend tests
-│   └── requirements.txt
-├── frontend/            # React frontend
-│   ├── src/
-│   │   ├── components/  # UI components
-│   │   ├── hooks/       # Custom React hooks
-│   │   ├── api/         # API client
-│   │   └── types/       # TypeScript types
-│   └── package.json
-├── tests/
-│   ├── integration/     # Integration tests
-│   └── e2e/            # E2E tests (Playwright)
-├── docs/               # Documentation
-└── docker-compose.yml
-```
+### AI Features
 
-### Running Tests
+**Grammar Correction**
+- Click ✨ on any segment for AI-powered corrections
+- Maintains speaker context and content type
+- Shows changes before applying
 
-**Backend (Python/pytest)**
-```bash
-# All tests
-docker-compose exec backend pytest
+**Project Analysis**
+- Use "AI Analysis" from Project menu
+- Generates summaries, themes, and key points
+- Great for understanding long interviews or meetings
 
-# Specific test file
-docker-compose exec backend pytest tests/test_main.py
+## ⚙️ Configuration
 
-# With coverage
-docker-compose exec backend pytest --cov=app --cov-report=html
-```
+### Environment Variables
 
-**Frontend (Jest)**
-```bash
-# All tests
-cd frontend && npm test
-
-# Watch mode
-npm test -- --watch
-
-# Coverage
-npm test -- --coverage
-```
-
-**E2E Tests (Playwright)**
-```bash
-cd tests/e2e
-npm install
-npx playwright test
-npx playwright test --headed  # With browser UI
-npx playwright show-report    # View report
-```
-
-### Development Workflow
-
-1. **Make code changes** (hot reload enabled in dev mode)
-2. **Write tests** alongside implementation
-3. **Run tests** to verify functionality
-4. **Check code quality**:
-   ```bash
-   # Backend
-   cd backend
-   black app tests          # Format
-   ruff check app tests     # Lint
-   mypy app                 # Type check
-
-   # Frontend
-   cd frontend
-   npm run lint             # ESLint
-   npm run type-check       # TypeScript
-   npm run format           # Prettier
-   ```
-
-### Useful Commands
-
-```bash
-# View logs
-docker-compose logs -f [service_name]
-
-# Shell access
-docker-compose exec backend bash
-docker-compose exec frontend sh
-
-# Restart services
-docker-compose restart [service_name]
-
-# Stop services
-docker-compose down
-
-# Clean up (removes volumes)
-docker-compose down -v
-```
-
-## Configuration
-
-### Backend Environment Variables
-
-Edit `backend/.env`:
+Create `backend/.env` from `.env.example`:
 
 ```env
-# Whisper Model Size
-WHISPER_MODEL_SIZE=base  # tiny, base, small, medium, large
-# Smaller = faster but less accurate, larger = slower but more accurate
+# Database
+DATABASE_URL=sqlite:///./data/transcription.db
 
-# LLM Services
-# Ollama (Local - Default)
+# Audio Storage
+AUDIO_STORAGE_PATH=./storage
+
+# Whisper Model (tiny, base, small, medium, large)
+WHISPER_MODEL_SIZE=base
+
+# OpenRouter (optional, for AI features)
+OPENROUTER_API_KEY=your_key_here
+OPENROUTER_MODEL=anthropic/claude-3-haiku
+
+# Ollama (local AI, optional)
 OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=llama3.2:1b
-# Available models: llama3.2:1b, llama3.2:3b, llama3.1:8b, mistral:7b, phi3:mini, gemma2:2b
-# Pull with: docker-compose exec ollama ollama pull <model>
-
-# OpenRouter (Cloud - Optional)
-OPENROUTER_API_KEY=your-api-key-here
-OPENROUTER_MODEL=anthropic/claude-3-haiku
-# Get API key from: https://openrouter.ai/keys
-# Available models: anthropic/claude-3-haiku, openai/gpt-4o-mini, google/gemini-pro
-
-# Default Provider
-DEFAULT_LLM_PROVIDER=ollama
-
-# Upload limits
-MAX_UPLOAD_SIZE=524288000  # 500MB in bytes
 ```
 
-### AI Configuration
+### Whisper Models
 
-**Automatic Content Type Detection**:
-1. Click 🔍 button in header
-2. Click "🔍 Analyze Content"
-3. Review suggested content type, confidence, and reasoning
-4. Click "✓ Apply & Use for Corrections"
+| Model  | Size | Speed | Accuracy | Use Case |
+|--------|------|-------|----------|----------|
+| tiny   | ~75MB | Fastest | Basic | Quick drafts |
+| base   | ~150MB | Fast | Good | General use (default) |
+| small  | ~500MB | Medium | Better | Clearer audio |
+| medium | ~1.5GB | Slow | Great | Professional |
+| large  | ~3GB | Slowest | Best | Maximum accuracy |
 
-**Manual Content Type Setting**:
-1. Edit project settings (✏️ button)
-2. Select content type from dropdown:
-   - General Transcription (default)
-   - Interview / Conversation
-   - Song Lyrics
-   - Academic / Research
-   - Book / Literature
-   - Podcast / Show
-   - Lecture / Presentation
-
-This helps AI corrections apply appropriate style guidelines.
-
-**Provider & Model Configuration**:
-1. Click the AI provider dropdown in header
-2. Select "⚙️ Advanced Settings"
-3. Configure:
-   - Ollama URL and model
-   - OpenRouter API key and model
-4. Settings saved to localStorage (browser-based)
-
-**Production**: Configure in `backend/.env` for server-side settings.
-
-See [AI Configuration Guide](docs/AI_CONFIGURATION.md) for detailed setup instructions.
-
-### Frontend Environment Variables
-
-Edit `frontend/.env`:
-
+Change model in `backend/.env`:
 ```env
-VITE_API_BASE_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000/ws
+WHISPER_MODEL_SIZE=small
 ```
 
-## Troubleshooting
+## 📊 Limitations
 
-### Port conflicts
-**Symptom**: "Error: bind: address already in use" or services fail to start
+### Audio Files
+- **Maximum file size**: 500MB
+- **Supported formats**: MP3, WAV, M4A, WebM, OGG, FLAC
+- **Minimum quality**: 16kHz recommended for best results
+- **Stereo/Mono**: Both supported
 
-**Ports used:**
-- **5173** (dev) or **3000** (prod) - Frontend
-- **8000** - Backend API
-- 6379 - Redis (internal only, not exposed)
-- 11434 - Ollama (internal only, not exposed)
+### Transcription
+- **Processing time**: Typically 20-40% of audio duration (3-minute audio = ~1-2 minutes)
+- **Languages**: 22 languages supported (see Whisper documentation)
+- **Speaker diarization**: Works best with 2-10 speakers
+- **Background noise**: May affect accuracy - use noise reduction tools if needed
 
-**Solutions:**
-1. **Check what's using the port:**
-   ```bash
-   # macOS/Linux
-   lsof -i :5173
-   lsof -i :8000
+### AI Features
+- **Rate limits**: Depends on chosen provider (Ollama local = unlimited, OpenRouter = per API key)
+- **Context length**: Limited to segment + surrounding context (~2000 characters)
+- **Accuracy**: AI suggestions should be reviewed before accepting
 
-   # Or use netstat
-   netstat -an | grep LISTEN | grep -E '(5173|8000|3000)'
-   ```
+## 🏗️ Architecture
 
-2. **Stop conflicting service:**
-   ```bash
-   # Kill process by PID (from lsof output)
-   kill -9 <PID>
-   ```
+### Backend
+- **Framework**: FastAPI (Python 3.11+)
+- **Transcription**: OpenAI Whisper
+- **Speaker Diarization**: PyAnnote Audio
+- **AI Integration**: Ollama (local) + OpenRouter (cloud)
+- **Database**: SQLite (easily upgradable to PostgreSQL)
 
-3. **Use different ports** - Edit `docker-compose.yml`:
-   ```yaml
-   ports:
-     - "5174:5173"  # Change 5174 to any available port
-     - "8001:8000"  # Change 8001 to any available port
-   ```
-   Then access at http://localhost:5174 instead
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: TanStack Query
+- **Audio Player**: Custom HTML5 Audio implementation
 
-### Transcription is slow
-- Use smaller Whisper model: `WHISPER_MODEL_SIZE=tiny` or `base`
-- Ensure Docker has sufficient RAM (4GB minimum)
-- For production, consider GPU support (requires CUDA setup)
+### Infrastructure
+- **Containerization**: Docker + Docker Compose
+- **Reverse Proxy**: Nginx (production)
+- **Storage**: Local filesystem (configurable)
 
-### Ollama model not found
+## 🛠️ Development
+
+### Run in Development Mode
+
 ```bash
-# Pull the model
-docker-compose exec ollama ollama pull llama3.2:1b
+# Backend
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Verify it's available
-docker-compose exec ollama ollama list
+# Frontend
+cd frontend
+npm install
+npm run dev
 ```
 
-### Frontend can't reach backend
-- Check backend is running: http://localhost:8000/health
-- Verify CORS settings in `backend/app/main.py`
-- Check `VITE_API_BASE_URL` in `frontend/.env`
+### Run Tests
 
-## Documentation
+```bash
+# Backend tests
+cd backend
+pytest
 
-- [Implementation Plan](IMPLEMENTATION_PLAN.md) - Detailed development roadmap
-- [CLAUDE.md](CLAUDE.md) - AI assistant development guide
-- [API Documentation](docs/development/API.md) - Endpoint specifications
-- [Interactive API Docs](http://localhost:8000/docs) - Swagger UI (when running)
+# Frontend tests
+cd frontend
+npm test
 
-## Current Status
+# E2E tests
+npm run test:e2e
+```
 
-**Phase 1: Project Foundation** ✅ Complete
-- Project structure initialized
-- Docker infrastructure configured
-- Testing frameworks set up
-- Documentation created
+### API Documentation
 
-**Phase 2: Core Backend Services** ✅ Complete
-- Database models (Project, AudioFile, Segment, Speaker, Edit)
-- Audio file upload with validation
-- Whisper transcription integration
-- Speaker diarization with PyAnnote
-- Background transcription tasks
-- RESTful API endpoints
-- Comprehensive test suite (>15 tests)
+Visit http://localhost:8000/docs for interactive Swagger documentation.
 
-**Phase 3: Frontend - Upload & Transcription UI** ✅ Complete
-- File upload component with drag-and-drop
-- Project dashboard with file management
-- Real-time transcription progress tracking
-- Audio player with seek controls
-- Segment-based transcription display
-- Speaker color coding and labels
-- Audio-text synchronization (click segment to jump)
-- React Query API integration
-- Component tests with Vitest
+## 📦 Deployment
 
-**Features:**
-- Create projects and upload audio files
-- Start transcription with speaker diarization
-- Monitor progress in real-time (auto-polling)
-- Play audio and click segments to navigate
-- View transcription with speaker attribution
-- Responsive layout (mobile-friendly)
+### Docker Production
 
-See [API Documentation](docs/development/API.md) for details.
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
 
-**Next Steps**: See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for Phase 4 (Advanced Editor Features)
+### Environment Setup
 
-## Contributing
+1. Update `backend/.env` with production values
+2. Set strong `JWT_SECRET_KEY`
+3. Configure proper CORS origins
+4. Use PostgreSQL for production database
+5. Set up backup strategy for database and audio files
 
-1. Create a feature branch
-2. Make changes with tests
-3. Run all tests and linters
-4. Submit pull request
+## 🤝 Contributing
 
-## License
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-[Specify your license]
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Support
+## 📝 License
 
-For issues or questions, please open a GitHub issue.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [OpenAI Whisper](https://github.com/openai/whisper) for speech recognition
+- [PyAnnote Audio](https://github.com/pyannote/pyannote-audio) for speaker diarization
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
+- [React](https://react.dev/) for the frontend framework
+- [Tailwind CSS](https://tailwindcss.com/) for styling
+
+## 📧 Support
+
+For issues and questions:
+- Create an issue on GitHub
+- Check existing issues for solutions
+- Review the interactive tutorial in the app
+
+## 🗺️ Roadmap
+
+- [ ] Real-time transcription streaming
+- [ ] Batch file processing
+- [ ] Custom vocabulary support
+- [ ] Integration with cloud storage (S3, GCS)
+- [ ] Multi-user support with authentication
+- [ ] REST API for programmatic access
+- [ ] Mobile-responsive design improvements
+- [ ] Webhook notifications
+
+---
+
+Made with ❤️ using Python, React, and AI

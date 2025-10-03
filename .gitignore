@@ -12,6 +12,7 @@ backend/.coverage
 backend/*.egg-info/
 backend/dist/
 backend/build/
+*.pyc
 
 # Node
 frontend/node_modules/
@@ -23,11 +24,13 @@ frontend/.env.production.local
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/coverage/
+node_modules/
 
 # Tests
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/e2e/.playwright/
+/tmp/
 
 # IDEs
 .vscode/
@@ -42,10 +45,20 @@ Thumbs.db
 
 # Docker
 *.log
+docker-compose.override.yml
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
 
-node_modules
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Audio storage (uploaded files)
+backend/storage/
+
+# Whisper models cache
+backend/.cache/
