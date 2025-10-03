@@ -13,7 +13,7 @@ export default function ProjectSelector({
 
   if (isLoading) {
     return (
-      <select className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm">
+      <select className="block w-full px-3 py-2 bg-input border border-border rounded-lg shadow-sm text-foreground">
         <option>Loading...</option>
       </select>
     )
@@ -21,7 +21,7 @@ export default function ProjectSelector({
 
   if (!projects || projects.length === 0) {
     return (
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-muted-foreground">
         No projects yet
       </div>
     )
@@ -34,7 +34,7 @@ export default function ProjectSelector({
         const id = parseInt(e.target.value)
         if (id) onSelectProject(id)
       }}
-      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      className="block w-full px-3 py-2 bg-input border border-border rounded-lg shadow-sm text-input-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
     >
       <option value="">Select a project...</option>
       {projects.map((project) => (

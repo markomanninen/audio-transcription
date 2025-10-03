@@ -19,7 +19,7 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
       </div>
     )
   }
@@ -29,9 +29,9 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
   const progressPercent = Math.round(status.progress * 100)
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold">
           Transcription Status
         </h3>
         <span
@@ -39,12 +39,12 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
             px-3 py-1 rounded-full text-sm font-medium
             ${
               status.status === 'completed'
-                ? 'bg-green-100 text-green-800'
+                ? 'bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200'
                 : status.status === 'processing'
-                ? 'bg-blue-100 text-blue-800'
+                ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200'
                 : status.status === 'failed'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-gray-100 text-gray-800'
+                ? 'bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200'
+                : 'bg-muted text-muted-foreground'
             }
           `}
         >
@@ -54,13 +54,13 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
 
       {status.status === 'processing' && (
         <div className="space-y-3">
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-muted rounded-full h-3">
             <div
-              className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+              className="bg-primary-600 h-3 rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
-          <p className="text-sm text-gray-600 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             {progressPercent}% complete
           </p>
         </div>
@@ -68,11 +68,11 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
 
       {status.status === 'completed' && (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-green-600">
+          <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
             <span className="text-2xl">✓</span>
             <span className="font-medium">Transcription complete!</span>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             <p>{status.segment_count} segments created</p>
             {status.duration && (
               <p>Duration: {Math.floor(status.duration / 60)}m {Math.floor(status.duration % 60)}s</p>
@@ -82,8 +82,8 @@ export default function TranscriptionProgress({ fileId, onStatusChange }: Transc
       )}
 
       {status.status === 'failed' && status.error_message && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">{status.error_message}</p>
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-sm text-red-800 dark:text-red-200">{status.error_message}</p>
         </div>
       )}
     </div>

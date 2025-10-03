@@ -31,14 +31,14 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   if (!speakers || speakers.length === 0) {
     return (
-      <div className="text-center p-4 text-gray-500 text-sm">
+      <div className="text-center p-4 text-muted-foreground text-sm">
         No speakers identified yet
       </div>
     )
@@ -46,14 +46,14 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">Speakers</h3>
+      <h3 className="text-sm font-semibold mb-3">Speakers</h3>
       {speakers.map((speaker) => {
         const isEditing = editingSpeakerId === speaker.id
 
         return (
           <div
             key={speaker.id}
-            className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg"
+            className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card"
           >
             {/* Color indicator */}
             <div
@@ -67,7 +67,7 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="flex-1 px-2 py-1 border border-border rounded focus-ring text-sm bg-input text-input-foreground placeholder:text-muted-foreground"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveEdit(speaker.id)
@@ -75,7 +75,7 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
                 }}
               />
             ) : (
-              <span className="flex-1 text-sm font-medium text-gray-900">
+              <span className="flex-1 text-sm font-medium">
                 {speaker.display_name}
               </span>
             )}
@@ -84,7 +84,7 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
             {!isEditing ? (
               <button
                 onClick={() => handleStartEdit(speaker.id, speaker.display_name)}
-                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                className="px-2 py-1 text-xs hover:bg-muted rounded"
                 title="Rename speaker"
               >
                 ✏️
@@ -94,13 +94,13 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
                 <button
                   onClick={() => handleSaveEdit(speaker.id)}
                   disabled={updateSpeaker.isPending}
-                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
                 >
                   ✓
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  className="px-2 py-1 text-xs bg-muted rounded hover:bg-muted/80"
                 >
                   ✕
                 </button>

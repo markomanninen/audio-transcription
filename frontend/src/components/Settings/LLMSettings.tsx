@@ -22,7 +22,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="text-sm text-gray-500">
+      <div className="text-sm text-muted-foreground">
         Loading providers...
       </div>
     )
@@ -30,7 +30,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
 
   if (!providers || providers.length === 0) {
     return (
-      <div className="text-sm text-red-500">
+      <div className="text-sm text-red-500 dark:text-red-400">
         No LLM providers available
       </div>
     )
@@ -43,9 +43,9 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-input border border-border rounded-lg hover:bg-muted transition-colors"
       >
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium">
           AI Provider: {currentProvider?.name || 'None'}
         </span>
         <span
@@ -55,7 +55,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
           title={isHealthy ? 'Healthy' : 'Unavailable'}
         />
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${
+          className={`w-4 h-4 text-muted-foreground transition-transform ${
             isOpen ? 'rotate-180' : ''
           }`}
           fill="none"
@@ -80,9 +80,9 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
           />
 
           {/* Dropdown */}
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+          <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-20">
             <div className="p-3">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              <h3 className="text-sm font-semibold mb-2">
                 Select AI Provider
               </h3>
               <div className="space-y-2">
@@ -99,8 +99,8 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded transition-colors ${
                         isSelected
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800'
+                          : 'hover:bg-muted'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -109,13 +109,13 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                             providerHealth ? 'bg-green-500' : 'bg-red-500'
                           }`}
                         />
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium">
                           {provider.name}
                         </span>
                       </div>
                       {isSelected && (
                         <svg
-                          className="w-4 h-4 text-blue-600"
+                          className="w-4 h-4 text-primary-600 dark:text-primary-400"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -131,12 +131,12 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                 })}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground">
                   <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1" />
                   Healthy - Provider available
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1" />
                   Unavailable - Check configuration
                 </p>
@@ -147,7 +147,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                       setIsOpen(false)
                       onOpenSettings()
                     }}
-                    className="w-full mt-3 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                    className="w-full mt-3 px-3 py-2 bg-primary-600 text-white text-sm rounded hover:bg-primary-700 transition-colors"
                   >
                     ⚙️ Advanced Settings
                   </button>

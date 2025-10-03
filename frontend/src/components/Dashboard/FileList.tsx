@@ -44,35 +44,35 @@ export default function FileList({ projectId, onSelectFile, selectedFileId }: Fi
   const getStatusColor = (status: AudioFile['status']): string => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200'
       case 'processing':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200'
       case 'failed':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-sm text-red-800">Error loading files</p>
+      <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+        <p className="text-sm text-red-800 dark:text-red-200">Error loading files</p>
       </div>
     )
   }
 
   if (!files || files.length === 0) {
     return (
-      <div className="text-center p-8 text-gray-500">
+      <div className="text-center p-8 text-muted-foreground">
         <p>No audio files uploaded yet.</p>
         <p className="text-sm mt-2">Upload your first file to get started.</p>
       </div>
@@ -85,21 +85,21 @@ export default function FileList({ projectId, onSelectFile, selectedFileId }: Fi
         <div
           key={file.file_id}
           className={`
-            border rounded-lg p-4 transition-all cursor-pointer
+            border rounded-lg p-4 transition-all cursor-pointer bg-card
             ${
               selectedFileId === file.file_id
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-primary-500 ring-2 ring-primary-500/20'
+                : 'border-border hover:border-primary-300'
             }
           `}
           onClick={() => onSelectFile?.(file.file_id)}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-gray-900 truncate">
+              <h4 className="font-medium truncate">
                 {file.original_filename}
               </h4>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                 <span>{formatFileSize(file.file_size)}</span>
                 <span>{formatDuration(file.duration)}</span>
               </div>
@@ -123,8 +123,8 @@ export default function FileList({ projectId, onSelectFile, selectedFileId }: Fi
                   }}
                   disabled={startTranscription.isPending}
                   className="
-                    px-4 py-2 bg-blue-600 text-white text-sm rounded-lg
-                    hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                    px-4 py-2 bg-primary-600 text-white text-sm rounded-lg
+                    hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed
                     transition-colors
                   "
                 >

@@ -50,22 +50,22 @@ export const CorrectionDialog: React.FC<CorrectionDialogProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-200 ${
+      className={`fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 transition-opacity duration-200 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       onClick={handleClose}
     >
       <div
-        className={`bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-xl transition-transform duration-200 ${
+        className={`bg-card border border-border rounded-lg p-6 max-w-2xl w-full mx-4 shadow-xl transition-transform duration-200 ${
           isVisible ? 'scale-100' : 'scale-95'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">AI Correction Suggestion</h2>
+          <h2 className="text-xl font-semibold">AI Correction Suggestion</h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-muted-foreground hover:text-foreground text-2xl leading-none"
           >
             ×
           </button>
@@ -73,31 +73,31 @@ export const CorrectionDialog: React.FC<CorrectionDialogProps> = ({
 
         {!hasChanges ? (
           <div className="mb-6">
-            <p className="text-green-600 font-medium mb-2">✓ No corrections needed</p>
-            <p className="text-gray-600">The text looks good!</p>
+            <p className="text-green-600 dark:text-green-400 font-medium mb-2">✓ No corrections needed</p>
+            <p className="text-muted-foreground">The text looks good!</p>
           </div>
         ) : (
           <>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Original:</label>
-              <div className="bg-red-50 border border-red-200 rounded p-3 text-gray-800">
+              <label className="block text-sm font-medium mb-1">Original:</label>
+              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded p-3">
                 {correction.original_text}
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Suggested:</label>
-              <div className="bg-green-50 border border-green-200 rounded p-3 text-gray-800">
+              <label className="block text-sm font-medium mb-1">Suggested:</label>
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded p-3">
                 {correction.corrected_text}
               </div>
             </div>
 
             {correction.changes.length > 0 && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Changes:</label>
-                <ul className="bg-blue-50 border border-blue-200 rounded p-3 space-y-1">
+                <label className="block text-sm font-medium mb-1">Changes:</label>
+                <ul className="bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800 rounded p-3 space-y-1">
                   {correction.changes.map((change, idx) => (
-                    <li key={idx} className="text-sm text-gray-700">
+                    <li key={idx} className="text-sm">
                       • {change}
                     </li>
                   ))}
@@ -107,14 +107,14 @@ export const CorrectionDialog: React.FC<CorrectionDialogProps> = ({
 
             <div className="mb-6">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Confidence:</span>
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <span className="text-sm">Confidence:</span>
+                <div className="flex-1 bg-muted rounded-full h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all"
+                    className="bg-primary-500 h-2 rounded-full transition-all"
                     style={{ width: `${correction.confidence * 100}%` }}
                   />
                 </div>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm">
                   {Math.round(correction.confidence * 100)}%
                 </span>
               </div>
@@ -125,7 +125,7 @@ export const CorrectionDialog: React.FC<CorrectionDialogProps> = ({
         <div className="flex justify-end gap-3">
           <button
             onClick={handleClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 border border-border rounded-lg bg-muted hover:bg-muted/80 transition-colors"
           >
             {hasChanges ? 'Reject' : 'Close'}
           </button>
@@ -133,7 +133,7 @@ export const CorrectionDialog: React.FC<CorrectionDialogProps> = ({
             <button
               onClick={handleAccept}
               disabled={updateSegment.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
             >
               {updateSegment.isPending ? 'Applying...' : 'Accept'}
             </button>

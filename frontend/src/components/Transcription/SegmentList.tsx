@@ -82,15 +82,15 @@ export default function SegmentList({
   if (segmentsLoading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600">Loading segments...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <span className="ml-3 text-muted-foreground">Loading segments...</span>
       </div>
     )
   }
 
   if (segmentsError) {
     return (
-      <div className="text-center p-8 text-red-600">
+      <div className="text-center p-8 text-red-600 dark:text-red-400">
         <p>Error loading segments: {segmentsError.message}</p>
       </div>
     )
@@ -98,7 +98,7 @@ export default function SegmentList({
 
   if (!segments || segments.length === 0) {
     return (
-      <div className="text-center p-8 text-gray-500">
+      <div className="text-center p-8 text-muted-foreground">
         <p>No transcription segments available yet.</p>
         <p className="text-xs mt-2">Transcription may still be in progress.</p>
       </div>
@@ -117,9 +117,9 @@ export default function SegmentList({
           <div
             key={segment.id}
             className={`
-              border rounded-lg p-4 transition-all
-              ${isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
-              ${isEditing ? 'border-green-500' : ''}
+              border rounded-lg p-4 transition-all bg-card
+              ${isActive ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-border'}
+              ${isEditing ? 'border-green-500 dark:border-green-600 ring-2 ring-green-500/20' : ''}
             `}
           >
             <div className="flex items-start gap-3">
@@ -146,7 +146,7 @@ export default function SegmentList({
                         {speaker.display_name}
                       </span>
                     )}
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {formatTime(segment.start_time)} - {formatTime(segment.end_time)}
                     </span>
                   </div>
@@ -161,7 +161,7 @@ export default function SegmentList({
                             e.stopPropagation()
                             onPauseRequest?.()
                           }}
-                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="px-2 py-1 text-xs text-primary-600 dark:text-primary-400 hover:bg-muted rounded transition-colors"
                           title="Pause"
                         >
                           ⏸
@@ -178,7 +178,7 @@ export default function SegmentList({
                               onSegmentClick?.(segment)
                             }
                           }}
-                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="px-2 py-1 text-xs text-primary-600 dark:text-primary-400 hover:bg-muted rounded transition-colors"
                           title={isActive ? "Play" : "Jump to segment"}
                         >
                           ▶
@@ -193,7 +193,7 @@ export default function SegmentList({
                             // Always seek to start of segment
                             onSegmentClick?.(segment)
                           }}
-                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          className="px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
                           title="Replay segment from start"
                         >
                           ↻
@@ -203,14 +203,14 @@ export default function SegmentList({
                       <button
                         onClick={() => handleAICorrect(segment)}
                         disabled={correctSegment.isPending}
-                        className="px-2 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-50"
+                        className="px-2 py-1 text-xs text-purple-600 dark:text-purple-400 hover:bg-muted rounded transition-colors disabled:opacity-50"
                         title="AI Correct"
                       >
                         ✨
                       </button>
                       <button
                         onClick={() => handleStartEdit(segment)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        className="px-2 py-1 text-xs hover:bg-muted rounded transition-colors"
                         title="Edit"
                       >
                         ✏️
@@ -227,7 +227,7 @@ export default function SegmentList({
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                        className="px-3 py-1 text-xs bg-muted rounded hover:bg-muted/80"
                       >
                         Cancel
                       </button>
@@ -240,19 +240,19 @@ export default function SegmentList({
                   <textarea
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full p-2 border border-border rounded focus-ring bg-input text-input-foreground placeholder:text-muted-foreground"
                     rows={3}
                     autoFocus
                   />
                 ) : (
                   <>
-                    <p className="text-gray-900">
+                    <p className="text-foreground">
                       {segment.edited_text || segment.original_text}
                     </p>
 
                     {/* Show if edited */}
                     {segment.edited_text && (
-                      <div className="mt-2 text-xs text-gray-500 italic">
+                      <div className="mt-2 text-xs text-muted-foreground italic">
                         Original: {segment.original_text}
                       </div>
                     )}

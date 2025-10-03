@@ -63,9 +63,9 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
     <div className="w-full">
       <div
         className={`
-          relative border-2 border-dashed rounded-lg p-8 text-center
+          relative border-2 border-dashed rounded-lg p-8 text-center bg-card
           transition-colors duration-200
-          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          ${isDragging ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-border hover:border-primary-400'}
           ${uploadMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
         onDragEnter={handleDragEnter}
@@ -86,14 +86,14 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
           <div className="space-y-4">
             <div className="text-4xl">🎤</div>
             <div>
-              <p className="text-lg font-medium text-gray-700">
+              <p className="text-lg font-medium">
                 {uploadMutation.isPending ? 'Uploading...' : 'Drop audio file here'}
               </p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 or click to browse
               </p>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Supports: MP3, WAV, M4A, WebM, OGG, FLAC (max 500MB)
             </p>
           </div>
@@ -101,24 +101,24 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
 
         {uploadMutation.isPending && (
           <div className="mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full animate-pulse w-1/2"></div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div className="bg-primary-600 h-2 rounded-full animate-pulse w-1/2"></div>
             </div>
           </div>
         )}
       </div>
 
       {uploadMutation.isError && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">
+        <div className="mt-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-800 dark:text-red-200">
             Upload failed: {uploadMutation.error?.message || 'Unknown error'}
           </p>
         </div>
       )}
 
       {uploadMutation.isSuccess && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-sm text-green-800">
+        <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-sm text-green-800 dark:text-green-200">
             ✓ File uploaded successfully: {uploadMutation.data.original_filename}
           </p>
         </div>

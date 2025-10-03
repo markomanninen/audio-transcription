@@ -159,7 +159,7 @@ export default function AudioPlayer({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
       <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous" />
 
       <div className="space-y-4">
@@ -171,14 +171,14 @@ export default function AudioPlayer({
             max={duration || 0}
             value={localCurrentTime}
             onChange={handleSeek}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
             style={{
-              background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${
+              background: `linear-gradient(to right, rgb(var(--color-primary-600)) 0%, rgb(var(--color-primary-600)) ${
                 (localCurrentTime / duration) * 100
-              }%, #E5E7EB ${(localCurrentTime / duration) * 100}%, #E5E7EB 100%)`,
+              }%, rgb(var(--muted)) ${(localCurrentTime / duration) * 100}%, rgb(var(--muted)) 100%)`,
             }}
           />
-          <div className="flex justify-between text-xs text-gray-500">
+          <div className="flex justify-between text-xs text-muted-foreground">
             <span>{formatTime(localCurrentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
@@ -190,10 +190,10 @@ export default function AudioPlayer({
           <button
             onClick={handleReplay}
             className="
-              w-10 h-10 rounded-full bg-gray-200 text-gray-700
+              w-10 h-10 rounded-full bg-muted
               flex items-center justify-center
-              hover:bg-gray-300 transition-colors
-              focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2
+              hover:bg-muted/80 transition-colors
+              focus-ring
             "
             title="Replay from beginning"
           >
@@ -204,10 +204,10 @@ export default function AudioPlayer({
           <button
             onClick={togglePlayPause}
             className="
-              w-12 h-12 rounded-full bg-blue-600 text-white
+              w-12 h-12 rounded-full bg-primary-600 text-white
               flex items-center justify-center
-              hover:bg-blue-700 transition-colors
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+              hover:bg-primary-700 transition-colors
+              focus-ring
             "
             title={isPlaying ? "Pause" : "Play"}
           >
