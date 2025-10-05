@@ -24,6 +24,7 @@ import ThemeToggle from './components/ThemeToggle'
 import SystemStatus from './components/Dashboard/SystemStatus'
 import InteractiveTutorial from './components/Tutorial/InteractiveTutorial'
 import LLMLogsViewer from './components/Debug/LLMLogsViewer'
+import EditorView from './components/Editor/EditorView'
 import { Button } from './components/ui/Button'
 import type { Segment } from './types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -78,6 +79,7 @@ function App() {
   } | null>(null)
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false)
   const [showLLMLogs, setShowLLMLogs] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
   const [showToolsMenu, setShowToolsMenu] = useState(false)
   const [llmProvider, setLlmProvider] = useState<string>(() => {
@@ -259,6 +261,10 @@ function App() {
     setShowTranscriptionSettings(true)
   }
 
+  const handleOpenEditor = () => {
+    setShowEditor(true)
+  }
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -291,6 +297,15 @@ function App() {
       {/* LLM Logs Viewer */}
       {showLLMLogs && (
         <LLMLogsViewer onClose={() => setShowLLMLogs(false)} />
+      )}
+
+      {/* AI Editor View */}
+      {showEditor && segments && projectId && (
+        <EditorView
+          initialText={segments.map(seg => seg.edited_text || seg.original_text).join('\n\n')}
+          onClose={() => setShowEditor(false)}
+          projectId={projectId}
+        />
       )}
 
       {/* Header */}
@@ -768,6 +783,7 @@ function App() {
                         onPlayRequest={handlePlayRequest}
                         onPauseRequest={handlePauseRequest}
                         llmProvider={llmProvider}
+                        onOpenEditor={handleOpenEditor}
                       />
                     </div>
                   )}
