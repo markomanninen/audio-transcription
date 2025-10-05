@@ -93,6 +93,65 @@ class OllamaProvider(LLMProvider):
             else:
                 raise RuntimeError(f"Ollama request failed: {str(e)}")
 
+    async def generate_text(
+        self,
+        prompt: str,
+        max_tokens: int = 2048,
+        temperature: float = 0.7,
+        project_id: Optional[int] = None
+    ) -> str:
+        """Generate text using Ollama with a generic prompt."""
+        start_time = time.time()
+        options = {
+            "temperature": temperature,
+        }
+        if max_tokens != 2048:
+             options["num_predict"] = max_tokens
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": options
+                    }
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                generated_text = result.get("response", "").strip()
+                duration_ms = (time.time() - start_time) * 1000
+
+                self._log_request(
+                    prompt=prompt,
+                    response=generated_text,
+                    duration_ms=duration_ms,
+                    project_id=project_id,
+                    status="success",
+                    operation="generate_text"
+                )
+
+                return generated_text
+
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self._log_request(
+                prompt=prompt,
+                response="",
+                duration_ms=duration_ms,
+                project_id=project_id,
+                status="error",
+                error_message=str(e),
+                operation="generate_text"
+            )
+            if isinstance(e, httpx.RequestError):
+                raise ConnectionError(f"Failed to connect to Ollama: {str(e)}")
+            else:
+                raise RuntimeError(f"Ollama request failed: {str(e)}")
+
     def _log_request(
         self,
         prompt: str,
@@ -104,7 +163,8 @@ class OllamaProvider(LLMProvider):
         segment_id: int = None,
         project_id: int = None,
         status: str = "success",
-        error_message: str = None
+        error_message: str = None,
+        operation: str = "correct_text"
     ):
         """Log LLM request/response to database."""
         if not self.db:
@@ -116,7 +176,7 @@ class OllamaProvider(LLMProvider):
             log_entry = LLMLog(
                 provider="ollama",
                 model=self.model,
-                operation="correct_text",
+                operation=operation,
                 prompt=prompt,
                 original_text=original_text,
                 context=context,

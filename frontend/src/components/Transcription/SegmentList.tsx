@@ -13,6 +13,7 @@ interface SegmentListProps {
   currentTime?: number
   isPlaying?: boolean
   llmProvider?: string
+  onOpenEditor?: () => void
 }
 
 export default function SegmentList({
@@ -22,7 +23,8 @@ export default function SegmentList({
   onPauseRequest,
   currentTime = 0,
   isPlaying = false,
-  llmProvider = 'ollama'
+  llmProvider = 'ollama',
+  onOpenEditor
 }: SegmentListProps) {
   const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useSegments(fileId)
   const { data: speakers } = useSpeakers(fileId)
@@ -111,6 +113,14 @@ export default function SegmentList({
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={onOpenEditor}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Open in Editor
+        </button>
+      </div>
       <div className="space-y-2">
         {segments.map((segment) => {
         const speaker = getSpeakerInfo(segment.speaker_id)
