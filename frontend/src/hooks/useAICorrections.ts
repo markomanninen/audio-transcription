@@ -1,7 +1,7 @@
 /**
  * React Query hooks for AI corrections
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   correctSegment,
   correctBatch,
@@ -9,7 +9,6 @@ import {
   checkProviderHealth,
   CorrectionRequest,
   BatchCorrectionRequest,
-  CorrectionResponse,
   ProviderInfo,
 } from '../api/aiCorrections'
 
@@ -38,8 +37,6 @@ export const useProviderHealth = () => {
  * Hook to correct a single segment
  */
 export const useCorrectSegment = () => {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: (request: CorrectionRequest) => correctSegment(request),
     onSuccess: () => {
@@ -53,8 +50,6 @@ export const useCorrectSegment = () => {
  * Hook to correct multiple segments
  */
 export const useCorrectBatch = () => {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: (request: BatchCorrectionRequest) => correctBatch(request),
     onSuccess: () => {

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { apiClient } from '../api/client'
 import type { TranscriptionStatus, Segment, Speaker } from '../types'
 
@@ -18,7 +19,7 @@ export const useStartTranscription = () => {
       })
       return response.data
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_: any, variables: { fileId: number; includeDiarization?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ['transcription-status', variables.fileId] })
     },
   })
@@ -27,7 +28,7 @@ export const useStartTranscription = () => {
 export const useTranscriptionStatus = (fileId: number | null, pollInterval?: number) => {
   const queryClient = useQueryClient()
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['transcription-status', fileId],
     queryFn: async (): Promise<TranscriptionStatus> => {
       if (!fileId) throw new Error('No file ID')
@@ -37,7 +38,7 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
       return response.data
     },
     enabled: !!fileId,
-    refetchInterval: (query) => {
+    refetchInterval: (query: any) => {
       const status = query.state.data?.status
       // Poll every 2 seconds while processing
       if (pollInterval && status === 'processing') {
@@ -45,15 +46,18 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
       }
       return false
     },
-    onSuccess: (data) => {
-      // When transcription completes, invalidate related queries
-      if (data.status === 'completed') {
-        queryClient.invalidateQueries({ queryKey: ['segments', fileId] })
-        queryClient.invalidateQueries({ queryKey: ['speakers', fileId] })
-        queryClient.invalidateQueries({ queryKey: ['files'] })
-      }
-    },
   })
+
+  // Handle transcription completion side effects
+  useEffect(() => {
+    if (query.data?.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['segments', fileId] })
+      queryClient.invalidateQueries({ queryKey: ['speakers', fileId] })
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+    }
+  }, [query.data?.status, queryClient, fileId])
+
+  return query
 }
 
 export const useSegments = (fileId: number | null) => {
@@ -93,7 +97,7 @@ export const useUpdateSegment = () => {
       })
       return response.data
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Update the segment in the cache
       queryClient.invalidateQueries({ queryKey: ['segments'] })
     },

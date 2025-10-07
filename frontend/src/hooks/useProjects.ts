@@ -5,6 +5,7 @@ import type { Project } from '../types'
 interface CreateProjectRequest {
   name: string
   description?: string
+  content_type?: string
 }
 
 export const useProjects = () => {
@@ -57,7 +58,7 @@ export const useUpdateProject = () => {
       const response = await apiClient.put<Project>(`/api/upload/project/${projectId}`, data)
       return response.data
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_: any, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] })
     },

@@ -2,7 +2,7 @@
  * React Query hooks for AI project analysis
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { analyzeProject, applyAnalysis, ProjectAnalysisResponse } from '../api/aiAnalysis'
+import { analyzeProject, applyAnalysis } from '../api/aiAnalysis'
 
 /**
  * Hook to analyze project with AI

@@ -48,7 +48,9 @@ export default function AudioPlayer({
       setIsPlaying(false)
     }
 
-    const handleError = (e: Event) => {
+    const handleError = () => {
+      const audio = audioRef.current
+      if (!audio) return
       console.error('Audio error:', {
         error: audio.error,
         code: audio.error?.code,

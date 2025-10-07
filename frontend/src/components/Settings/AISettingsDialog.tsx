@@ -1,8 +1,18 @@
 /**
- * AI Settings Dialog Component
+ * A  onC  onClose: () => void
+  currentProvider: string
+  onProviderChange: (provider: string) => void
+}
+
+export default function AISettingsDialog({void
+  currentProvider: string
+  onProviderChange: (provider: string) => void
+}
+
+export default function AISettingsDialog({ialog Component
  * Comprehensive LLM provider, model, and API key configuration
  */
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useProviders, useProviderHealth } from '../../hooks/useAICorrections'
 
 interface AISettingsDialogProps {
@@ -12,18 +22,12 @@ interface AISettingsDialogProps {
   onProviderChange: (provider: string) => void
 }
 
-interface ProviderConfig {
-  provider: string
-  model: string
-  apiKey: string
-}
-
-export const AISettingsDialog: React.FC<AISettingsDialogProps> = ({
+export const AISettingsDialog = ({
   isOpen,
   onClose,
   currentProvider,
   onProviderChange,
-}) => {
+}: AISettingsDialogProps) => {
   const { data: providers } = useProviders()
   const { data: health } = useProviderHealth()
 
@@ -95,7 +99,7 @@ export const AISettingsDialog: React.FC<AISettingsDialogProps> = ({
             Active Provider
           </label>
           <div className="flex gap-4">
-            {providers?.map((provider) => {
+            {providers?.map((provider: any) => {
               const isHealthy = health?.[provider.name] ?? false
               const isActive = provider.name === currentProvider
 
