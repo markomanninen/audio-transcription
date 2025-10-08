@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import init_db
-from .core.migrations import run_migrations
 from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs
 
@@ -14,9 +13,8 @@ from .api import upload, transcription, audio, export, ai_corrections, ai_analys
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    # Startup: Initialize database and run migrations
+    # Startup: Initialize database with complete schema
     init_db()
-    run_migrations()
     
     # Clean up any orphaned transcriptions from previous server crashes/restarts
     from .core.database import SessionLocal
