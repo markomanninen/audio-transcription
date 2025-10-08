@@ -64,6 +64,7 @@ backend/storage/
 backend/.cache/
 
 *.venv*/
+*.venv*/*
 
 test-screenshots/
 
