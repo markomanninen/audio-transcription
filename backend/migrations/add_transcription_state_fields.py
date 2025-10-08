@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
 Add comprehensive transcription state tracking fields.
+
+⚠️  NOTE: This migration has been INCORPORATED into the main AudioFile model.
+    For new installations, this script is NOT needed - the fields are created
+    automatically via SQLAlchemy models. This file is kept for rollback purposes.
+    
+    See: backend/app/models/audio_file.py lines 49-58
 """
 
 import sys

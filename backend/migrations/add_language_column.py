@@ -4,6 +4,12 @@ Database migration: Add language column to audio_files table.
 This migration adds support for multi-language transcription by adding
 a language column to store ISO 639-1 language codes (e.g., 'en', 'fi', 'sv').
 
+⚠️  NOTE: This migration has been INCORPORATED into the main AudioFile model.
+    For new installations, this script is NOT needed - the field is created
+    automatically via SQLAlchemy models. This file is kept for rollback purposes.
+    
+    See: backend/app/models/audio_file.py line 34
+
 Run this manually if upgrading from a version without language support:
     docker-compose exec backend python migrations/add_language_column.py
 """

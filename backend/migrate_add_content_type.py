@@ -1,5 +1,11 @@
 """
 Migration script to add content_type column to projects table.
+
+⚠️  NOTE: This migration has been INCORPORATED into the main Project model.
+    For new installations, this script is NOT needed - the field is created
+    automatically via SQLAlchemy models. This file is kept for rollback purposes.
+    
+    See: backend/app/models/project.py lines 17-21
 """
 import sqlite3
 

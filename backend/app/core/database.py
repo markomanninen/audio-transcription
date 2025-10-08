@@ -35,5 +35,14 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Initialize database tables."""
+    """
+    Initialize database tables.
+    
+    Creates all tables defined in the SQLAlchemy models. All historical
+    migration changes have been incorporated into the model definitions,
+    so this creates the latest schema directly.
+    
+    Note: Migration scripts in backend/migrations/ are kept for rollback
+    purposes but are not needed for fresh installations.
+    """
     Base.metadata.create_all(bind=engine)

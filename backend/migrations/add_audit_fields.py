@@ -2,6 +2,12 @@
 """
 Migration script to add audit fields to audio_files table.
 Adds performance tracking fields for transcription monitoring.
+
+⚠️  NOTE: This migration has been INCORPORATED into the main AudioFile model.
+    For new installations, this script is NOT needed - the fields are created
+    automatically via SQLAlchemy models. This file is kept for rollback purposes.
+    
+    See: backend/app/models/audio_file.py lines 43-47
 """
 
 import sqlite3
