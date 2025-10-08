@@ -63,3 +63,22 @@ export const checkProviderHealth = async (): Promise<Record<string, boolean>> =>
   const response = await apiClient.get('/api/ai/health')
   return response.data
 }
+
+/**
+ * List available models for a provider
+ */
+export const listModels = async (provider: string): Promise<string[]> => {
+  const response = await apiClient.get(`/api/ai/models/${provider}`)
+  return response.data
+}
+
+/**
+ * Check if a model is available for a provider
+ */
+export const checkModelAvailability = async (
+  provider: string,
+  model: string
+): Promise<{ available: boolean }> => {
+  const response = await apiClient.get(`/api/ai/models/${provider}/${model}/check`)
+  return response.data
+}

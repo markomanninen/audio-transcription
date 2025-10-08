@@ -78,7 +78,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
           id="language-select"
           value={selectedLanguage}
           onChange={(e) => setSelectedLanguage(e.target.value)}
-          className="px-3 py-2 border border-border rounded-lg focus-ring bg-input text-input-foreground"
+          className="h-11 px-3 border border-border rounded-lg focus-ring bg-input text-input-foreground"
           disabled={uploadMutation.isPending}
         >
           {SUPPORTED_LANGUAGES.map((lang) => (
@@ -109,7 +109,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
           type="file"
           id="file-upload"
           className="hidden"
-          accept=".mp3,.wav,.m4a,.webm,.ogg,.flac"
+          accept=".mp3,.wav,.m4a,.mp4,.webm,.ogg,.flac"
           onChange={handleFileSelect}
           disabled={uploadMutation.isPending}
         />
@@ -126,7 +126,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Supports: MP3, WAV, M4A, WebM, OGG, FLAC (max 500MB)
+              Supports: MP3, WAV, M4A, MP4, WebM, OGG, FLAC (max 500MB)
             </p>
           </div>
         </label>

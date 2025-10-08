@@ -131,6 +131,7 @@ async def get_audio_file(
         'wav': 'audio/wav',
         'ogg': 'audio/ogg',
         'm4a': 'audio/mp4',
+        'mp4': 'audio/mp4',
         'aac': 'audio/aac',
         'flac': 'audio/flac',
         'webm': 'audio/webm',

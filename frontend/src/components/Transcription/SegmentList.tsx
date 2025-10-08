@@ -104,13 +104,15 @@ export default function SegmentList({
     return (
       <div className="text-center p-8 text-muted-foreground">
         <p>No transcription segments available yet.</p>
-        <p className="text-xs mt-2">Transcription may still be in progress.</p>
       </div>
     )
   }
 
   return (
     <>
+      <div className="mb-4 text-sm text-muted-foreground">
+        {segments.length} segments
+      </div>
       <div className="space-y-2">
         {segments.map((segment) => {
         const speaker = getSpeakerInfo(segment.speaker_id)

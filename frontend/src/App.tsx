@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useCreateProject, useProject, useDeleteProject } from './hooks/useProjects'
 import { useProjectFiles } from './hooks/useUpload'
+import { useSegments } from './hooks/useTranscription'
+import ErrorBoundary from './components/ErrorBoundary'
+import { LoadingSplash } from './components/LoadingSplash'
+import { BackendStatusBanner } from './components/BackendStatusBanner'
 import FileUploader from './components/Upload/FileUploader'
-import FileList from './components/Dashboard/FileList'
+import { FileList } from './components/Dashboard/FileList'
 import TranscriptionProgress from './components/Dashboard/TranscriptionProgress'
 import AudioPlayer from './components/Player/AudioPlayer'
 import SegmentList from './components/Transcription/SegmentList'
@@ -14,6 +18,7 @@ import DeleteProjectDialog from './components/Dashboard/DeleteProjectDialog'
 import ExportDialog from './components/Export/ExportDialog'
 import { LLMSettings } from './components/Settings/LLMSettings'
 import { AISettingsDialog } from './components/Settings/AISettingsDialog'
+import { TranscriptionSettingsModal, TranscriptionSettings } from './components/Dashboard/TranscriptionSettingsModal'
 import { AnalysisDialog } from './components/AI/AnalysisDialog'
 import ThemeToggle from './components/ThemeToggle'
 import SystemStatus from './components/Dashboard/SystemStatus'
@@ -21,8 +26,11 @@ import InteractiveTutorial from './components/Tutorial/InteractiveTutorial'
 import LLMLogsViewer from './components/Debug/LLMLogsViewer'
 import { Button } from './components/ui/Button'
 import type { Segment } from './types'
+import { useQueryClient } from '@tanstack/react-query'
 
 function App() {
+  const queryClient = useQueryClient()
+  
   // Load from localStorage on mount
   const [projectId, setProjectId] = useState<number | null>(() => {
     const saved = localStorage.getItem('selectedProjectId')
@@ -42,6 +50,12 @@ function App() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [showAISettings, setShowAISettings] = useState(false)
+  const [showTranscriptionSettings, setShowTranscriptionSettings] = useState(false)
+  const [transcriptionRestart, setTranscriptionRestart] = useState<{
+    fileId: number
+    fileName: string
+    isStart?: boolean
+  } | null>(null)
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false)
   const [showLLMLogs, setShowLLMLogs] = useState(false)
   const [showProjectMenu, setShowProjectMenu] = useState(false)
@@ -55,6 +69,7 @@ function App() {
   const deleteProject = useDeleteProject()
   const { data: currentProject } = useProject(projectId)
   const { data: projectFiles } = useProjectFiles(projectId)
+  const { data: segments } = useSegments(selectedFileId)
 
   // Save LLM provider preference
   useEffect(() => {
@@ -155,6 +170,14 @@ function App() {
     })
   }
 
+  const handleRestartRequest = (fileId: number) => {
+    const fileName = selectedFile?.filename || `File ${fileId}`
+    // Check if this is a pending file (should use start) or existing file (should use restart)
+    const isPending = selectedFile?.status === 'pending'
+    setTranscriptionRestart({ fileId, fileName, isStart: isPending })
+    setShowTranscriptionSettings(true)
+  }
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -170,14 +193,19 @@ function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Interactive Tutorial */}
-      {showTutorial && (
-        <InteractiveTutorial
-          onComplete={handleTutorialComplete}
-          onSkip={handleTutorialSkip}
-        />
-      )}
+    <ErrorBoundary>
+      <LoadingSplash>
+        <div className="min-h-screen bg-background text-foreground">
+          {/* Backend Status Banner */}
+          <BackendStatusBanner />
+          
+          {/* Interactive Tutorial */}
+          {showTutorial && (
+            <InteractiveTutorial
+              onComplete={handleTutorialComplete}
+              onSkip={handleTutorialSkip}
+            />
+          )}
 
       {/* LLM Logs Viewer */}
       {showLLMLogs && (
@@ -282,6 +310,16 @@ function App() {
                     </button>
                     <button
                       onClick={() => {
+                        setShowTranscriptionSettings(true)
+                        setShowToolsMenu(false)
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-muted transition-colors flex items-center gap-2"
+                    >
+                      <span>🎙️</span>
+                      <span>Transcription Settings</span>
+                    </button>
+                    <button
+                      onClick={() => {
                         setShowLLMLogs(true)
                         setShowToolsMenu(false)
                       }}
@@ -349,6 +387,119 @@ function App() {
         onClose={() => setShowAISettings(false)}
         currentProvider={llmProvider}
         onProviderChange={setLlmProvider}
+      />
+
+      {/* Transcription Settings Dialog */}
+      <TranscriptionSettingsModal
+        isOpen={showTranscriptionSettings}
+        onClose={() => {
+          setShowTranscriptionSettings(false)
+          setTranscriptionRestart(null)
+        }}
+        onStartTranscription={async (settings: TranscriptionSettings) => {
+          console.log('onStartTranscription called, closing modal immediately')
+          
+          if (transcriptionRestart) {
+            // Save the last used settings for future transcriptions
+            localStorage.setItem('lastUsedTranscriptionSettings', JSON.stringify(settings))
+            
+            // FORCE CLOSE MODAL IMMEDIATELY - NO DELAYS
+            setShowTranscriptionSettings(false)
+            setTranscriptionRestart(null)
+            
+            console.log('Modal should be closed now, starting transcription...')
+            
+            // Check if this is a start (pending file) or restart scenario
+            if (transcriptionRestart.isStart) {
+              console.log('Starting new transcription for pending file')
+              // This is a start scenario for pending file
+              try {
+                // Save the last used settings for future transcriptions
+                localStorage.setItem('lastUsedTranscriptionSettings', JSON.stringify(settings))
+                
+                const response = await fetch(`/api/transcription/${transcriptionRestart.fileId}/start`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(settings)
+                })
+                if (!response.ok) throw new Error('Failed to start transcription')
+                
+                console.log('Transcription started successfully')
+                
+                // Auto-select the file to ensure progress is visible
+                setSelectedFileId(transcriptionRestart.fileId)
+                
+                // Immediate refresh
+                queryClient.invalidateQueries({ queryKey: ['files'] })
+                queryClient.invalidateQueries({ queryKey: ['project-files'] })
+                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId] })
+                
+                // Force additional refetch after short delay to catch status change
+                setTimeout(() => {
+                  console.log('Force refetching after transcription start...')
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                }, 1000)
+                
+                setTimeout(() => {
+                  console.log('Second force refetch after transcription start...')
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                }, 3000)
+              } catch (error) {
+                console.error('Failed to start transcription:', error)
+                // Modal is already closed, don't reopen it
+              }
+            } else {
+              console.log('Restarting existing transcription')
+              // This is a restart scenario - start transcription with new settings
+              try {
+                const response = await fetch(`/api/transcription/${transcriptionRestart.fileId}/force-restart`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(settings)
+                })
+                if (!response.ok) throw new Error('Failed to restart transcription')
+                
+                console.log('Transcription restarted successfully')
+                
+                // Auto-select the file to ensure progress is visible
+                setSelectedFileId(transcriptionRestart.fileId)
+                
+                // Immediate refresh
+                queryClient.invalidateQueries({ queryKey: ['files'] })
+                queryClient.invalidateQueries({ queryKey: ['project-files'] })
+                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId] })
+                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId] })
+                
+                // Force additional refetch after short delay to catch status change
+                setTimeout(() => {
+                  console.log('Force refetching after transcription restart...')
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                }, 1000)
+                
+                setTimeout(() => {
+                  console.log('Second force refetch after transcription restart...')
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                }, 3000)
+              } catch (error) {
+                console.error('Failed to restart transcription:', error)
+                // Modal is already closed, don't reopen it
+              }
+            }
+          } else {
+            console.log('Saving global default settings')
+            // This is for global default settings - just save them
+            localStorage.setItem('defaultTranscriptionSettings', JSON.stringify(settings))
+            setShowTranscriptionSettings(false)
+          }
+        }}
+        fileId={transcriptionRestart?.fileId || null}
+        fileName={transcriptionRestart?.fileName || "Default Settings"}
+        isLoading={false}
       />
 
       {/* AI Analysis Dialog */}
@@ -485,7 +636,11 @@ function App() {
               {selectedFileId ? (
                 <>
                   {/* Transcription Progress */}
-                  <TranscriptionProgress fileId={selectedFileId} />
+                  <TranscriptionProgress 
+                    fileId={selectedFileId} 
+                    projectName={currentProject?.name}
+                    onRestartRequested={handleRestartRequest}
+                  />
 
                   {/* Audio Player */}
                   <AudioPlayer
@@ -510,7 +665,9 @@ function App() {
                       </h2>
                       <button
                         onClick={() => setShowExportDialog(true)}
-                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                        disabled={!segments || segments.length === 0}
+                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!segments || segments.length === 0 ? "No segments available to export" : "Export transcription"}
                       >
                         <span>📥</span>
                         <span>Export</span>
@@ -548,7 +705,9 @@ function App() {
           </div>
         )}
       </main>
-    </div>
+        </div>
+      </LoadingSplash>
+    </ErrorBoundary>
   )
 }
 

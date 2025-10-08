@@ -274,9 +274,41 @@ async def list_providers() -> List[ProviderInfo]:
 async def health_check() -> Dict[str, bool]:
     """
     Check health status of all LLM providers.
-
+    
     Returns:
         Dictionary mapping provider names to health status
     """
     llm_service = LLMService()
     return await llm_service.health_check_all()
+
+
+@router.get("/models/{provider}", response_model=List[str])
+async def list_models(provider: str) -> List[str]:
+    """
+    List available models for a provider.
+    
+    Args:
+        provider: Provider name (ollama, openrouter)
+    
+    Returns:
+        List of available model names
+    """
+    llm_service = LLMService()
+    return await llm_service.list_models(provider)
+
+
+@router.get("/models/{provider}/{model}/check")
+async def check_model(provider: str, model: str) -> Dict[str, bool]:
+    """
+    Check if a specific model is available for a provider.
+    
+    Args:
+        provider: Provider name
+        model: Model name
+    
+    Returns:
+        Dictionary with availability status
+    """
+    llm_service = LLMService()
+    available = await llm_service.check_model_availability(provider, model)
+    return {"available": available}

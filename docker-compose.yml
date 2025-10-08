@@ -9,6 +9,7 @@ services:
       - ./backend:/app
       - audio-data:/app/data/audio
       - db-data:/app/data
+      - whisper-cache:/root/.cache/whisper
     environment:
       - DEBUG=True
       - DATABASE_URL=sqlite:///./data/transcriptions.db
@@ -23,9 +24,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
-      - "3000:80"
+      - "3000:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
@@ -52,6 +56,7 @@ volumes:
   db-data:
   redis-data:
   ollama-data:
+  whisper-cache:
 
 networks:
   transcribe-network:

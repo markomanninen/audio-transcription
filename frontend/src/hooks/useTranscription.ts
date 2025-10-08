@@ -14,13 +14,27 @@ export const useStartTranscription = () => {
       fileId: number
       includeDiarization?: boolean
     }) => {
-      const response = await apiClient.post(`/api/transcription/${fileId}/start`, {
+      const response = await apiClient.post(`/api/transcription/${fileId}/action?action=auto`, {
         include_diarization: includeDiarization,
       })
       return response.data
     },
     onSuccess: (_: any, variables: { fileId: number; includeDiarization?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ['transcription-status', variables.fileId] })
+    },
+  })
+}
+
+export const useCancelTranscription = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (fileId: number) => {
+      const response = await apiClient.post(`/api/transcription/${fileId}/cancel`)
+      return response.data
+    },
+    onSuccess: (_: any, fileId: number) => {
+      queryClient.invalidateQueries({ queryKey: ['transcription-status', fileId] })
     },
   })
 }
@@ -38,6 +52,8 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
       return response.data
     },
     enabled: !!fileId,
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache in memory
     refetchInterval: (query: any) => {
       const status = query.state.data?.status
       // Poll every 2 seconds while processing

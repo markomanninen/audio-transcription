@@ -7,6 +7,8 @@ import {
   correctBatch,
   listProviders,
   checkProviderHealth,
+  listModels,
+  checkModelAvailability,
   CorrectionRequest,
   BatchCorrectionRequest,
   ProviderInfo,
@@ -56,5 +58,29 @@ export const useCorrectBatch = () => {
       // Don't automatically invalidate - let user review and accept
       // queryClient.invalidateQueries({ queryKey: ['segments'] })
     },
+  })
+}
+
+/**
+ * Hook to list available models for a provider
+ */
+export const useModels = (provider: string, enabled: boolean = true) => {
+  return useQuery<string[]>({
+    queryKey: ['ai-models', provider],
+    queryFn: () => listModels(provider),
+    enabled: enabled && !!provider,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+}
+
+/**
+ * Hook to check model availability
+ */
+export const useModelAvailability = (provider: string, model: string, enabled: boolean = true) => {
+  return useQuery<{ available: boolean }>({
+    queryKey: ['ai-model-check', provider, model],
+    queryFn: () => checkModelAvailability(provider, model),
+    enabled: enabled && !!provider && !!model,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
   })
 }

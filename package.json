@@ -1,0 +1,22 @@
+{
+  "scripts": {
+    "docker-dev": "docker-compose up -d",
+    "docker-build": "docker-compose build",
+    "docker-restart": "docker-compose restart",
+    "docker-stop": "docker-compose down",
+    "docker-logs": "docker-compose logs -f",
+    "docker-backend": "docker-compose restart backend",
+    "docker-frontend": "docker-compose restart frontend",
+    "docker-deploy": "docker-compose down && docker-compose build && docker-compose up -d",
+    
+    "logs:backend": "docker logs audio-transcription-backend-1 --tail 100",
+    "logs:frontend": "docker logs audio-transcription-frontend-1 --tail 100", 
+    "logs:ollama": "docker logs audio-transcription-ollama-1 --tail 100",
+    "logs:redis": "docker logs audio-transcription-redis-1 --tail 100",
+    "logs:live": "docker logs audio-transcription-backend-1 --follow",
+    "logs:errors": "docker logs audio-transcription-backend-1 --tail 200 | findstr /i \"error failed exception\"",
+    "logs:transcription": "docker logs audio-transcription-backend-1 --tail 200 | findstr /i \"transcription whisper segments resume\"",
+    "logs:recent": "docker logs audio-transcription-backend-1 --since=10m",
+    "logs:inspect": "python scripts/log_inspector.py"
+  }
+}

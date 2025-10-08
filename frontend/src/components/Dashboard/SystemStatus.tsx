@@ -62,7 +62,7 @@ export default function SystemStatus() {
   }
 
   const overallStatusIcon = health?.status === 'healthy' ? '✅' : '⚠️'
-  const overallStatusText = health?.status === 'healthy' ? 'System Healthy' : 'System Degraded'
+  const overallStatusText = health?.status === 'healthy' ? 'System' : 'System Degraded'
 
   return (
     <div className="relative">

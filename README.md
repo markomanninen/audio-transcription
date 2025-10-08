@@ -126,9 +126,14 @@ WHISPER_MODEL_SIZE=base
 OPENROUTER_API_KEY=your_key_here
 OPENROUTER_MODEL=anthropic/claude-3-haiku
 
-# Ollama (local AI, optional)
+# Ollama (local AI, optional - supports external services)
 OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=llama3.2:1b
+
+# External Ollama Configuration (optional)
+OLLAMA_EXTERNAL=false
+OLLAMA_API_KEY=your_api_key_here
+OLLAMA_VERIFY_SSL=true
 ```
 
 ### Whisper Models
@@ -171,7 +176,7 @@ WHISPER_MODEL_SIZE=small
 - **Framework**: FastAPI (Python 3.11+)
 - **Transcription**: OpenAI Whisper
 - **Speaker Diarization**: PyAnnote Audio
-- **AI Integration**: Ollama (local) + OpenRouter (cloud)
+- **AI Integration**: Ollama (local/external) + OpenRouter (cloud)
 - **Database**: SQLite (easily upgradable to PostgreSQL)
 
 ### Frontend
@@ -185,7 +190,20 @@ WHISPER_MODEL_SIZE=small
 - **Reverse Proxy**: Nginx (production)
 - **Storage**: Local filesystem (configurable)
 
-## 🛠️ Development
+## � Advanced Configuration
+
+### External Ollama Service
+
+For better performance or to share resources, you can configure the application to use an external Ollama service:
+
+**Quick Setup**:
+1. Set `OLLAMA_EXTERNAL=true` in your `.env` file
+2. Update `OLLAMA_BASE_URL` to your external service URL
+3. Configure authentication if required
+
+**📖 Full Guide**: See [External Ollama Configuration](./docs/EXTERNAL_OLLAMA_SETUP.md) for detailed instructions, security considerations, and troubleshooting.
+
+## �🛠️ Development
 
 ### Run in Development Mode
 

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import init_db
 from .core.migrations import run_migrations
+from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs
 
 
@@ -16,8 +17,41 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize database and run migrations
     init_db()
     run_migrations()
+    
+    # Clean up any orphaned transcriptions from previous server crashes/restarts
+    from .core.database import SessionLocal
+    from .models.audio_file import AudioFile, TranscriptionStatus
+    
+    db = SessionLocal()
+    try:
+        # Reset any PROCESSING transcriptions to PENDING
+        # Because if we're starting up, any previous processes are dead
+        orphaned_files = db.query(AudioFile).filter(
+            AudioFile.transcription_status == TranscriptionStatus.PROCESSING
+        ).all()
+        
+        for file in orphaned_files:
+            print(f"🧹 Cleaning up orphaned transcription for file {file.id}")
+            file.transcription_status = TranscriptionStatus.PENDING
+            file.transcription_progress = 0.0
+            file.error_message = "Transcription was interrupted by server restart"
+            file.transcription_started_at = None
+            
+        if orphaned_files:
+            db.commit()
+            print(f"🧹 Cleaned up {len(orphaned_files)} orphaned transcription(s)")
+        else:
+            print("✅ No orphaned transcriptions found")
+            
+    finally:
+        db.close()
+    
+    # Initialize global transcription service (loads model once)
+    initialize_transcription_service()
+    
     yield
     # Shutdown: Clean up resources
+    cleanup_transcription_service()
 
 
 app = FastAPI(
@@ -75,21 +109,48 @@ async def health():
         from .core.config import settings
         db_path = settings.DATABASE_URL.replace("sqlite:///", "")
         if Path(db_path).exists():
-            conn = sqlite3.connect(db_path)
+            # Use a short timeout to avoid blocking during heavy operations
+            conn = sqlite3.connect(db_path, timeout=5.0)
             conn.execute("SELECT 1")
             conn.close()
             components["database"] = {"status": "up", "message": f"SQLite database accessible"}
         else:
             components["database"] = {"status": "down", "message": "Database file not found"}
     except Exception as e:
-        components["database"] = {"status": "down", "message": str(e)}
+        # During heavy transcription, database might be busy - this is normal
+        if "database is locked" in str(e).lower() or "busy" in str(e).lower():
+            components["database"] = {"status": "busy", "message": "Database busy (transcription in progress)"}
+        else:
+            components["database"] = {"status": "down", "message": str(e)}
 
     # Check Whisper model
     try:
-        import whisper
-        components["whisper"] = {"status": "up", "message": f"Whisper library available (model: {settings.WHISPER_MODEL_SIZE})"}
+        from .services.transcription_singleton import is_transcription_service_ready, get_transcription_service, get_model_download_progress
+        if is_transcription_service_ready():
+            service = get_transcription_service()
+            components["whisper"] = {
+                "status": "up", 
+                "message": f"Whisper model '{service.model_size}' loaded and ready"
+            }
+        else:
+            # Try to get download progress
+            download_info = get_model_download_progress()
+            if download_info:
+                components["whisper"] = {
+                    "status": "downloading", 
+                    "message": f"Downloading Whisper model: {download_info['progress']}% ({download_info['downloaded']}/{download_info['total']})",
+                    "progress": download_info['progress'],
+                    "downloaded": download_info['downloaded'],
+                    "total": download_info['total'],
+                    "speed": download_info.get('speed', 'unknown')
+                }
+            else:
+                components["whisper"] = {
+                    "status": "loading", 
+                    "message": f"Whisper model loading... (this may take several minutes)"
+                }
     except Exception as e:
-        components["whisper"] = {"status": "down", "message": f"Whisper not available: {str(e)}"}
+        components["whisper"] = {"status": "down", "message": f"Whisper error: {str(e)}"}
 
     # Check Ollama
     try:
@@ -129,9 +190,21 @@ async def health():
     # Determine overall status
     critical_down = any(
         components[k]["status"] == "down"
-        for k in ["api", "database", "whisper", "storage"]
+        for k in ["api", "storage"]  # Remove database from critical for busy state
     )
-    overall_status = "degraded" if critical_down else "healthy"
+    
+    # Database is critical only if truly down, not just busy
+    database_critical_down = components["database"]["status"] == "down"
+    
+    # Check if Whisper is still loading
+    whisper_loading = components["whisper"]["status"] == "loading"
+    
+    if critical_down or database_critical_down:
+        overall_status = "unhealthy"
+    elif whisper_loading:
+        overall_status = "starting"  # Still initializing
+    else:
+        overall_status = "healthy"
 
     return {
         "status": overall_status,

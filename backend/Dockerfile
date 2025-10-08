@@ -1,11 +1,13 @@
 FROM python:3.11-slim
 
 # Install system dependencies for audio processing
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
     libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set working directory
 WORKDIR /app

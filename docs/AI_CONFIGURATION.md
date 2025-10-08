@@ -6,6 +6,8 @@ Complete guide to configuring AI-powered corrections in the Audio Transcription 
 
 The AI correction system uses Large Language Models (LLMs) to automatically suggest spelling, grammar, and punctuation improvements to your transcriptions. It supports both local (Ollama) and cloud (OpenRouter) inference.
 
+**📖 For External Ollama Setup**: See the [External Ollama Configuration Guide](./EXTERNAL_OLLAMA_SETUP.md) for detailed instructions on using remote Ollama services.
+
 ## Content-Aware Correction
 
 The system automatically adapts its correction style based on the content type:
