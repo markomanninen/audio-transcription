@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useCreateProject, useProject, useDeleteProject } from './hooks/useProjects'
 import { useProjectFiles } from './hooks/useUpload'
+import { useSegments } from './hooks/useTranscription'
 import FileUploader from './components/Upload/FileUploader'
 import FileList from './components/Dashboard/FileList'
 import TranscriptionProgress from './components/Dashboard/TranscriptionProgress'

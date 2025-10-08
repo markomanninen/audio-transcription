@@ -47,18 +47,23 @@ def test_start_transcription(client, project_with_file, test_db):
     """Test starting transcription."""
     file_id = project_with_file["file_id"]
 
-    # Patch SessionLocal where it's imported (in the function)
-    with patch('app.core.database.SessionLocal') as mock_session:
-        mock_session.return_value = test_db
+    # Mock the background task to prevent actual transcription
+    with patch('app.api.transcription.transcribe_task') as mock_task:
+        # Mock SessionLocal for any database access
+        with patch('app.core.database.SessionLocal') as mock_session:
+            mock_session.return_value = test_db
 
-        response = client.post(
-            f"/api/transcription/{file_id}/start",
-            json={"include_diarization": True}
-        )
-        assert response.status_code == 202
-        data = response.json()
-        assert data["file_id"] == file_id
-        assert data["include_diarization"] is True
+            response = client.post(
+                f"/api/transcription/{file_id}/start",
+                json={"include_diarization": True}
+            )
+            assert response.status_code == 202
+            data = response.json()
+            assert data["file_id"] == file_id
+            assert data["include_diarization"] is True
+            
+            # Verify the background task was called
+            mock_task.assert_called_once_with(file_id, True)
 
 
 def test_get_segments_empty(client, project_with_file):

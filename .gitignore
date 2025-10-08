@@ -62,3 +62,5 @@ backend/storage/
 
 # Whisper models cache
 backend/.cache/
+
+*.venv*/*
