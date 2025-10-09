@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 import logging
+import json
 from datetime import datetime
 
 from ..core.database import get_db
@@ -189,7 +190,6 @@ async def start_transcription_with_settings(
         audio_file.language = request.language
         
         # Store transcription metadata
-        import json
         metadata = {
             "model_size": request.model_size,
             "language": request.language,
@@ -270,11 +270,27 @@ async def force_restart_transcription(
 ):
     """Force restart a transcription with new settings - SAME AS START."""
     try:
+        from ..services.transcription_singleton import is_transcription_service_ready, initialize_transcription_service, add_pending_transcription
+
         # Check if transcription service is ready
         if not is_transcription_service_ready():
+            # Add this transcription to the pending queue
+            add_pending_transcription(audio_file_id, request.include_diarization)
+
+            # Initialize in background thread to avoid blocking
+            import threading
+            def init_whisper():
+                try:
+                    initialize_transcription_service()
+                except Exception as e:
+                    print(f"❌ Failed to initialize Whisper: {e}")
+
+            init_thread = threading.Thread(target=init_whisper, daemon=True)
+            init_thread.start()
+
             raise HTTPException(
-                status_code=503, 
-                detail="Transcription service is not ready yet. Whisper model is still downloading. Please wait and try again."
+                status_code=202,
+                detail="Whisper model loading. Transcription will restart automatically once model is ready."
             )
         
         # First update the file with the new settings
@@ -286,7 +302,6 @@ async def force_restart_transcription(
         audio_file.language = request.language
         
         # Store transcription metadata
-        import json
         metadata = {
             "model_size": request.model_size,
             "language": request.language,
@@ -295,7 +310,22 @@ async def force_restart_transcription(
         }
         audio_file.transcription_metadata = json.dumps(metadata)
         db.commit()
-        
+
+        # DELETE existing segments and speakers before restart
+        existing_segments = db.query(Segment).filter(Segment.audio_file_id == audio_file_id).count()
+        if existing_segments > 0:
+            logger.info(f"Force-restart: Deleting {existing_segments} existing segments for file {audio_file_id}")
+            db.query(Segment).filter(Segment.audio_file_id == audio_file_id).delete()
+            db.commit()
+
+        # Delete existing speakers
+        from ..models.speaker import Speaker
+        existing_speakers = db.query(Speaker).filter(Speaker.audio_file_id == audio_file_id).count()
+        if existing_speakers > 0:
+            logger.info(f"Force-restart: Deleting {existing_speakers} existing speakers for file {audio_file_id}")
+            db.query(Speaker).filter(Speaker.audio_file_id == audio_file_id).delete()
+            db.commit()
+
         # Set status to PROCESSING immediately and reset timing fields for restart
         audio_file.transcription_status = TranscriptionStatus.PROCESSING
         audio_file.transcription_progress = 0.0
@@ -354,6 +384,9 @@ async def force_restart_transcription(
                 "include_diarization": request.include_diarization
             }
         }
+    except HTTPException:
+        # Re-raise HTTPException (like 202, 404) without converting to 500
+        raise
     except Exception as e:
         logger.error(f"Error force restarting transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -468,14 +501,35 @@ async def get_transcription_status(
     
     # Check if transcription service is ready
     if not is_transcription_service_ready():
-        # Return status indicating the service is not ready yet
+        # CRITICAL FIX: If file is already completed, return actual data from database
+        # Don't show "model loading" for files that are already done!
+        if audio_file.transcription_status == TranscriptionStatus.COMPLETED:
+            segment_count = db.query(Segment).filter(Segment.audio_file_id == file_id).count()
+            return TranscriptionStatusResponse(
+                file_id=audio_file.id,
+                filename=audio_file.filename,
+                original_filename=audio_file.original_filename,
+                status=audio_file.transcription_status.value,
+                progress=audio_file.transcription_progress or 1.0,
+                error_message=None,
+                processing_stage=None,
+                segment_count=segment_count,
+                duration=audio_file.duration,
+                transcription_started_at=audio_file.transcription_started_at.isoformat() if audio_file.transcription_started_at else None,
+                transcription_completed_at=audio_file.transcription_completed_at.isoformat() if audio_file.transcription_completed_at else None,
+                created_at=audio_file.created_at.isoformat() if audio_file.created_at else None,
+                updated_at=audio_file.updated_at.isoformat() if audio_file.updated_at else None,
+                transcription_metadata=audio_file.transcription_metadata
+            )
+
+        # For pending/processing files, show model loading status
         error_message = "AI transcription model is still loading. Please wait..."
         processing_stage = "model_loading"
-        
+
         if has_pending_transcriptions():
             error_message = "Transcription queued. Model is loading and transcription will start automatically."
             processing_stage = "queued"
-            
+
         return TranscriptionStatusResponse(
             file_id=audio_file.id,
             filename=audio_file.filename,

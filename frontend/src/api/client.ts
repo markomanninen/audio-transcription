@@ -6,8 +6,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 let isBackendDown = false
 let lastFailureTime = 0
 let consecutiveFailures = 0
-const CIRCUIT_BREAKER_THRESHOLD = 5 // Increase threshold for CPU-intensive operations
-const CIRCUIT_BREAKER_TIMEOUT = 30000 // 30 seconds - longer cooldown for transcription
+const CIRCUIT_BREAKER_THRESHOLD = 3 // Trips after 3 consecutive failures
+const CIRCUIT_BREAKER_TIMEOUT = 5000 // 5 seconds - quick recovery for restarts
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

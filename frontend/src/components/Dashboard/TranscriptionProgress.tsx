@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranscriptionStatus, useCancelTranscription } from '../../hooks/useTranscription'
 import { useSystemHealth } from '../../hooks/useSystemHealth'
@@ -86,6 +86,33 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
   const queryClient = useQueryClient()
   const [detailedStatus, setDetailedStatus] = useState<any>(null)
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
+  const prevFileId = useRef<number | null>(null)
+
+  // Detect file ID changes and clear cache for previous file
+  useEffect(() => {
+    const previousFileId = prevFileId.current
+
+    if (previousFileId !== null && previousFileId !== fileId) {
+      // File ID changed - clear cache for previous file
+      if (import.meta.env.DEV) {
+        console.log(`[TranscriptionProgress] File ID changed from ${previousFileId} to ${fileId} - clearing cache`)
+      }
+
+      // Remove stale queries for previous file with v3 keys
+      queryClient.removeQueries({ queryKey: ['transcription-status', previousFileId, 'v3'] })
+      queryClient.removeQueries({ queryKey: ['segments', previousFileId, 'v3'] })
+      queryClient.removeQueries({ queryKey: ['speakers', previousFileId, 'v3'] })
+
+      // Clear detailed status for previous file
+      setDetailedStatus(null)
+      setActionInProgress(null)
+
+      // Force immediate refetch for new file
+      refetch()
+    }
+
+    prevFileId.current = fileId
+  }, [fileId, queryClient, refetch])
 
   // Helper function to format datetime
   const formatDateTime = (dateString: string | undefined): string => {
@@ -169,13 +196,13 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
         transcriptionActions.getDetailedStatus(fileId)
           .then(setDetailedStatus)
           .catch(console.error)
-        
-        // Invalidate all related queries for comprehensive refresh
-        queryClient.invalidateQueries({ queryKey: ['segments', fileId] })
-        queryClient.invalidateQueries({ queryKey: ['speakers', fileId] })
+
+        // Invalidate all related queries for comprehensive refresh with v3 keys
+        queryClient.invalidateQueries({ queryKey: ['segments', fileId, 'v3'] })
+        queryClient.invalidateQueries({ queryKey: ['speakers', fileId, 'v3'] })
+        queryClient.invalidateQueries({ queryKey: ['transcription-status', fileId, 'v3'] })
         queryClient.invalidateQueries({ queryKey: ['files'] })
         queryClient.invalidateQueries({ queryKey: ['project-files'] })
-        queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', fileId] })
       }, 1000)
       
     } catch (error) {
@@ -206,12 +233,21 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
   // Check if Whisper AI model is still loading
   const whisperStatus = systemHealth.data?.components?.whisper
   const isWhisperLoading = whisperStatus?.status === 'loading' || whisperStatus?.status === 'downloading'
-  const isWhisperReady = whisperStatus?.status === 'up' || 
+  const isWhisperReady = whisperStatus?.status === 'up' ||
     (whisperStatus?.status === 'downloading' && whisperStatus?.progress === 100)
-  
-  if (isWhisperLoading && status.status === 'pending') {
+
+  // CRITICAL FIX: Only show Whisper loading state for PENDING files
+  // Do NOT show for completed/processing/failed files - they should show their actual status
+  if (isWhisperLoading && status.status === 'pending' && !status.transcription_completed_at) {
     return (
-      <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+      <div
+        className="bg-card rounded-lg shadow-sm border border-border p-6"
+        data-component="transcription-progress"
+        data-file-id={fileId}
+        data-status="whisper-loading"
+        data-model-size={whisperStatus?.model_size}
+        data-testid={`transcription-progress-${fileId}`}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">
             {projectName ? `${projectName} - ${status.original_filename || status.filename}` : `Audio Transcription - ${status.original_filename || status.filename}`}
@@ -265,16 +301,18 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
 
   // Helper function to clear cache and refresh
   const handleRefresh = () => {
-    // Clear React Query cache for this file
-    queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', fileId] })
-    queryClient.invalidateQueries({ queryKey: ['segments', fileId] })
-    queryClient.invalidateQueries({ queryKey: ['speakers', fileId] })
+    // Clear React Query cache for this file with v3 keys
+    queryClient.invalidateQueries({ queryKey: ['transcription-status', fileId, 'v3'] })
+    queryClient.invalidateQueries({ queryKey: ['segments', fileId, 'v3'] })
+    queryClient.invalidateQueries({ queryKey: ['speakers', fileId, 'v3'] })
     queryClient.invalidateQueries({ queryKey: ['system-health'] })
-    
+
     // Force refetch
     refetch()
-    
-    console.log('Cache cleared and status refreshed')
+
+    if (import.meta.env.DEV) {
+      console.log(`[TranscriptionProgress] Cache cleared and status refreshed for file ${fileId}`)
+    }
   }
 
   // Helper function to render action buttons
@@ -398,7 +436,14 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+    <div
+      className="bg-card rounded-lg shadow-sm border border-border p-6"
+      data-component="transcription-progress"
+      data-file-id={fileId}
+      data-status={status.status}
+      data-progress={progressPercent}
+      data-testid={`transcription-progress-${fileId}`}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">
           {projectName ? `${projectName} - ${status.original_filename || status.filename}` : `Audio Transcription - ${status.original_filename || status.filename}`}

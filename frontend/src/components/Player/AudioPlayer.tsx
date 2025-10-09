@@ -161,7 +161,14 @@ export default function AudioPlayer({
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+    <div
+      className="bg-card rounded-lg shadow-sm border border-border p-6"
+      data-component="audio-player"
+      data-audio-url={audioUrl}
+      data-is-playing={isPlaying}
+      data-duration={duration}
+      data-testid="audio-player"
+    >
       <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous" />
 
       <div className="space-y-4">

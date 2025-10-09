@@ -172,9 +172,8 @@ class TranscriptionService:
     def save_transcription_checkpoint(self, audio_file: AudioFile, stage: str, 
                                     segment_index: int = 0, metadata: Dict = None, db: Session = None):
         """Save comprehensive transcription state for resume functionality."""
-        import json
         from datetime import datetime
-        
+
         checkpoint_data = {
             "stage": stage,
             "segment_index": segment_index,
@@ -197,8 +196,6 @@ class TranscriptionService:
     
     def load_transcription_checkpoint(self, audio_file: AudioFile) -> Dict[str, Any]:
         """Load transcription checkpoint for resume."""
-        import json
-        
         if not audio_file.processing_checkpoint:
             return {
                 "stage": "pending",
@@ -333,7 +330,6 @@ class TranscriptionService:
         audio_file.model_used = None  # Will be set when transcription starts
         
         # Store transcription metadata including diarization setting
-        import json
         metadata = {
             "model_size": model_size,
             "include_diarization": include_diarization,
@@ -480,6 +476,9 @@ class TranscriptionService:
             audio_file.transcription_status = TranscriptionStatus.COMPLETED
             audio_file.transcription_progress = 1.0
             audio_file.error_message = None
+            # Set completion timestamp if not already set
+            if not audio_file.transcription_completed_at:
+                audio_file.transcription_completed_at = datetime.utcnow()
             db.commit()
             return existing_segments
         elif existing_segments and force_restart:
@@ -533,7 +532,6 @@ class TranscriptionService:
             
             if audio_file.transcription_metadata:
                 try:
-                    import json
                     metadata = json.loads(audio_file.transcription_metadata)
                     requested_model_size = metadata.get("model_size", self.model_size)
                     include_diarization = metadata.get("include_diarization", True)
@@ -559,7 +557,6 @@ class TranscriptionService:
             # Update transcription metadata to reflect actual settings used
             if audio_file.transcription_metadata:
                 try:
-                    import json
                     metadata = json.loads(audio_file.transcription_metadata)
                     metadata["model_size"] = file_model_size  # Update to actual model used
                     metadata["actual_model_used"] = file_model_size

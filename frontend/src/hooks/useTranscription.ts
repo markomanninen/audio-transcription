@@ -87,27 +87,13 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
     refetchOnReconnect: true, // Refetch when reconnecting
   })
 
-  // Handle transcription completion side effects and status changes
+  // Handle transcription completion side effects
   useEffect(() => {
-    const status = query.data?.status
-
-    if (status === 'completed' || status === 'failed') {
-      // When transcription finishes, force remove stale cache and refetch everything
-      if (import.meta.env.DEV) {
-        console.log(`[useTranscriptionStatus] Status changed to ${status}, clearing cache and refetching`)
-      }
-
-      // Remove stale cache first
-      queryClient.removeQueries({ queryKey: ['transcription-status', fileId, 'v3'] })
-      queryClient.removeQueries({ queryKey: ['segments', fileId, 'v3'] })
-      queryClient.removeQueries({ queryKey: ['speakers', fileId, 'v3'] })
-
-      // Then invalidate to trigger fresh fetch
-      queryClient.invalidateQueries({ queryKey: ['transcription-status', fileId, 'v3'] })
+    if (query.data?.status === 'completed') {
+      // Only invalidate related queries, NOT the status query itself
       queryClient.invalidateQueries({ queryKey: ['segments', fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['speakers', fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['files'] })
-      queryClient.invalidateQueries({ queryKey: ['project-files'] })
     }
   }, [query.data?.status, queryClient, fileId])
 

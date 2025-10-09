@@ -118,24 +118,23 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       console.log('Auto-selecting file:', showTranscriptionModal.fileId)
       onSelectFile?.(showTranscriptionModal.fileId)
       
-      // Immediate invalidation of all relevant queries to refresh the UI
+      // Immediate invalidation of all relevant queries to refresh the UI with v3 cache keys
       console.log('Invalidating queries for UI refresh')
       queryClient.invalidateQueries({ queryKey: ['project-files'] })
       queryClient.invalidateQueries({ queryKey: ['files'] })
-      queryClient.invalidateQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId] })
-      queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', showTranscriptionModal.fileId] })
-      queryClient.invalidateQueries({ queryKey: ['segments', showTranscriptionModal.fileId] })
-      queryClient.invalidateQueries({ queryKey: ['speakers', showTranscriptionModal.fileId] })
+      queryClient.invalidateQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
+      queryClient.invalidateQueries({ queryKey: ['segments', showTranscriptionModal.fileId, 'v3'] })
+      queryClient.invalidateQueries({ queryKey: ['speakers', showTranscriptionModal.fileId, 'v3'] })
       
-      // Force additional refetch after short delay to catch status change
+      // Force additional refetch after short delay to catch status change with v3 keys
       setTimeout(() => {
         console.log('Force refetching after transcription start from FileList...')
-        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId] })
+        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
       }, 1000)
-      
+
       setTimeout(() => {
         console.log('Second force refetch after transcription start from FileList...')
-        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId] })
+        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
       }, 3000)
       
       console.log('Transcription start completed successfully')

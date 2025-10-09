@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSegments, useSpeakers, useUpdateSegment } from '../../hooks/useTranscription'
 import { useCorrectSegment } from '../../hooks/useAICorrections'
 import { CorrectionDialog } from '../AI/CorrectionDialog'
@@ -26,6 +27,7 @@ export default function SegmentList({
   isPlaying = false,
   llmProvider = 'ollama'
 }: SegmentListProps) {
+  const queryClient = useQueryClient()
   const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useSegments(fileId)
   const { data: speakers } = useSpeakers(fileId)
   const updateSegment = useUpdateSegment()
@@ -34,8 +36,34 @@ export default function SegmentList({
   const [correctingSegmentId, setCorrectingSegmentId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
   const [correction, setCorrection] = useState<CorrectionResponse | null>(null)
+  const prevFileId = useRef<number | null>(null)
 
-  console.log('SegmentList render:', { fileId, segments, isLoading: segmentsLoading, error: segmentsError })
+  // Detect file ID changes and clear state
+  useEffect(() => {
+    const previousFileId = prevFileId.current
+
+    if (previousFileId !== null && previousFileId !== fileId) {
+      if (import.meta.env.DEV) {
+        console.log(`[SegmentList] File ID changed from ${previousFileId} to ${fileId} - clearing state`)
+      }
+
+      // Clear editing state when file changes
+      setEditingSegmentId(null)
+      setCorrectingSegmentId(null)
+      setEditText('')
+      setCorrection(null)
+
+      // Remove old file queries from cache
+      queryClient.removeQueries({ queryKey: ['segments', previousFileId, 'v3'] })
+      queryClient.removeQueries({ queryKey: ['speakers', previousFileId, 'v3'] })
+    }
+
+    prevFileId.current = fileId
+  }, [fileId, queryClient])
+
+  if (import.meta.env.DEV) {
+    console.log('SegmentList render:', { fileId, segments: segments?.length, isLoading: segmentsLoading, error: segmentsError })
+  }
 
   const getSpeakerInfo = (speakerId?: number) => {
     if (!speakerId || !speakers) return null
@@ -136,7 +164,13 @@ export default function SegmentList({
       <div className="mb-4 text-sm text-muted-foreground">
         {segments.length} segments
       </div>
-      <div className="space-y-2">
+      <div
+        className="space-y-2"
+        data-component="segment-list"
+        data-file-id={fileId}
+        data-segment-count={segments.length}
+        data-testid={`segment-list-${fileId}`}
+      >
         {segments.map((segment) => {
         const speaker = getSpeakerInfo(segment.speaker_id)
         const isActive = isSegmentActive(segment)

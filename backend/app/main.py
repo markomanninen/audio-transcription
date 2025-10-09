@@ -138,18 +138,26 @@ async def health():
             # Try to get download progress
             download_info = get_model_download_progress()
             if download_info:
-                components["whisper"] = {
-                    "status": "downloading", 
-                    "message": f"Downloading Whisper model: {download_info['progress']}% ({download_info['downloaded']}/{download_info['total']})",
-                    "progress": download_info['progress'],
-                    "downloaded": download_info['downloaded'],
-                    "total": download_info['total'],
-                    "speed": download_info.get('speed', 'unknown'),
-                    "model_size": settings.WHISPER_MODEL_SIZE
-                }
+                # CRITICAL FIX: If download is at 100%, mark as ready to load (not downloading)
+                if download_info['progress'] >= 100:
+                    components["whisper"] = {
+                        "status": "up",
+                        "message": f"Whisper model downloaded and ready to load",
+                        "model_size": settings.WHISPER_MODEL_SIZE
+                    }
+                else:
+                    components["whisper"] = {
+                        "status": "downloading",
+                        "message": f"Downloading Whisper model: {download_info['progress']}% ({download_info['downloaded']}/{download_info['total']})",
+                        "progress": download_info['progress'],
+                        "downloaded": download_info['downloaded'],
+                        "total": download_info['total'],
+                        "speed": download_info.get('speed', 'unknown'),
+                        "model_size": settings.WHISPER_MODEL_SIZE
+                    }
             else:
                 components["whisper"] = {
-                    "status": "loading", 
+                    "status": "loading",
                     "message": f"Whisper model loading... (this may take several minutes)",
                     "model_size": settings.WHISPER_MODEL_SIZE
                 }

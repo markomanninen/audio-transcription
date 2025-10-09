@@ -76,6 +76,7 @@ function App() {
     localStorage.setItem('llmProvider', llmProvider)
   }, [llmProvider])
 
+
   // Get current selected file
   const selectedFile = projectFiles?.find(f => f.file_id === selectedFileId)
 
@@ -113,12 +114,38 @@ function App() {
     }
   }, [projectId, projectFiles])
 
-  // Save selected file to localStorage
+  // Save selected file to localStorage and clear cache for file switches
   useEffect(() => {
     if (projectId && selectedFileId) {
       localStorage.setItem(`selectedFileId_${projectId}`, selectedFileId.toString())
     }
   }, [projectId, selectedFileId])
+
+  // Clear cache when switching files to prevent data contamination
+  const prevSelectedFileId = useRef<number | null>(null)
+
+  useEffect(() => {
+    const previousFileId = prevSelectedFileId.current
+
+    if (previousFileId !== null && previousFileId !== selectedFileId && selectedFileId !== null) {
+      // File switched - clear cache for previous file with v3 keys
+      if (import.meta.env.DEV) {
+        console.log(`[App] File switched from ${previousFileId} to ${selectedFileId} - clearing cache for file ${previousFileId}`)
+      }
+
+      // Remove cache for previous file
+      queryClient.removeQueries({ queryKey: ['transcription-status', previousFileId, 'v3'] })
+      queryClient.removeQueries({ queryKey: ['segments', previousFileId, 'v3'] })
+      queryClient.removeQueries({ queryKey: ['speakers', previousFileId, 'v3'] })
+
+      // Invalidate (but don't remove) cache for new file to trigger fresh fetch
+      queryClient.invalidateQueries({ queryKey: ['transcription-status', selectedFileId, 'v3'] })
+      queryClient.invalidateQueries({ queryKey: ['segments', selectedFileId, 'v3'] })
+      queryClient.invalidateQueries({ queryKey: ['speakers', selectedFileId, 'v3'] })
+    }
+
+    prevSelectedFileId.current = selectedFileId
+  }, [selectedFileId, queryClient])
 
   const handleCreateProject = (name: string) => {
     createProject.mutate(
@@ -429,23 +456,22 @@ function App() {
                 // Auto-select the file to ensure progress is visible
                 setSelectedFileId(transcriptionRestart.fileId)
                 
-                // Immediate refresh
+                // Immediate refresh with v3 cache keys
                 queryClient.invalidateQueries({ queryKey: ['files'] })
                 queryClient.invalidateQueries({ queryKey: ['project-files'] })
-                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId] })
-                
+                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
+                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId, 'v3'] })
+                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
+
                 // Force additional refetch after short delay to catch status change
                 setTimeout(() => {
                   console.log('Force refetching after transcription start...')
-                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 }, 1000)
-                
+
                 setTimeout(() => {
                   console.log('Second force refetch after transcription start...')
-                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 }, 3000)
               } catch (error) {
                 console.error('Failed to start transcription:', error)
@@ -463,27 +489,33 @@ function App() {
                 if (!response.ok) throw new Error('Failed to restart transcription')
                 
                 console.log('Transcription restarted successfully')
-                
+
                 // Auto-select the file to ensure progress is visible
                 setSelectedFileId(transcriptionRestart.fileId)
-                
-                // Immediate refresh
+
+                // CRITICAL: Remove stale cache FIRST before refetching
+                queryClient.removeQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
+                queryClient.removeQueries({ queryKey: ['segments', transcriptionRestart.fileId, 'v3'] })
+                queryClient.removeQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
+
+                // Then invalidate to trigger fresh fetch
                 queryClient.invalidateQueries({ queryKey: ['files'] })
                 queryClient.invalidateQueries({ queryKey: ['project-files'] })
-                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId] })
-                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId] })
-                
+                queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
+                queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId, 'v3'] })
+                queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
+
                 // Force additional refetch after short delay to catch status change
                 setTimeout(() => {
                   console.log('Force refetching after transcription restart...')
-                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                  queryClient.removeQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 }, 1000)
-                
+
                 setTimeout(() => {
                   console.log('Second force refetch after transcription restart...')
-                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId] })
+                  queryClient.removeQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
+                  queryClient.refetchQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 }, 3000)
               } catch (error) {
                 console.error('Failed to restart transcription:', error)
