@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSpeakers, useUpdateSpeaker } from '../../hooks/useTranscription'
 
 interface SpeakerManagerProps {
@@ -6,10 +7,32 @@ interface SpeakerManagerProps {
 }
 
 export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
+  const queryClient = useQueryClient()
   const { data: speakers, isLoading } = useSpeakers(fileId)
   const updateSpeaker = useUpdateSpeaker()
   const [editingSpeakerId, setEditingSpeakerId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
+  const prevFileId = useRef<number | null>(null)
+
+  // Detect file ID changes and clear state
+  useEffect(() => {
+    const previousFileId = prevFileId.current
+
+    if (previousFileId !== null && previousFileId !== fileId) {
+      if (import.meta.env.DEV) {
+        console.log(`[SpeakerManager] File ID changed from ${previousFileId} to ${fileId} - clearing state`)
+      }
+
+      // Clear editing state when file changes
+      setEditingSpeakerId(null)
+      setEditName('')
+
+      // Remove old file queries from cache
+      queryClient.removeQueries({ queryKey: ['speakers', previousFileId, 'v3'] })
+    }
+
+    prevFileId.current = fileId
+  }, [fileId, queryClient])
 
   const handleStartEdit = (speakerId: number, currentName: string) => {
     setEditingSpeakerId(speakerId)
@@ -45,7 +68,13 @@ export default function SpeakerManager({ fileId }: SpeakerManagerProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2"
+      data-component="speaker-manager"
+      data-file-id={fileId}
+      data-speaker-count={speakers.length}
+      data-testid={`speaker-manager-${fileId}`}
+    >
       <h3 className="text-sm font-semibold mb-3">Speakers</h3>
       {speakers.map((speaker) => {
         const isEditing = editingSpeakerId === speaker.id

@@ -18,13 +18,15 @@ class LLMService:
 
     def _initialize_providers(self):
         """Initialize available LLM providers."""
-        # Always add Ollama (local)
+        # Always add Ollama (local or external)
         try:
-            ollama_url = getattr(settings, 'OLLAMA_BASE_URL', 'http://ollama:11434')
-            ollama_model = getattr(settings, 'OLLAMA_MODEL', 'llama3.2:1b')
             self._providers['ollama'] = OllamaProvider(
-                base_url=ollama_url,
-                model=ollama_model,
+                base_url=settings.OLLAMA_BASE_URL,
+                model=settings.OLLAMA_MODEL,
+                timeout=settings.OLLAMA_TIMEOUT,
+                api_key=settings.OLLAMA_API_KEY if settings.OLLAMA_API_KEY else None,
+                verify_ssl=settings.OLLAMA_VERIFY_SSL,
+                external=settings.OLLAMA_EXTERNAL,
                 db=self.db
             )
         except Exception as e:
@@ -117,3 +119,44 @@ class LLMService:
             except Exception:
                 results[name] = False
         return results
+
+    async def list_models(self, provider: str = "ollama") -> list:
+        """
+        List available models for a provider.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            List of available model names
+        """
+        llm_provider = self.get_provider(provider)
+        if not llm_provider:
+            return []
+        
+        # Check if provider has list_models method
+        if hasattr(llm_provider, 'list_models'):
+            return await llm_provider.list_models()
+        
+        return []
+
+    async def check_model_availability(self, provider: str, model: str) -> bool:
+        """
+        Check if a model is available for a provider.
+
+        Args:
+            provider: Provider name
+            model: Model name
+
+        Returns:
+            True if model is available
+        """
+        llm_provider = self.get_provider(provider)
+        if not llm_provider:
+            return False
+        
+        # Check if provider has check_model_availability method
+        if hasattr(llm_provider, 'check_model_availability'):
+            return await llm_provider.check_model_availability(model)
+        
+        return False

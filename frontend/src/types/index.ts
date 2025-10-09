@@ -13,6 +13,10 @@ export interface AudioFile {
   file_size: number
   duration?: number
   status: 'pending' | 'processing' | 'completed' | 'failed'
+  created_at?: string
+  updated_at?: string
+  transcription_started_at?: string
+  transcription_completed_at?: string
 }
 
 export interface Segment {
@@ -34,9 +38,17 @@ export interface Speaker {
 
 export interface TranscriptionStatus {
   file_id: number
+  filename: string
+  original_filename: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress: number
   error_message?: string
+  processing_stage?: string
   segment_count: number
   duration?: number
+  transcription_started_at?: string
+  transcription_completed_at?: string
+  created_at?: string
+  updated_at?: string
+  transcription_metadata?: string
 }

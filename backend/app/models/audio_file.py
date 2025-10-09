@@ -1,10 +1,11 @@
 """
 AudioFile model - represents an uploaded audio file.
 """
-from sqlalchemy import String, Integer, Float, ForeignKey, Enum as SQLEnum
+from sqlalchemy import String, Integer, Float, ForeignKey, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List
 import enum
+from datetime import datetime
 
 from .base import Base, TimestampMixin
 
@@ -42,6 +43,26 @@ class AudioFile(Base, TimestampMixin):
     )
     transcription_progress: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    
+    # Audit fields for performance tracking
+    transcription_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    transcription_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True) 
+    transcription_duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    model_used: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Whisper model size used
+    processing_stats: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string with performance metrics
+    
+    # Enhanced state tracking for resume functionality
+    audio_transformed: Mapped[bool] = mapped_column(Integer, default=False, nullable=False)  # Audio preprocessing completed
+    audio_transformation_path: Mapped[str | None] = mapped_column(Text, nullable=True)  # Path to transformed audio file
+    whisper_model_loaded: Mapped[str | None] = mapped_column(Text, nullable=True)  # Currently loaded Whisper model
+    transcription_stage: Mapped[str] = mapped_column(Text, default='pending', nullable=False)  # Current processing stage
+    last_processed_segment: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Last completed segment index
+    processing_checkpoint: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON checkpoint data
+    resume_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # Unique token for resume operations
+    transcription_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON metadata about transcription
+    interruption_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Number of interruptions
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Last error timestamp
+    recovery_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Number of recovery attempts
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="audio_files")

@@ -288,3 +288,41 @@ async def list_project_files(
         )
         for f in files
     ]
+
+
+@router.delete("/files/{file_id}")
+async def delete_file(
+    file_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a specific uploaded file and its transcription data."""
+    from ..models.audio_file import AudioFile
+    from ..models.segment import Segment
+    from ..models.llm_log import LLMLog
+    import os
+    
+    # Find the file
+    file = db.query(AudioFile).filter(AudioFile.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Delete related data in correct order (foreign key constraints)
+    # 1. Delete LLM logs related to segments
+    segment_ids = db.query(Segment.id).filter(Segment.audio_file_id == file_id).subquery()
+    db.query(LLMLog).filter(LLMLog.segment_id.in_(segment_ids)).delete(synchronize_session=False)
+    
+    # 2. Delete segments
+    db.query(Segment).filter(Segment.audio_file_id == file_id).delete(synchronize_session=False)
+    
+    # 3. Delete the physical file if it exists
+    if file.file_path and os.path.exists(file.file_path):
+        try:
+            os.remove(file.file_path)
+        except OSError:
+            pass  # File might be in use or already deleted
+    
+    # 4. Delete the file record
+    db.delete(file)
+    db.commit()
+    
+    return {"message": f"File {file.filename} deleted successfully"}

@@ -2,7 +2,7 @@
  * LLM Provider Settings Component
  * Allows users to select and configure LLM providers
  */
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useProviders, useProviderHealth } from '../../hooks/useAICorrections'
 
 interface LLMSettingsProps {
@@ -36,7 +36,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
     )
   }
 
-  const currentProvider = providers.find(p => p.name === selectedProvider)
+  const currentProvider = providers.find((p: any) => p.name === selectedProvider)
   const isHealthy = health?.[selectedProvider] ?? false
 
   return (
@@ -86,7 +86,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                 Select AI Provider
               </h3>
               <div className="space-y-2">
-                {providers.map((provider) => {
+                {providers.map((provider: any) => {
                   const providerHealth = health?.[provider.name] ?? false
                   const isSelected = provider.name === selectedProvider
 

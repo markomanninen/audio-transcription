@@ -1,5 +1,5 @@
 """
-Ollama LLM provider for local inference.
+Ollama LLM provider for local and external inference.
 """
 import httpx
 import json
@@ -10,13 +10,30 @@ from .prompts import PromptBuilder
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama provider for local LLM inference."""
+    """Ollama provider for local or external LLM inference."""
 
-    def __init__(self, base_url: str = "http://ollama:11434", model: str = "llama3.2:1b", db=None):
-        self.base_url = base_url
+    def __init__(
+        self, 
+        base_url: str = "http://ollama:11434", 
+        model: str = "llama3.2:1b", 
+        timeout: int = 30,
+        api_key: Optional[str] = None,
+        verify_ssl: bool = True,
+        external: bool = False,
+        db=None
+    ):
+        self.base_url = base_url.rstrip('/')  # Remove trailing slash
         self.model = model
-        self.timeout = 30.0
+        self.timeout = float(timeout)
+        self.api_key = api_key
+        self.verify_ssl = verify_ssl
+        self.external = external
         self.db = db  # Optional database session for logging
+        
+        # Prepare headers for external services
+        self.headers = {}
+        if self.api_key:
+            self.headers['Authorization'] = f'Bearer {self.api_key}'
 
     async def correct_text(
         self,
@@ -31,7 +48,14 @@ class OllamaProvider(LLMProvider):
         start_time = time.time()
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # Configure HTTP client for external services
+            client_kwargs = {
+                'timeout': self.timeout,
+                'verify': self.verify_ssl,
+                'headers': self.headers
+            }
+            
+            async with httpx.AsyncClient(**client_kwargs) as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json={
@@ -135,13 +159,50 @@ class OllamaProvider(LLMProvider):
             print(f"Failed to log LLM request: {e}")
 
     async def health_check(self) -> bool:
-        """Check if Ollama is available."""
+        """Check if Ollama is available (local or external)."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            # Configure HTTP client for external services
+            client_kwargs = {
+                'timeout': 5.0,
+                'verify': self.verify_ssl,
+                'headers': self.headers
+            }
+            
+            async with httpx.AsyncClient(**client_kwargs) as client:
                 response = await client.get(f"{self.base_url}/api/tags")
                 return response.status_code == 200
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging external service issues
+            if self.external:
+                print(f"External Ollama health check failed ({self.base_url}): {e}")
             return False
+
+    async def list_models(self) -> list:
+        """List available models from Ollama."""
+        try:
+            # Configure HTTP client for external services
+            client_kwargs = {
+                'timeout': 5.0,
+                'verify': self.verify_ssl,
+                'headers': self.headers
+            }
+            
+            async with httpx.AsyncClient(**client_kwargs) as client:
+                response = await client.get(f"{self.base_url}/api/tags")
+                response.raise_for_status()
+                
+                data = response.json()
+                models = data.get('models', [])
+                return [model.get('name', '') for model in models if model.get('name')]
+        except Exception as e:
+            if self.external:
+                print(f"External Ollama model listing failed ({self.base_url}): {e}")
+            return []
+
+    async def check_model_availability(self, model: str) -> bool:
+        """Check if a specific model is available."""
+        available_models = await self.list_models()
+        return model in available_models
 
     def _parse_correction(self, llm_response: str, original: str) -> str:
         """

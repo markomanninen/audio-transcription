@@ -48,7 +48,9 @@ export default function AudioPlayer({
       setIsPlaying(false)
     }
 
-    const handleError = (e: Event) => {
+    const handleError = () => {
+      const audio = audioRef.current
+      if (!audio) return
       console.error('Audio error:', {
         error: audio.error,
         code: audio.error?.code,
@@ -159,7 +161,14 @@ export default function AudioPlayer({
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+    <div
+      className="bg-card rounded-lg shadow-sm border border-border p-6"
+      data-component="audio-player"
+      data-audio-url={audioUrl}
+      data-is-playing={isPlaying}
+      data-duration={duration}
+      data-testid="audio-player"
+    >
       <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous" />
 
       <div className="space-y-4">

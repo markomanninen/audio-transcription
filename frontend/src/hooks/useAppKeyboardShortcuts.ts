@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react'
 import { useKeyboardShortcuts, type KeyboardShortcut } from './useKeyboardShortcuts';
 
 interface UseAppKeyboardShortcutsProps {
@@ -10,7 +10,6 @@ interface UseAppKeyboardShortcutsProps {
   onEditSegment?: () => void;
   onSaveEdit?: () => void;
   onSave?: () => void;
-  isAudioPlaying?: boolean;
   enabled?: boolean;
 }
 
@@ -23,7 +22,6 @@ export const useAppKeyboardShortcuts = ({
   onEditSegment,
   onSaveEdit,
   onSave,
-  isAudioPlaying = false,
   enabled = true,
 }: UseAppKeyboardShortcutsProps) => {
   const [showHelpModal, setShowHelpModal] = useState(false);

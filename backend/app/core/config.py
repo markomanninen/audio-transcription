@@ -1,5 +1,7 @@
 """
-Application configuration using Pydantic settings.
+Application conf    # Whisper configuration
+    WHISPER_MODEL_SIZE: str = "base"  # tiny, base, small, medium, large
+    WHISPER_DEVICE: str = "auto"  # auto, cpu, cuda, mpsration using Pydantic settings.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,15 +19,26 @@ class Settings(BaseSettings):
     # Storage
     AUDIO_STORAGE_PATH: str = "./data/audio"
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB in bytes
-    ALLOWED_AUDIO_FORMATS: list[str] = ["mp3", "wav", "m4a", "webm", "ogg", "flac"]
+    ALLOWED_AUDIO_FORMATS: list[str] = ["mp3", "wav", "m4a", "mp4", "webm", "ogg", "flac"]
 
     # Whisper configuration
-    WHISPER_MODEL_SIZE: str = "base"  # tiny, base, small, medium, large
-    WHISPER_DEVICE: str = "cpu"  # cpu or cuda
+    WHISPER_MODEL_SIZE: str = "medium"  # tiny, base, small, medium, large
+    WHISPER_DEVICE: str = "auto"  # auto, cpu, cuda, mps
 
     # LLM services
     OPENROUTER_API_KEY: str = ""
-    OLLAMA_BASE_URL: str = "http://ollama:11434"
+    
+    # Ollama Configuration
+    OLLAMA_BASE_URL: str = "http://ollama:11434"  # Default to internal Docker service
+    OLLAMA_MODEL: str = "llama3.2:1b"  # Default model
+    OLLAMA_TIMEOUT: int = 30  # Request timeout in seconds
+    OLLAMA_EXTERNAL: bool = False  # Set to True when using external Ollama service
+    
+    # External Ollama Configuration (when OLLAMA_EXTERNAL=True)
+    OLLAMA_API_KEY: str = ""  # Optional API key for secured external Ollama
+    OLLAMA_VERIFY_SSL: bool = True  # SSL certificate verification
+    
+    # Default LLM Provider Settings
     DEFAULT_LLM_PROVIDER: str = "ollama"
     DEFAULT_LLM_MODEL: str = "llama3.2:1b"
 

@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Toast, type ToastProps } from '../components/ui/Toast';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { Toast } from '../components/ui/Toast';
 
 type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info';
 
@@ -27,7 +27,7 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const removeToast = useCallback((id: string) => {
@@ -75,7 +75,7 @@ const ToastContainer: React.FC<{ toasts: ToastMessage[]; removeToast: (id: strin
       aria-live="polite"
       aria-atomic="false"
     >
-      {toasts.map((toast) => (
+      {toasts.map((toast: any) => (
         <Toast
           key={toast.id}
           id={toast.id}

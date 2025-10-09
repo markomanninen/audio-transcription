@@ -35,5 +35,15 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Initialize database tables."""
+    """
+    Initialize database tables with complete schema.
+    
+    Creates all tables defined in the SQLAlchemy models with the latest schema.
+    All historical schema changes have been incorporated directly into the model
+    definitions, ensuring a clean, complete database structure on first run.
+    
+    For development: This approach eliminates migration complexity since we can
+    recreate the database as needed. For production, consider using Alembic
+    migrations for safer schema evolution.
+    """
     Base.metadata.create_all(bind=engine)

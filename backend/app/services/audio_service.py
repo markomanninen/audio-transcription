@@ -45,7 +45,9 @@ class AudioService:
         # Check file content type (magic bytes)
         try:
             mime = magic.from_buffer(file_content, mime=True)
-            if not mime.startswith("audio/"):
+            # Accept audio MIME types and specific video formats that contain audio
+            allowed_mimes = ["audio/", "video/mp4", "video/x-m4v"]
+            if not any(mime.startswith(prefix) for prefix in allowed_mimes):
                 return False, f"File is not a valid audio file (detected: {mime})"
         except Exception as e:
             return False, f"Could not validate file type: {str(e)}"
