@@ -1,0 +1,57 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - audio-data:/app/data/audio
+      - db-data:/app/data
+      - whisper-cache:/root/.cache/whisper
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=sqlite:///./data/transcriptions.db
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - redis
+      - ollama
+    networks:
+      - transcribe-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "80:80"
+    networks:
+      - transcribe-network
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    networks:
+      - transcribe-network
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - transcribe-network
+
+volumes:
+  audio-data:
+  db-data:
+  redis-data:
+  ollama-data:
+  whisper-cache:
+
+networks:
+  transcribe-network:
+    driver: bridge
