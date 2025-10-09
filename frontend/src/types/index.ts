@@ -39,6 +39,7 @@ export interface Speaker {
 export interface TranscriptionStatus {
   file_id: number
   filename: string
+  original_filename: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress: number
   error_message?: string

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ALLOWED_AUDIO_FORMATS: list[str] = ["mp3", "wav", "m4a", "mp4", "webm", "ogg", "flac"]
 
     # Whisper configuration
-    WHISPER_MODEL_SIZE: str = "large"  # tiny, base, small, medium, large
+    WHISPER_MODEL_SIZE: str = "medium"  # tiny, base, small, medium, large
     WHISPER_DEVICE: str = "auto"  # auto, cpu, cuda, mps
 
     # LLM services

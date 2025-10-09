@@ -44,8 +44,9 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     
-    # Initialize global transcription service (loads model once)
-    initialize_transcription_service()
+    # DON'T start transcription service initialization automatically during startup
+    # Let it initialize only when first transcription is requested to avoid startup issues
+    print("🚀 FastAPI starting - Whisper will initialize when first transcription is requested")
     
     yield
     # Shutdown: Clean up resources
@@ -124,11 +125,14 @@ async def health():
     # Check Whisper model
     try:
         from .services.transcription_singleton import is_transcription_service_ready, get_transcription_service, get_model_download_progress
+        from .core.config import settings
+        
         if is_transcription_service_ready():
             service = get_transcription_service()
             components["whisper"] = {
                 "status": "up", 
-                "message": f"Whisper model '{service.model_size}' loaded and ready"
+                "message": f"Whisper model '{service.model_size}' loaded and ready",
+                "model_size": service.model_size
             }
         else:
             # Try to get download progress
@@ -140,12 +144,14 @@ async def health():
                     "progress": download_info['progress'],
                     "downloaded": download_info['downloaded'],
                     "total": download_info['total'],
-                    "speed": download_info.get('speed', 'unknown')
+                    "speed": download_info.get('speed', 'unknown'),
+                    "model_size": settings.WHISPER_MODEL_SIZE
                 }
             else:
                 components["whisper"] = {
                     "status": "loading", 
-                    "message": f"Whisper model loading... (this may take several minutes)"
+                    "message": f"Whisper model loading... (this may take several minutes)",
+                    "model_size": settings.WHISPER_MODEL_SIZE
                 }
     except Exception as e:
         components["whisper"] = {"status": "down", "message": f"Whisper error: {str(e)}"}

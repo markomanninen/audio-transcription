@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useSegments, useSpeakers, useUpdateSegment } from '../../hooks/useTranscription'
 import { useCorrectSegment } from '../../hooks/useAICorrections'
 import { CorrectionDialog } from '../AI/CorrectionDialog'
+import { resetCircuitBreaker } from '../../api/client'
+import { Button } from '../ui/Button'
 import type { Segment } from '../../types'
 import type { CorrectionResponse } from '../../api/aiCorrections'
 
@@ -93,9 +95,30 @@ export default function SegmentList({
   }
 
   if (segmentsError) {
+    const isCircuitBreakerError = segmentsError.message?.includes('circuit breaker')
+    
     return (
-      <div className="text-center p-8 text-red-600 dark:text-red-400">
-        <p>Error loading segments: {segmentsError.message}</p>
+      <div className="text-center p-8">
+        <div className="text-red-600 dark:text-red-400 mb-4">
+          <p>Error loading segments: {segmentsError.message}</p>
+        </div>
+        {isCircuitBreakerError && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              The backend is under heavy load during transcription. Please wait a moment.
+            </p>
+            <Button
+              onClick={() => {
+                resetCircuitBreaker()
+                window.location.reload()
+              }}
+              variant="outline"
+              size="sm"
+            >
+              Reset Connection
+            </Button>
+          </div>
+        )}
       </div>
     )
   }

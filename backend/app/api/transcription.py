@@ -1,7 +1,7 @@
 """
 Transcription API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
@@ -25,6 +25,7 @@ class TranscriptionStatusResponse(BaseModel):
     """Response model for transcription status."""
     file_id: int
     filename: str
+    original_filename: str
     status: str
     progress: float
     error_message: str | None
@@ -69,7 +70,7 @@ class SpeakerResponse(BaseModel):
 class StartTranscriptionRequest(BaseModel):
     """Request to start transcription."""
     include_diarization: bool = True
-    model_size: str = "large"  # tiny, base, small, medium, large
+    model_size: str = "tiny"  # tiny, base, small, medium, large
     language: str | None = None  # None for auto-detection
 
 
@@ -113,7 +114,14 @@ async def transcription_action(
     - continue: Continue current transcription
     """
     try:
-        transcription_service = TranscriptionService()
+        # Check if transcription service is ready
+        if not is_transcription_service_ready():
+            raise HTTPException(
+                status_code=503, 
+                detail="Transcription service is not ready yet. Whisper model is still downloading. Please wait and try again."
+            )
+        
+        transcription_service = get_transcription_service()
         result = transcription_service.smart_transcription_action(audio_file_id, db, action)
         
         if "error" in result:
@@ -149,6 +157,29 @@ async def start_transcription_with_settings(
 ):
     """Start transcription with specific settings."""
     try:
+        from ..services.transcription_singleton import is_transcription_service_ready, initialize_transcription_service, add_pending_transcription
+        
+        # Check if transcription service is ready
+        if not is_transcription_service_ready():
+            # Add this transcription to the pending queue
+            add_pending_transcription(audio_file_id, request.include_diarization)
+            
+            # Initialize in background thread to avoid blocking
+            import threading
+            def init_whisper():
+                try:
+                    initialize_transcription_service()
+                except Exception as e:
+                    print(f"❌ Failed to initialize Whisper: {e}")
+            
+            init_thread = threading.Thread(target=init_whisper, daemon=True)
+            init_thread.start()
+            
+            raise HTTPException(
+                status_code=202,
+                detail="Whisper model loading. Transcription will begin automatically once model is ready."
+            )
+        
         # First update the file with the new settings
         audio_file = db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
         if not audio_file:
@@ -182,8 +213,35 @@ async def start_transcription_with_settings(
             from ..core.database import SessionLocal
             bg_db = SessionLocal()
             try:
-                transcription_service = TranscriptionService()
+                # Check if transcription service is ready before starting
+                if not is_transcription_service_ready():
+                    # Update status to indicate waiting for model
+                    bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                    if bg_audio_file:
+                        bg_audio_file.transcription_status = TranscriptionStatus.PENDING
+                        bg_audio_file.error_message = "Waiting for Whisper model to finish downloading..."
+                        bg_db.commit()
+                    logger.warning(f"Transcription service not ready for file {audio_file_id} - Whisper model still downloading")
+                    return
+                
+                # Use the global singleton service
+                transcription_service = get_transcription_service()
                 transcription_service.transcribe_audio_simple(audio_file_id, bg_db)
+            except RuntimeError as e:
+                # Handle case where service is not ready
+                logger.error(f"Transcription service not available: {str(e)}")
+                bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                if bg_audio_file:
+                    bg_audio_file.transcription_status = TranscriptionStatus.FAILED
+                    bg_audio_file.error_message = "Whisper model is still downloading. Please wait and try again."
+                    bg_db.commit()
+            except Exception as e:
+                logger.error(f"Error in background transcription: {str(e)}")
+                bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                if bg_audio_file:
+                    bg_audio_file.transcription_status = TranscriptionStatus.FAILED
+                    bg_audio_file.error_message = str(e)
+                    bg_db.commit()
             finally:
                 bg_db.close()
         
@@ -212,6 +270,13 @@ async def force_restart_transcription(
 ):
     """Force restart a transcription with new settings - SAME AS START."""
     try:
+        # Check if transcription service is ready
+        if not is_transcription_service_ready():
+            raise HTTPException(
+                status_code=503, 
+                detail="Transcription service is not ready yet. Whisper model is still downloading. Please wait and try again."
+            )
+        
         # First update the file with the new settings
         audio_file = db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
         if not audio_file:
@@ -245,8 +310,35 @@ async def force_restart_transcription(
             from ..core.database import SessionLocal
             bg_db = SessionLocal()
             try:
-                transcription_service = TranscriptionService()
+                # Check if transcription service is ready before starting
+                if not is_transcription_service_ready():
+                    # Update status to indicate waiting for model
+                    bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                    if bg_audio_file:
+                        bg_audio_file.transcription_status = TranscriptionStatus.PENDING
+                        bg_audio_file.error_message = "Waiting for Whisper model to finish downloading..."
+                        bg_db.commit()
+                    logger.warning(f"Transcription service not ready for file {audio_file_id} - Whisper model still downloading")
+                    return
+                
+                # Use the global singleton service
+                transcription_service = get_transcription_service()
                 transcription_service.transcribe_audio_simple(audio_file_id, bg_db)
+            except RuntimeError as e:
+                # Handle case where service is not ready
+                logger.error(f"Transcription service not available: {str(e)}")
+                bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                if bg_audio_file:
+                    bg_audio_file.transcription_status = TranscriptionStatus.FAILED
+                    bg_audio_file.error_message = "Whisper model is still downloading. Please wait and try again."
+                    bg_db.commit()
+            except Exception as e:
+                logger.error(f"Error in background transcription: {str(e)}")
+                bg_audio_file = bg_db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
+                if bg_audio_file:
+                    bg_audio_file.transcription_status = TranscriptionStatus.FAILED
+                    bg_audio_file.error_message = str(e)
+                    bg_db.commit()
             finally:
                 bg_db.close()
         
@@ -270,7 +362,14 @@ async def force_restart_transcription(
 async def resume_transcription(audio_file_id: int, db: Session = Depends(get_db)):
     """Resume existing transcription if segments exist."""
     try:
-        transcription_service = TranscriptionService()
+        # Check if transcription service is ready
+        if not is_transcription_service_ready():
+            raise HTTPException(
+                status_code=503, 
+                detail="Transcription service is not ready yet. Whisper model is still downloading. Please wait and try again."
+            )
+        
+        transcription_service = get_transcription_service()
         result = transcription_service.smart_transcription_action(audio_file_id, db, "resume")
         
         if "error" in result:
@@ -281,38 +380,66 @@ async def resume_transcription(audio_file_id: int, db: Session = Depends(get_db)
         logger.error(f"Error resuming transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/api/transcription/{audio_file_id}/transcribe")
+@router.post("/{audio_file_id}/transcribe")
 async def start_transcription(
-    file_id: int,
+    audio_file_id: int,
     request: StartTranscriptionRequest,
     background_tasks: BackgroundTasks,
+    response: Response,
     db: Session = Depends(get_db)
 ) -> dict:
     """
     Start transcription of an audio file in the background.
 
     Args:
-        file_id: ID of audio file to transcribe
+        audio_file_id: ID of audio file to transcribe
         request: Transcription options
         background_tasks: FastAPI background tasks
+        response: FastAPI response object
         db: Database session
 
     Returns:
         Acknowledgment message
     """
-    # Check if transcription service is ready
+    from ..services.transcription_singleton import is_transcription_service_ready, initialize_transcription_service, add_pending_transcription
+    
+    # If transcription service is not ready, initialize it now and queue the request
     if not is_transcription_service_ready():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Transcription service is still loading. Please wait and try again."
-        )
+        try:
+            # Add this transcription to the pending queue
+            add_pending_transcription(audio_file_id, request.include_diarization)
+            
+            # Initialize in background thread to avoid blocking
+            import threading
+            def init_whisper():
+                try:
+                    initialize_transcription_service()
+                except Exception as e:
+                    print(f"❌ Failed to initialize Whisper: {e}")
+            
+            init_thread = threading.Thread(target=init_whisper, daemon=True)
+            init_thread.start()
+            
+            # Return 202 response properly
+            response.status_code = status.HTTP_202_ACCEPTED
+            return {
+                "message": "Whisper model loading. Transcription will begin automatically once model is ready.",
+                "file_id": audio_file_id,
+                "include_diarization": request.include_diarization,
+                "status": "queued"
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to start Whisper initialization: {str(e)}"
+            )
     
     # Add transcription task to background
-    background_tasks.add_task(transcribe_task, file_id, request.include_diarization)
+    background_tasks.add_task(transcribe_task, audio_file_id, request.include_diarization)
 
     return {
         "message": "Transcription started",
-        "file_id": file_id,
+        "file_id": audio_file_id,
         "include_diarization": request.include_diarization
     }
 
@@ -332,14 +459,100 @@ async def get_transcription_status(
     Returns:
         Transcription status information
     """
-    transcription_service = get_transcription_service()
+    from ..services.transcription_singleton import is_transcription_service_ready, get_transcription_service, has_pending_transcriptions
+    
+    # First, get the audio file to ensure it exists
+    audio_file = db.query(AudioFile).filter(AudioFile.id == file_id).first()
+    if not audio_file:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    
+    # Check if transcription service is ready
+    if not is_transcription_service_ready():
+        # Return status indicating the service is not ready yet
+        error_message = "AI transcription model is still loading. Please wait..."
+        processing_stage = "model_loading"
+        
+        if has_pending_transcriptions():
+            error_message = "Transcription queued. Model is loading and transcription will start automatically."
+            processing_stage = "queued"
+            
+        return TranscriptionStatusResponse(
+            file_id=audio_file.id,
+            filename=audio_file.filename,
+            original_filename=audio_file.original_filename,
+            status="pending",
+            progress=0.0,
+            error_message=error_message,
+            processing_stage=processing_stage,
+            segment_count=0,
+            duration=audio_file.duration,
+            transcription_started_at=None,
+            transcription_completed_at=None,
+            created_at=audio_file.created_at.isoformat() if audio_file.created_at else None,
+            updated_at=audio_file.updated_at.isoformat() if audio_file.updated_at else None,
+            transcription_metadata=None
+        )
+    
     try:
-        info = transcription_service.get_transcription_info(file_id, db)
-        return TranscriptionStatusResponse(**info)
+        # Add timeout protection for the transcription service call
+        import asyncio
+        import concurrent.futures
+        
+        def get_info_sync():
+            transcription_service = get_transcription_service()
+            return transcription_service.get_transcription_info(file_id, db)
+        
+        # Run with timeout to prevent hanging
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = loop.run_in_executor(executor, get_info_sync)
+            try:
+                info = await asyncio.wait_for(future, timeout=5.0)  # 5 second timeout
+                return TranscriptionStatusResponse(**info)
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout getting transcription info for file {file_id}")
+                # Return fallback status based on database
+                segment_count = db.query(Segment).filter(Segment.audio_file_id == file_id).count()
+                return TranscriptionStatusResponse(
+                    file_id=audio_file.id,
+                    filename=audio_file.filename,
+                    original_filename=audio_file.original_filename,
+                    status=audio_file.transcription_status.value if audio_file.transcription_status else "unknown",
+                    progress=audio_file.transcription_progress or 0.0,
+                    error_message="Service temporarily unavailable, retrying...",
+                    processing_stage="service_timeout",
+                    segment_count=segment_count,
+                    duration=audio_file.duration,
+                    transcription_started_at=audio_file.transcription_started_at.isoformat() if audio_file.transcription_started_at else None,
+                    transcription_completed_at=audio_file.transcription_completed_at.isoformat() if audio_file.transcription_completed_at else None,
+                    created_at=audio_file.created_at.isoformat() if audio_file.created_at else None,
+                    updated_at=audio_file.updated_at.isoformat() if audio_file.updated_at else None,
+                    transcription_metadata=audio_file.transcription_metadata
+                )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error getting transcription status for file {file_id}: {e}")
+        # Return fallback status based on database
+        segment_count = db.query(Segment).filter(Segment.audio_file_id == file_id).count()
+        return TranscriptionStatusResponse(
+            file_id=audio_file.id,
+            filename=audio_file.filename,
+            original_filename=audio_file.original_filename,
+            status=audio_file.transcription_status.value if audio_file.transcription_status else "error",
+            progress=audio_file.transcription_progress or 0.0,
+            error_message=f"Service error: {str(e)}",
+            processing_stage="error",
+            segment_count=segment_count,
+            duration=audio_file.duration,
+            transcription_started_at=audio_file.transcription_started_at.isoformat() if audio_file.transcription_started_at else None,
+            transcription_completed_at=audio_file.transcription_completed_at.isoformat() if audio_file.transcription_completed_at else None,
+            created_at=audio_file.created_at.isoformat() if audio_file.created_at else None,
+            updated_at=audio_file.updated_at.isoformat() if audio_file.updated_at else None,
+            transcription_metadata=audio_file.transcription_metadata
         )
 
 
@@ -428,7 +641,7 @@ async def get_speakers(
         db: Database session
 
     Returns:
-        List of speakers
+        List of speakers for this specific audio file only
     """
     from ..models.audio_file import AudioFile
 
@@ -439,9 +652,12 @@ async def get_speakers(
             detail=f"Audio file {file_id} not found"
         )
 
+    # Get speakers that are actually used in segments for THIS specific file
     speakers = (
         db.query(Speaker)
-        .filter(Speaker.project_id == audio_file.project_id)
+        .join(Segment, Speaker.id == Segment.speaker_id)
+        .filter(Segment.audio_file_id == file_id)
+        .distinct()
         .all()
     )
 

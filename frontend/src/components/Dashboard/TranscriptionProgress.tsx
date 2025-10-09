@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranscriptionStatus, useCancelTranscription } from '../../hooks/useTranscription'
+import { useSystemHealth } from '../../hooks/useSystemHealth'
 import { getStatusBadgeColors } from '../../utils/statusColors'
 
 interface TranscriptionProgressProps {
@@ -12,6 +13,40 @@ interface TranscriptionProgressProps {
 
 // Enhanced transcription actions
 const transcriptionActions = {
+  async startTranscription(fileId: number) {
+    const response = await fetch(`/api/transcription/${fileId}/transcribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        include_diarization: true,
+        model_size: 'tiny',
+        language: null  // null for auto-detection
+      })
+    })
+    
+    // Handle different response codes
+    if (response.status === 202) {
+      // Queued for processing - this is success
+      return response.json()
+    }
+    
+    if (response.status === 200) {
+      // Direct start - this is also success
+      return response.json()
+    }
+    
+    // Only throw error for actual error status codes (4xx, 5xx)
+    if (response.status >= 400) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+      throw new Error(errorData.detail || 'Failed to start transcription')
+    }
+    
+    // For any other status codes, try to return the response
+    return response.json()
+  },
+
   async smartAction(fileId: number, action: string = 'auto') {
     const response = await fetch(`/api/transcription/${fileId}/action?action=${action}`, {
       method: 'POST'
@@ -46,6 +81,7 @@ const transcriptionActions = {
 export default function TranscriptionProgress({ fileId, projectName, onStatusChange, onRestartRequested }: TranscriptionProgressProps) {
   // Always pass poll interval - the hook handles stopping when not processing
   const { data: status, isLoading, refetch } = useTranscriptionStatus(fileId, 2000)
+  const systemHealth = useSystemHealth()
   const cancelTranscription = useCancelTranscription()
   const queryClient = useQueryClient()
   const [detailedStatus, setDetailedStatus] = useState<any>(null)
@@ -102,6 +138,9 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     try {
       let result
       switch (action) {
+        case 'start':
+          result = await transcriptionActions.startTranscription(fileId)
+          break
         case 'restart':
           result = await transcriptionActions.forceRestart(fileId)
           break
@@ -117,6 +156,12 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
       }
       
       console.log(`${actionName} result:`, result)
+      
+      // Show success message for queued transcriptions
+      if (result.status === 'queued') {
+        // Don't show an alert for queued transcriptions - they're handled by the UI
+        console.log('Transcription queued successfully:', result.message)
+      }
       
       // Refresh status after action and invalidate all related queries
       setTimeout(() => {
@@ -136,7 +181,13 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     } catch (error) {
       console.error(`Failed to ${actionName.toLowerCase()}:`, error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to ${actionName.toLowerCase()}: ${errorMessage}`)
+      
+      // Don't show alerts for 202-related "errors" (these are actually success cases)
+      if (!errorMessage.includes('202') && !errorMessage.includes('Whisper model')) {
+        alert(`Failed to ${actionName.toLowerCase()}: ${errorMessage}`)
+      } else {
+        console.log('Transcription queued (interpreted as error but is actually success):', errorMessage)
+      }
     } finally {
       setActionInProgress(null)
     }
@@ -152,10 +203,79 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
 
   if (!status) return null
 
+  // Check if Whisper AI model is still loading
+  const whisperStatus = systemHealth.data?.components?.whisper
+  const isWhisperLoading = whisperStatus?.status === 'loading' || whisperStatus?.status === 'downloading'
+  const isWhisperReady = whisperStatus?.status === 'up' || 
+    (whisperStatus?.status === 'downloading' && whisperStatus?.progress === 100)
+  
+  if (isWhisperLoading && status.status === 'pending') {
+    return (
+      <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">
+            {projectName ? `${projectName} - ${status.original_filename || status.filename}` : `Audio Transcription - ${status.original_filename || status.filename}`}
+          </h3>
+          <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide bg-yellow-100 text-yellow-800">
+            Whisper Model Loading
+          </span>
+        </div>
+        
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-3">
+            <div className="w-4 h-4 bg-yellow-500 rounded-full animate-pulse"></div>
+            <span className="text-yellow-800 dark:text-yellow-200 font-medium">
+              Transcription Model Download
+            </span>
+          </div>
+          
+          {whisperStatus?.progress !== undefined && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-yellow-700 dark:text-yellow-300">
+                <span>Progress: {whisperStatus.progress}%</span>
+                <span>{whisperStatus.downloaded} / {whisperStatus.total}</span>
+              </div>
+              <div className="w-full bg-yellow-200 dark:bg-yellow-800 rounded-full h-2">
+                <div 
+                  className="bg-yellow-600 dark:bg-yellow-400 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${whisperStatus.progress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-yellow-600 dark:text-yellow-400">
+                <span>Speed: {whisperStatus.speed}</span>
+                <span>Whisper model: {whisperStatus.model_size}</span>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-3">
+            The Whisper transcription model is being downloaded. Transcription will start automatically once the download completes. This may take several minutes on first startup - please be patient.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const progressPercent = Math.round(status.progress * 100)
   const isStuck = detailedStatus?.is_stuck || false
   const canResume = detailedStatus?.can_resume || false
-  const isDisabled = actionInProgress !== null
+  
+  // Disable actions if there's an action in progress OR if Whisper is not ready
+  const isDisabled = actionInProgress !== null || !isWhisperReady
+
+  // Helper function to clear cache and refresh
+  const handleRefresh = () => {
+    // Clear React Query cache for this file
+    queryClient.invalidateQueries({ queryKey: ['enhanced-transcription-status', fileId] })
+    queryClient.invalidateQueries({ queryKey: ['segments', fileId] })
+    queryClient.invalidateQueries({ queryKey: ['speakers', fileId] })
+    queryClient.invalidateQueries({ queryKey: ['system-health'] })
+    
+    // Force refetch
+    refetch()
+    
+    console.log('Cache cleared and status refreshed')
+  }
 
   // Helper function to render action buttons
   const renderActionButtons = () => {
@@ -180,11 +300,25 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
           >
             {cancelTranscription.isPending ? 'Canceling...' : '❌ Cancel'}
           </button>
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md transition-colors"
+            title="Refresh status"
+          >
+            🔄 Refresh
+          </button>
         </div>
       )
     }
 
     if (status.status === 'pending') {
+      const isModelReadyToLoad = whisperStatus?.status === 'downloading' && whisperStatus?.progress === 100
+      const buttonTitle = !isWhisperReady ? "AI model is still loading - please wait" : 
+        (isModelReadyToLoad ? "Start transcription (will load model automatically)" : "Start transcription")
+      const buttonText = !isWhisperReady ? '⏳ Model Loading...' : 
+        (actionInProgress === 'Start' ? 'Starting...' : 
+         isModelReadyToLoad ? '▶️ Start (Auto-load)' : '▶️ Start')
+      
       return (
         <div className="flex items-center gap-2">
           <button
@@ -192,14 +326,21 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
               if (onRestartRequested) {
                 onRestartRequested(fileId)
               } else {
-                handleAction('restart', 'Start')
+                handleAction('start', 'Start')
               }
             }}
             disabled={isDisabled}
             className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-800 rounded-md transition-colors disabled:opacity-50"
-            title="Start transcription"
+            title={buttonTitle}
           >
-            {actionInProgress === 'Start' ? 'Starting...' : '▶️ Start'}
+            {buttonText}
+          </button>
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md transition-colors"
+            title="Refresh status"
+          >
+            🔄 Refresh
           </button>
         </div>
       )
@@ -260,7 +401,7 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     <div className="bg-card rounded-lg shadow-sm border border-border p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">
-          {projectName ? `${projectName} - ${status.filename}` : `Audio Transcription - ${status.filename}`}
+          {projectName ? `${projectName} - ${status.original_filename || status.filename}` : `Audio Transcription - ${status.original_filename || status.filename}`}
           {isStuck && <span className="ml-2 text-sm text-orange-600">⚠️ Stuck</span>}
         </h3>
         <div className="flex items-center gap-3">

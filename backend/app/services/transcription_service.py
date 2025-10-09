@@ -40,6 +40,91 @@ class TranscriptionService:
                 return "cpu"
         return device_setting
 
+    def _check_system_readiness_for_transcription(self) -> Dict[str, Any]:
+        """Check if system has sufficient resources for transcription."""
+        try:
+            # Memory check
+            memory = psutil.virtual_memory()
+            available_gb = memory.available / (1024**3)
+            total_gb = memory.total / (1024**3)
+            
+            # CPU check
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_count = psutil.cpu_count()
+            
+            # Model memory requirements
+            model_requirements = {
+                "tiny": {"memory_gb": 1.0, "description": "Fastest, least accurate"},
+                "base": {"memory_gb": 2.0, "description": "Good balance of speed and accuracy"},
+                "small": {"memory_gb": 3.0, "description": "Better accuracy, slower"},
+                "medium": {"memory_gb": 5.0, "description": "High accuracy, much slower"},
+                "large": {"memory_gb": 8.0, "description": "Best accuracy, very slow"}
+            }
+            
+            current_req = model_requirements.get(self.model_size, {"memory_gb": 2.0, "description": "Unknown"})
+            
+            # Determine system status
+            memory_sufficient = available_gb >= current_req["memory_gb"]
+            cpu_available = cpu_percent < 80  # Consider CPU available if under 80% usage
+            
+            status = "ready" if memory_sufficient and cpu_available else "warning"
+            if not memory_sufficient:
+                status = "insufficient_memory"
+            elif not cpu_available:
+                status = "high_cpu_load"
+                
+            return {
+                "status": status,
+                "memory": {
+                    "available_gb": round(available_gb, 2),
+                    "total_gb": round(total_gb, 2),
+                    "required_gb": current_req["memory_gb"],
+                    "sufficient": memory_sufficient
+                },
+                "cpu": {
+                    "usage_percent": cpu_percent,
+                    "cores": cpu_count,
+                    "available": cpu_available
+                },
+                "model": {
+                    "size": self.model_size,
+                    "device": self.device,
+                    "description": current_req["description"],
+                    "loaded": self.model is not None
+                },
+                "recommendations": self._get_system_recommendations(available_gb, cpu_percent)
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "recommendations": ["Unable to check system resources"]
+            }
+    
+    def _get_system_recommendations(self, available_gb: float, cpu_percent: float) -> List[str]:
+        """Get system optimization recommendations."""
+        recommendations = []
+        
+        if available_gb < 2.0:
+            recommendations.append("⚠️ Low memory detected. Consider using 'tiny' model or closing other applications.")
+        elif available_gb < 4.0 and self.model_size in ["medium", "large"]:
+            recommendations.append("💡 Consider using 'base' or 'small' model for better performance.")
+            
+        if cpu_percent > 80:
+            recommendations.append("🔥 High CPU usage detected. Close other applications for better performance.")
+            
+        if self.device == "cpu" and available_gb > 8:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    recommendations.append("🚀 GPU acceleration available but not used. Set WHISPER_DEVICE=cuda for better performance.")
+                elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    recommendations.append("🚀 Apple Silicon GPU available but not used. Set WHISPER_DEVICE=mps for better performance.")
+            except:
+                pass
+                
+        return recommendations
+
     def load_model(self):
         """Load Whisper model (lazy loading)."""
         if self.model is None:
@@ -218,7 +303,7 @@ class TranscriptionService:
         self, 
         audio_file_id: int, 
         db: Session, 
-        model_size: str = "large",
+        model_size: str = "tiny",
         language: str | None = None,
         include_diarization: bool = True
     ) -> Dict[str, Any]:
@@ -429,6 +514,18 @@ class TranscriptionService:
             raise ValueError(f"Audio file {audio_file_id} not found")
 
         try:
+            # Pre-flight system check
+            system_check = self._check_system_readiness_for_transcription()
+            logger.info(f"System readiness check: {system_check['status']}")
+            
+            if system_check['status'] == 'insufficient_memory':
+                error_msg = f"Insufficient memory for {self.model_size} model. Available: {system_check['memory']['available_gb']}GB, Required: {system_check['memory']['required_gb']}GB"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+            elif system_check['status'] == 'warning':
+                for rec in system_check.get('recommendations', []):
+                    logger.warning(rec)
+            
             # Read file-specific settings from metadata
             file_model_size = self.model_size  # Default to global setting
             file_language = audio_file.language
@@ -438,17 +535,38 @@ class TranscriptionService:
                 try:
                     import json
                     metadata = json.loads(audio_file.transcription_metadata)
-                    file_model_size = metadata.get("model_size", self.model_size)
+                    requested_model_size = metadata.get("model_size", self.model_size)
                     include_diarization = metadata.get("include_diarization", True)
-                    logger.info(f"Using file-specific settings: model_size={file_model_size}, language={file_language}, diarization={include_diarization}")
+                    
+                    # Validate requested model size against loaded model
+                    if requested_model_size != self.model_size:
+                        logger.warning(f"⚠️ Requested model '{requested_model_size}' differs from system model '{self.model_size}'. Using system model to prevent crashes.")
+                        logger.warning(f"💡 To use '{requested_model_size}' model, update WHISPER_MODEL_SIZE in config.py and restart the backend.")
+                        
+                    # Always use the system-configured model size for consistency
+                    file_model_size = self.model_size
+                    
+                    logger.info(f"Using system settings: model_size={file_model_size}, language={file_language}, diarization={include_diarization}")
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to parse transcription metadata, using defaults: {e}")
             
-            # Set initial status
+            # Set initial status with correct model info
             start_time = time.time()
             audio_file.transcription_status = TranscriptionStatus.PROCESSING
-            audio_file.model_used = file_model_size  # Use file-specific model size
+            audio_file.model_used = file_model_size  # Set to actual model that will be used
             audio_file.transcription_started_at = datetime.utcnow()
+            
+            # Update transcription metadata to reflect actual settings used
+            if audio_file.transcription_metadata:
+                try:
+                    import json
+                    metadata = json.loads(audio_file.transcription_metadata)
+                    metadata["model_size"] = file_model_size  # Update to actual model used
+                    metadata["actual_model_used"] = file_model_size
+                    metadata["processing_started"] = datetime.utcnow().isoformat()
+                    audio_file.transcription_metadata = json.dumps(metadata)
+                except:
+                    pass
             
             # Save initial checkpoint
             self.save_transcription_checkpoint(audio_file, "initializing", 0, 
@@ -474,7 +592,7 @@ class TranscriptionService:
             file_size_mb = os.path.getsize(wav_path) / 1024 / 1024
             estimated_duration = audio_file.duration or 60  # Default to 60 seconds if unknown
             
-            # Load model
+            # Load model with proper error handling and resource management
             elapsed = time.time() - start_time
             
             # Save model loading checkpoint
@@ -483,14 +601,42 @@ class TranscriptionService:
             
             self._update_progress_with_stage(audio_file, "Loading Whisper model", 0.10, db, elapsed)
             
-            # Load model with file-specific size if needed
-            if self.model is None or self.model_size != file_model_size:
-                logger.info(f"Loading Whisper model: {file_model_size}")
-                self.model = whisper.load_model(file_model_size, device=self.device)
-                self.model_size = file_model_size  # Update current model size
+            # Check system resources before model loading
+            try:
+                available_memory_gb = psutil.virtual_memory().available / (1024**3)
+                logger.info(f"Available system memory: {available_memory_gb:.1f}GB")
+                
+                # Estimate memory requirements by model size
+                model_memory_requirements = {
+                    "tiny": 1.0,    # ~1GB
+                    "base": 2.0,    # ~2GB  
+                    "small": 3.0,   # ~3GB
+                    "medium": 5.0,  # ~5GB
+                    "large": 8.0    # ~8GB
+                }
+                
+                required_memory = model_memory_requirements.get(self.model_size, 2.0)
+                
+                if available_memory_gb < required_memory:
+                    logger.warning(f"⚠️ Low memory: {available_memory_gb:.1f}GB available, {required_memory}GB recommended for {self.model_size} model")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to check system memory: {e}")
             
-            # Mark model as loaded
-            audio_file.whisper_model_loaded = file_model_size
+            # Load model only if not already loaded
+            if self.model is None:
+                logger.info(f"Loading Whisper model: {self.model_size} (device: {self.device})")
+                try:
+                    self.model = whisper.load_model(self.model_size, device=self.device)
+                    logger.info(f"✅ Whisper model '{self.model_size}' loaded successfully")
+                except Exception as e:
+                    logger.error(f"❌ Failed to load Whisper model '{self.model_size}': {e}")
+                    raise RuntimeError(f"Failed to load Whisper model: {e}")
+            else:
+                logger.info(f"✅ Using already loaded Whisper model: {self.model_size}")
+            
+            # Mark model as loaded with actual model size
+            audio_file.whisper_model_loaded = self.model_size
 
             # Transcribe with word-level timestamps with progress monitoring
             elapsed = time.time() - start_time
@@ -650,9 +796,32 @@ class TranscriptionService:
             return segments
 
         except Exception as e:
-            # Update status to failed
+            # Enhanced error handling with system diagnostics
+            logger.error(f"Transcription failed for file {audio_file_id}: {str(e)}")
+            
+            # Get system state for debugging
+            try:
+                system_check = self._check_system_readiness_for_transcription()
+                logger.error(f"System state at failure: Memory={system_check['memory']['available_gb']}GB, CPU={system_check['cpu']['usage_percent']}%")
+            except:
+                pass
+            
+            # Update status to failed with detailed error
+            error_details = {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "model_size": self.model_size,
+                "device": self.device,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
             audio_file.transcription_status = TranscriptionStatus.FAILED
-            audio_file.error_message = str(e)
+            audio_file.error_message = f"Transcription failed: {str(e)}"
+            audio_file.processing_stats = json.dumps(error_details)
+            
+            # Increment error tracking
+            self.increment_interruption_count(audio_file, db)
+            
             db.commit()
             raise
 
@@ -723,7 +892,8 @@ class TranscriptionService:
         
         return {
             "file_id": audio_file.id,
-            "filename": audio_file.original_filename,
+            "filename": audio_file.filename,
+            "original_filename": audio_file.original_filename,
             "status": audio_file.transcription_status.value,
             "progress": audio_file.transcription_progress,
             "error_message": error_message,

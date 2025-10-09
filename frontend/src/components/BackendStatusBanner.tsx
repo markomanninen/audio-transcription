@@ -42,7 +42,7 @@ export function BackendStatusBanner() {
         </div>
         {isWhisperLoading && (
           <div className="text-xs mt-1 opacity-90">
-            Large AI model download in progress. Please be patient.
+            Whisper model download in progress. Please be patient.
           </div>
         )}
       </div>

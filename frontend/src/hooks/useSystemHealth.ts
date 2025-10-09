@@ -15,6 +15,7 @@ export interface SystemHealthStatus {
       downloaded?: string;
       total?: string;
       speed?: string;
+      model_size?: string;
     }
     ollama: { status: string; message: string }
     redis: { status: string; message: string }
@@ -71,16 +72,21 @@ export function useBackendReadiness() {
   
   const whisperStatus = health?.components?.whisper
   
-  // Enhanced Whisper loading detection - only show if there's actual progress data or backend confirms loading
+  // Enhanced Whisper loading detection - show splash for downloading OR loading with model info
   const hasActualWhisperProgress = whisperProgress && typeof whisperProgress.progress === 'number'
-  const backendReportsWhisperLoading = whisperStatus?.status === 'loading' || whisperStatus?.status === 'starting'
+  const backendReportsWhisperDownloading = whisperStatus?.status === 'downloading'
+  const backendReportsWhisperLoading = whisperStatus?.status === 'loading'
   
-  const isWhisperLoading = backendReportsWhisperLoading || hasActualWhisperProgress
+  const isWhisperLoading = backendReportsWhisperDownloading || hasActualWhisperProgress || backendReportsWhisperLoading
   
-  // Enhanced whisper message with progress
+  // Enhanced whisper message with progress and model info
   let whisperMessage = whisperStatus?.message
+  const modelSize = whisperStatus?.model_size || 'unknown'
+  
   if (whisperProgress) {
-    whisperMessage = `Downloading AI model... ${whisperProgress.progress}%`
+    whisperMessage = `Downloading ${modelSize} model... ${whisperProgress.progress}%`
+  } else if (backendReportsWhisperLoading) {
+    whisperMessage = `Loading ${modelSize} model into memory... (this may take several minutes)`
   } else if (isWhisperLoading && !whisperMessage) {
     whisperMessage = 'Loading AI components...'
   }
