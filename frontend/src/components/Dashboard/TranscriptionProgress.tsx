@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranscriptionStatus, useCancelTranscription } from '../../hooks/useTranscription'
 import { useSystemHealth } from '../../hooks/useSystemHealth'
 import { getStatusBadgeColors } from '../../utils/statusColors'
+import { API_BASE_URL } from '../../api/client'
 
 interface TranscriptionProgressProps {
   fileId: number
@@ -14,7 +15,7 @@ interface TranscriptionProgressProps {
 // Enhanced transcription actions
 const transcriptionActions = {
   async startTranscription(fileId: number) {
-    const response = await fetch(`/api/transcription/${fileId}/transcribe`, {
+    const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/transcribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -48,7 +49,7 @@ const transcriptionActions = {
   },
 
   async smartAction(fileId: number, action: string = 'auto') {
-    const response = await fetch(`/api/transcription/${fileId}/action?action=${action}`, {
+    const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/action?action=${action}`, {
       method: 'POST'
     })
     if (!response.ok) throw new Error('Failed to execute action')
@@ -56,13 +57,13 @@ const transcriptionActions = {
   },
 
   async getDetailedStatus(fileId: number) {
-    const response = await fetch(`/api/transcription/${fileId}/status`)
+    const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/status`)
     if (!response.ok) throw new Error('Failed to get status')
     return response.json()
   },
 
   async forceRestart(fileId: number) {
-    const response = await fetch(`/api/transcription/${fileId}/action?action=restart`, {
+    const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/action?action=restart`, {
       method: 'POST'
     })
     if (!response.ok) throw new Error('Failed to restart')
@@ -70,7 +71,7 @@ const transcriptionActions = {
   },
 
   async resume(fileId: number) {
-    const response = await fetch(`/api/transcription/${fileId}/action?action=resume`, {
+    const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/action?action=resume`, {
       method: 'POST'
     })
     if (!response.ok) throw new Error('Failed to resume')

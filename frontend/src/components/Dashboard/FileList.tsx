@@ -3,7 +3,7 @@ import { useStartTranscription } from '../../hooks/useTranscription'
 import { useProjectFiles } from '../../hooks/useUpload'
 import { useForceRestart } from '../../hooks/useEnhancedTranscription'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '../../api/client'
+import { apiClient, API_BASE_URL } from '../../api/client'
 import { TranscriptionSettingsModal, TranscriptionSettings } from './TranscriptionSettingsModal'
 import { getStatusBadgeColors } from '../../utils/statusColors'
 
@@ -89,10 +89,11 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       localStorage.setItem('lastUsedTranscriptionSettings', JSON.stringify(settings))
       
       // Call the API with the selected settings
-      console.log(`Making API call to: /api/transcription/${showTranscriptionModal.fileId}/start`)
+      const url = `${API_BASE_URL}/api/transcription/${showTranscriptionModal.fileId}/start`
+      console.log(`Making API call to: ${url}`)
       console.log('Request body:', JSON.stringify(settings))
       
-      const response = await fetch(`/api/transcription/${showTranscriptionModal.fileId}/start`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)

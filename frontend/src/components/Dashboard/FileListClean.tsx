@@ -2,6 +2,7 @@ import React from 'react'
 import { useStartTranscription } from '../../hooks/useTranscription'
 import { TranscriptionSettingsModal, TranscriptionSettings } from './TranscriptionSettingsModal'
 import { getStatusBadgeColors } from '../../utils/statusColors'
+import { API_BASE_URL } from '../../api/client'
 
 interface File {
   file_id: number
@@ -97,7 +98,7 @@ export function FileList({ files, onSelectFile, selectedFileId, isLoading, error
     
     try {
       // Call the API with the selected settings
-      const response = await fetch(`/api/transcription/${showTranscriptionModal.fileId}/start`, {
+      const response = await fetch(`${API_BASE_URL}/api/transcription/${showTranscriptionModal.fileId}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -117,7 +118,7 @@ export function FileList({ files, onSelectFile, selectedFileId, isLoading, error
   const handleTranscriptionAction = async (fileId: number, action: string, actionLabel: string) => {
     setActionInProgress({ fileId, action: actionLabel })
     try {
-      const response = await fetch(`/api/transcription/${fileId}/action?action=${action}`, {
+      const response = await fetch(`${API_BASE_URL}/api/transcription/${fileId}/action?action=${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -137,7 +138,7 @@ export function FileList({ files, onSelectFile, selectedFileId, isLoading, error
     
     setActionInProgress({ fileId, action: 'Deleting' })
     try {
-      const response = await fetch(`/api/upload/files/${fileId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/upload/files/${fileId}`, {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete file')

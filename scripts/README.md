@@ -27,6 +27,7 @@ This directory contains utility scripts for the Audio Transcription application.
 ## Usage
 
 ### Log Inspection
+
 ```bash
 # Advanced log inspection
 python scripts/log_inspector.py --filter transcription --tail 50
@@ -39,6 +40,7 @@ npm run logs:inspect
 ```
 
 ### Status Checking
+
 ```bash
 # Quick system overview
 python scripts/status.py
@@ -66,6 +68,7 @@ scripts/status.bat
 ```
 
 **DateTime Information Includes:**
+
 - 📅 Upload timestamps
 - 🚀 Transcription start times
 - 🏁 Completion timestamps  
@@ -73,6 +76,7 @@ scripts/status.bat
 - 🔄 Last update times
 
 ### Deployment
+
 ```powershell
 # Deploy with PowerShell
 ./scripts/deploy.ps1

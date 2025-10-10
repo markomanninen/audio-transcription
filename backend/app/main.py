@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.database import init_db
 from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs
+from .core.config import settings
 
 
 @asynccontextmanager
@@ -61,9 +62,14 @@ app = FastAPI(
 )
 
 # CORS configuration
+cors_origins = settings.CORS_ORIGINS or []
+# Ensure http(s)://localhost is always allowed when serving through nginx on port 80
+fallback_origins = ["http://localhost", "http://127.0.0.1", "https://localhost"]
+allow_origins = list(dict.fromkeys([*cors_origins, *fallback_origins]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

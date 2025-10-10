@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { API_BASE_URL } from '../../api/client'
 
 interface ExportDialogProps {
   fileId: number
@@ -12,7 +13,7 @@ export default function ExportDialog({ fileId, filename, onClose }: ExportDialog
   const [includeTimestamps, setIncludeTimestamps] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const apiBaseUrl = API_BASE_URL
 
   const buildExportUrl = (format: string): string => {
     const params = new URLSearchParams({

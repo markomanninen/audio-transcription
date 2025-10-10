@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { API_BASE_URL } from '../api/client'
 
 export interface WhisperDownloadProgress {
   progress: number
@@ -13,8 +14,7 @@ async function getWhisperProgress(): Promise<WhisperDownloadProgress | null> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000)
     
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    const healthResponse = await fetch(`${apiUrl}/health`, {
+    const healthResponse = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
       signal: controller.signal,
     })

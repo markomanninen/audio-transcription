@@ -6,6 +6,7 @@
  */
 
 import { QueryClient } from '@tanstack/react-query'
+import { API_BASE_URL } from '../api/client'
 
 export class FrontendRecovery {
   constructor(private queryClient: QueryClient) {}
@@ -45,7 +46,7 @@ export class FrontendRecovery {
   /**
    * Check if the backend is responsive and clear errors if it is
    */
-  async checkBackendAndRecover(baseUrl: string = 'http://localhost:8000') {
+  async checkBackendAndRecover(baseUrl: string = API_BASE_URL) {
     try {
       const response = await fetch(`${baseUrl}/health`, {
         method: 'GET',

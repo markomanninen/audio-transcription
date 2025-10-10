@@ -27,6 +27,7 @@ import LLMLogsViewer from './components/Debug/LLMLogsViewer'
 import { Button } from './components/ui/Button'
 import type { Segment } from './types'
 import { useQueryClient } from '@tanstack/react-query'
+import { API_BASE_URL } from './api/client'
 
 function App() {
   const queryClient = useQueryClient()
@@ -444,7 +445,7 @@ function App() {
                 // Save the last used settings for future transcriptions
                 localStorage.setItem('lastUsedTranscriptionSettings', JSON.stringify(settings))
                 
-                const response = await fetch(`/api/transcription/${transcriptionRestart.fileId}/start`, {
+                const response = await fetch(`${API_BASE_URL}/api/transcription/${transcriptionRestart.fileId}/start`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(settings)
@@ -481,7 +482,7 @@ function App() {
               console.log('Restarting existing transcription')
               // This is a restart scenario - start transcription with new settings
               try {
-                const response = await fetch(`/api/transcription/${transcriptionRestart.fileId}/force-restart`, {
+                const response = await fetch(`${API_BASE_URL}/api/transcription/${transcriptionRestart.fileId}/force-restart`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(settings)
@@ -676,7 +677,7 @@ function App() {
 
                   {/* Audio Player */}
                   <AudioPlayer
-                    audioUrl={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/audio/${selectedFileId}`}
+                    audioUrl={`${API_BASE_URL}/api/audio/${selectedFileId}`}
                     currentTime={audioCurrentTime}
                     onTimeUpdate={setAudioCurrentTime}
                     shouldPlay={shouldPlayAudio}
