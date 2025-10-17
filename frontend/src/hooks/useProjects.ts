@@ -7,11 +7,15 @@ interface CreateProjectRequest {
   description?: string
 }
 
+interface CreateTextProjectRequest extends CreateProjectRequest {
+  content?: string
+}
+
 export const useProjects = () => {
   return useQuery({
     queryKey: ['projects'],
     queryFn: async (): Promise<Project[]> => {
-      const response = await apiClient.get<Project[]>('/api/upload/projects')
+      const response = await apiClient.get<Project[]>('/api/projects/')
       return response.data
     },
   })
@@ -22,19 +26,33 @@ export const useProject = (projectId: number | null) => {
     queryKey: ['project', projectId],
     queryFn: async (): Promise<Project> => {
       if (!projectId) throw new Error('No project ID')
-      const response = await apiClient.get<Project>(`/api/upload/project/${projectId}`)
+      const response = await apiClient.get<Project>(`/api/projects/${projectId}`)
       return response.data
     },
     enabled: !!projectId,
   })
 }
 
-export const useCreateProject = () => {
+export const useCreateAudioProject = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (data: CreateProjectRequest): Promise<Project> => {
       const response = await apiClient.post<Project>('/api/upload/project', data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
+
+export const useCreateTextProject = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: CreateTextProjectRequest): Promise<Project> => {
+      const response = await apiClient.post<Project>('/api/projects/text', data)
       return response.data
     },
     onSuccess: () => {

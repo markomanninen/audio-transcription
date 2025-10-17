@@ -5,5 +5,7 @@ from .segment import Segment
 from .speaker import Speaker
 from .edit import Edit
 from .llm_log import LLMLog
+from .text_document import TextDocument
+from .export_template import ExportTemplate
 
-__all__ = ["Base", "Project", "AudioFile", "Segment", "Speaker", "Edit", "LLMLog"]
+__all__ = ["Base", "Project", "AudioFile", "Segment", "Speaker", "Edit", "LLMLog", "TextDocument", "ExportTemplate"]

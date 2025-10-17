@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import init_db
 from .core.migrations import run_migrations
-from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor
+from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor, projects, export_templates
 
 
 @asynccontextmanager
@@ -38,6 +38,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(projects.router)
 app.include_router(upload.router)
 app.include_router(transcription.router)
 app.include_router(audio.router)
@@ -46,6 +47,7 @@ app.include_router(ai_corrections.router)
 app.include_router(ai_analysis.router)
 app.include_router(llm_logs.router)
 app.include_router(ai_editor.router)
+app.include_router(export_templates.router)
 
 
 @app.get("/")

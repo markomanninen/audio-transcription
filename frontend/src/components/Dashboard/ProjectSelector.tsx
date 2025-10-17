@@ -39,7 +39,7 @@ export default function ProjectSelector({
       <option value="">Select a project...</option>
       {projects.map((project) => (
         <option key={project.id} value={project.id}>
-          {project.name}
+          {project.project_type === 'text' ? '✍️' : '🎙️'} {project.name}
         </option>
       ))}
     </select>
