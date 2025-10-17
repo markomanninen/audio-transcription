@@ -6,7 +6,7 @@ describe('AudioPlayer', () => {
   it('renders play button', () => {
     render(<AudioPlayer audioUrl="/test.mp3" />)
 
-    const playButton = screen.getByRole('button')
+    const playButton = screen.getByTitle('Play')
     expect(playButton).toBeInTheDocument()
   })
 
@@ -14,7 +14,8 @@ describe('AudioPlayer', () => {
     render(<AudioPlayer audioUrl="/test.mp3" />)
 
     // Should display 0:00 at start
-    expect(screen.getByText('0:00')).toBeInTheDocument()
+    const timeLabels = screen.getAllByText('0:00')
+    expect(timeLabels).toHaveLength(2)
   })
 
   it('renders seek slider', () => {

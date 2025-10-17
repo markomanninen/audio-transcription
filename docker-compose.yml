@@ -4,15 +4,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8000"
     volumes:
       - ./backend:/app
       - audio-data:/app/data/audio
-      - db-data:/app/data
+      - db-data-dev:/app/data
       - whisper-cache:/root/.cache/whisper
     environment:
       - DEBUG=True
-      - DATABASE_URL=sqlite:///./data/transcriptions.db
+      - DATABASE_URL=sqlite:///./data/transcriptions_dev.db
       - REDIS_URL=redis://redis:6379/0
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
@@ -30,6 +30,8 @@ services:
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080  # Docker backend external port
     depends_on:
       - backend
     networks:
@@ -37,7 +39,8 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Remove external port exposure - only accessible within Docker network
+    ports:
+      - "6380:6379"  # Use 6380 externally to avoid conflict with local Redis
     volumes:
       - redis-data:/data
     networks:
@@ -45,7 +48,8 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    # Remove external port exposure - only accessible within Docker network
+    ports:
+      - "11434:11434"  # Expose for local dev access
     volumes:
       - ollama-data:/root/.ollama
     networks:
@@ -53,7 +57,7 @@ services:
 
 volumes:
   audio-data:
-  db-data:
+  db-data-dev:
   redis-data:
   ollama-data:
   whisper-cache:

@@ -154,14 +154,14 @@ async def delete_project(
         # Delete segments for this audio file
         db.query(Segment).filter(Segment.audio_file_id == audio_file.id).delete()
 
-        # Delete speakers for this audio file
-        db.query(Speaker).filter(Speaker.audio_file_id == audio_file.id).delete()
-
     # Delete audio file records
     db.query(AudioFile).filter(AudioFile.project_id == project_id).delete()
 
     # Delete LLM logs for this project
     db.query(LLMLog).filter(LLMLog.project_id == project_id).delete()
+
+    # Delete speakers for this project
+    db.query(Speaker).filter(Speaker.project_id == project_id).delete()
 
     # Finally delete the project
     db.delete(project)
@@ -246,7 +246,7 @@ async def upload_file(
         original_filename=audio_file.original_filename,
         file_size=audio_file.file_size,
         duration=audio_file.duration,
-        status=audio_file.transcription_status.value
+        status=audio_file.transcription_status.value.lower()
     )
 
 
@@ -284,7 +284,7 @@ async def list_project_files(
             original_filename=f.original_filename,
             file_size=f.file_size,
             duration=f.duration,
-            status=f.transcription_status.value
+            status=f.transcription_status.value.lower()
         )
         for f in files
     ]

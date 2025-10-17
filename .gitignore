@@ -64,3 +64,11 @@ backend/storage/
 backend/.cache/
 
 *.venv*/
+
+test-screenshots/
+
+.deps_installed
+
+.dev_runner_pids.json
+
+*.rdb

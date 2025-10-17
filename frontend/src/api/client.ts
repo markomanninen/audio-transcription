@@ -1,8 +1,22 @@
 import axios from 'axios'
 
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')) ||
-  'http://localhost:8000'
+// Dynamic port configuration based on environment
+function getBackendUrl(): string {
+  // VITE_API_BASE_URL MUST be set by the dev environment
+  if (!import.meta.env.VITE_API_BASE_URL) {
+    const error = 'FATAL: VITE_API_BASE_URL environment variable not set. Run via dev_runner.py or set VITE_API_BASE_URL manually.'
+    console.error(error)
+    throw new Error(error)
+  }
+  
+  console.log('Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
+  return import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')
+}
+
+export const API_BASE_URL = getBackendUrl()
+
+// Debug logging
+console.log('API_BASE_URL configured as:', API_BASE_URL)
 
 // Circuit breaker state
 let isBackendDown = false
@@ -27,7 +41,7 @@ apiClient.interceptors.request.use(
       return Promise.reject(new Error('Backend temporarily unavailable (circuit breaker)'))
     }
     
-    console.log('API Request:', config.method?.toUpperCase(), config.url)
+    console.log('API Request:', config.method?.toUpperCase(), config.url, 'Base URL:', config.baseURL)
     return config
   },
   (error) => {

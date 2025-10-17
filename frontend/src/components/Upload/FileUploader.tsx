@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useUploadFile } from '../../hooks/useUpload'
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '../../constants/languages'
 
@@ -10,6 +10,7 @@ interface FileUploaderProps {
 export default function FileUploader({ projectId, onUploadComplete }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadMutation = useUploadFile(projectId)
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -61,6 +62,10 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
       },
       {
         onSuccess: (data) => {
+          // Reset the file input so the same file can be uploaded again
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+          }
           onUploadComplete?.(data.file_id)
         },
       }
@@ -106,6 +111,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
         onDrop={handleDrop}
       >
         <input
+          ref={fileInputRef}
           type="file"
           id="file-upload"
           className="hidden"
@@ -148,13 +154,6 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
         </div>
       )}
 
-      {uploadMutation.isSuccess && (
-        <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-          <p className="text-sm text-green-800 dark:text-green-200">
-            ✓ File uploaded successfully: {uploadMutation.data.original_filename}
-          </p>
-        </div>
-      )}
     </div>
   )
 }

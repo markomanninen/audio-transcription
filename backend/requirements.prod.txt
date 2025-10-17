@@ -5,6 +5,8 @@ python-magic==0.4.27
 sqlalchemy==2.0.35
 alembic==1.13.3
 openai-whisper==20231117
+torch==2.3.1
+torchaudio==2.3.1
 pyannote.audio==3.3.2
 ffmpeg-python==0.2.0
 pydub==0.25.1
@@ -16,3 +18,4 @@ python-dotenv==1.0.1
 pydantic==2.9.2
 pydantic-settings==2.6.0
 psutil==6.1.0
+requests==2.32.3

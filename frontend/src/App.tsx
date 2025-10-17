@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useCreateProject, useProject, useDeleteProject } from './hooks/useProjects'
+import { useCreateProject, useProject, useDeleteProject, useProjects } from './hooks/useProjects'
 import { useProjectFiles } from './hooks/useUpload'
 import { useSegments } from './hooks/useTranscription'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -37,12 +37,31 @@ function App() {
     const saved = localStorage.getItem('selectedProjectId')
     return saved ? parseInt(saved) : null
   })
+  const isE2EMode = (import.meta.env.VITE_E2E_MODE ?? '').toString().toLowerCase() === '1' || (import.meta.env.VITE_E2E_MODE ?? '').toString().toLowerCase() === 'true'
+
   const [showTutorial, setShowTutorial] = useState<boolean>(() => {
+    if (isE2EMode) {
+      return false
+    }
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial')
     return hasSeenTutorial !== 'true'
   })
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
-  const [audioCurrentTime, setAudioCurrentTime] = useState(0)
+  const [audioPositions, setAudioPositions] = useState<Record<number, number>>({})
+  const [preventAutoProjectSelection, setPreventAutoProjectSelection] = useState(false)
+  
+  // Get current audio time for the selected file
+  const audioCurrentTime = selectedFileId ? (audioPositions[selectedFileId] || 0) : 0
+  
+  // Update audio position for the current file
+  const setAudioCurrentTime = (time: number) => {
+    if (selectedFileId) {
+      setAudioPositions(prev => ({
+        ...prev,
+        [selectedFileId]: time
+      }))
+    }
+  }
   const [shouldPlayAudio, setShouldPlayAudio] = useState(false)
   const [shouldPauseAudio, setShouldPauseAudio] = useState(false)
   const [isAudioPlaying, setIsAudioPlaying] = useState(false)
@@ -69,6 +88,7 @@ function App() {
   const createProject = useCreateProject()
   const deleteProject = useDeleteProject()
   const { data: currentProject } = useProject(projectId)
+  const { data: projects } = useProjects()
   const { data: projectFiles } = useProjectFiles(projectId)
   const { data: segments } = useSegments(selectedFileId)
 
@@ -77,6 +97,15 @@ function App() {
     localStorage.setItem('llmProvider', llmProvider)
   }, [llmProvider])
 
+  useEffect(() => {
+    if (isE2EMode) {
+      try {
+        localStorage.setItem('hasSeenTutorial', 'true')
+      } catch {
+        // ignore storage errors in automated environments
+      }
+    }
+  }, [isE2EMode])
 
   // Get current selected file
   const selectedFile = projectFiles?.find(f => f.file_id === selectedFileId)
@@ -89,6 +118,13 @@ function App() {
       localStorage.removeItem('selectedProjectId')
     }
   }, [projectId])
+
+  useEffect(() => {
+    // Only auto-select project if we haven't prevented it and there are projects available
+    if (projectId === null && projects && projects.length > 0 && !preventAutoProjectSelection) {
+      setProjectId(projects[0].id)
+    }
+  }, [projectId, projects, preventAutoProjectSelection])
 
   // Auto-select file when project changes or files load
   useEffect(() => {
@@ -191,9 +227,26 @@ function App() {
     if (!projectId) return
     deleteProject.mutate(projectId, {
       onSuccess: () => {
+        // Clear all state when deleting a project
         setProjectId(null)
+        setSelectedFileId(null)
         setShowDeleteDialog(false)
         setShowProjectMenu(false)
+        
+        // Prevent auto-selecting another project to show landing page
+        setPreventAutoProjectSelection(true)
+        
+        // Clear any cached file selection for projects
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('selectedFileId_')) {
+            localStorage.removeItem(key)
+          }
+        })
+        
+        // Reset the prevention flag after a short delay to allow manual selection
+        setTimeout(() => {
+          setPreventAutoProjectSelection(false)
+        }, 1000)
       }
     })
   }
@@ -458,8 +511,7 @@ function App() {
                 setSelectedFileId(transcriptionRestart.fileId)
                 
                 // Immediate refresh with v3 cache keys
-                queryClient.invalidateQueries({ queryKey: ['files'] })
-                queryClient.invalidateQueries({ queryKey: ['project-files'] })
+                queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
                 queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId, 'v3'] })
                 queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
@@ -500,8 +552,7 @@ function App() {
                 queryClient.removeQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
 
                 // Then invalidate to trigger fresh fetch
-                queryClient.invalidateQueries({ queryKey: ['files'] })
-                queryClient.invalidateQueries({ queryKey: ['project-files'] })
+                queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
                 queryClient.invalidateQueries({ queryKey: ['transcription-status', transcriptionRestart.fileId, 'v3'] })
                 queryClient.invalidateQueries({ queryKey: ['segments', transcriptionRestart.fileId, 'v3'] })
                 queryClient.invalidateQueries({ queryKey: ['speakers', transcriptionRestart.fileId, 'v3'] })
@@ -668,7 +719,7 @@ function App() {
             <div className="lg:col-span-2 space-y-6">
               {selectedFileId ? (
                 <>
-                  {/* Transcription Progress */}
+                  {/* Transcription Progress - Show for any selected file */}
                   <TranscriptionProgress 
                     fileId={selectedFileId} 
                     projectName={currentProject?.name}
@@ -685,37 +736,41 @@ function App() {
                     onPlayingChange={setIsAudioPlaying}
                   />
 
-                  {/* Speaker Management */}
-                  <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                    <SpeakerManager fileId={selectedFileId} />
-                  </div>
-
-                  {/* Transcription Segments */}
-                  <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold">
-                        Transcription
-                      </h2>
-                      <button
-                        onClick={() => setShowExportDialog(true)}
-                        disabled={!segments || segments.length === 0}
-                        className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={!segments || segments.length === 0 ? "No segments available to export" : "Export transcription"}
-                      >
-                        <span>📥</span>
-                        <span>Export</span>
-                      </button>
+                  {/* Speaker Management - Only show if transcription has segments */}
+                  {segments && segments.length > 0 && (
+                    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+                      <SpeakerManager fileId={selectedFileId} />
                     </div>
-                    <SegmentList
-                      fileId={selectedFileId}
-                      currentTime={audioCurrentTime}
-                      isPlaying={isAudioPlaying}
-                      onSegmentClick={handleSegmentClick}
-                      onPlayRequest={handlePlayRequest}
-                      onPauseRequest={handlePauseRequest}
-                      llmProvider={llmProvider}
-                    />
-                  </div>
+                  )}
+
+                  {/* Transcription Segments - Only show if transcription has been completed */}
+                  {selectedFile?.status === 'completed' && (
+                    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold">
+                          Transcription
+                        </h2>
+                        <button
+                          onClick={() => setShowExportDialog(true)}
+                          disabled={!segments || segments.length === 0}
+                          className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={!segments || segments.length === 0 ? "No segments available to export" : "Export transcription"}
+                        >
+                          <span>📥</span>
+                          <span>Export</span>
+                        </button>
+                      </div>
+                      <SegmentList
+                        fileId={selectedFileId}
+                        currentTime={audioCurrentTime}
+                        isPlaying={isAudioPlaying}
+                        onSegmentClick={handleSegmentClick}
+                        onPlayRequest={handlePlayRequest}
+                        onPauseRequest={handlePauseRequest}
+                        llmProvider={llmProvider}
+                      />
+                    </div>
+                  )}
 
                   {/* Export Dialog */}
                   {showExportDialog && selectedFile && (

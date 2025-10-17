@@ -14,21 +14,26 @@ test.describe('File Cache Isolation', () => {
   })
 
   test('should show correct data attributes for selected file', async ({ page }) => {
-    // Check if TranscriptionProgress component exists (requires existing project with file)
+    // Wait for seeded file list to be ready
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
+
+    // Click first file to show transcription progress
+    const firstFile = page.locator('[data-component="file-card"]').first()
+    await expect(firstFile).toBeVisible({ timeout: 10000 })
+    await firstFile.click()
+    await page.waitForTimeout(1000) // Allow UI to update
+
+    // Now check transcription progress component
     const transcriptionProgress = page.locator('[data-component="transcription-progress"]')
+    await expect(transcriptionProgress).toBeVisible({ timeout: 10000 })
 
-    if (await transcriptionProgress.count() > 0) {
-      const fileId = await transcriptionProgress.getAttribute('data-file-id')
-      const status = await transcriptionProgress.getAttribute('data-status')
-      const testId = await transcriptionProgress.getAttribute('data-testid')
+    const fileId = await transcriptionProgress.getAttribute('data-file-id')
+    const status = await transcriptionProgress.getAttribute('data-status')
+    const testId = await transcriptionProgress.getAttribute('data-testid')
 
-      expect(fileId).toBeTruthy()
-      expect(status).toBeTruthy()
-      expect(testId).toContain(`transcription-progress-${fileId}`)
-    } else {
-      // Skip test if no files exist - this test requires manual setup
-      test.skip()
-    }
+    expect(fileId).toBeTruthy()
+    expect(status).toBeTruthy()
+    expect(testId).toContain(`transcription-progress-${fileId}`)
   })
 
   test('should have data attributes on segment list', async ({ page }) => {
@@ -80,36 +85,35 @@ test.describe('File Cache Isolation', () => {
   })
 
   test('data attributes should update when switching files', async ({ page }) => {
-    // This test requires multiple files in a project
-    // Skip if not applicable
+    // Wait for seeded files to be ready
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
 
-    // Get first file card
-    const firstFileCard = page.locator('[data-testid^="file-card-"]').first()
+    const fileCards = page.locator('[data-component="file-card"]')
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
-    if (await firstFileCard.count() === 0) {
+    const fileCount = await fileCards.count()
+    if (fileCount < 2) {
+      // Need at least 2 files for this test
       test.skip()
       return
     }
 
-    await firstFileCard.click()
+    // Click first file
+    await fileCards.first().click()
+    await page.waitForTimeout(1000)
 
     const transcriptionProgress = page.locator('[data-component="transcription-progress"]')
+    await expect(transcriptionProgress).toBeVisible({ timeout: 10000 })
     const firstFileId = await transcriptionProgress.getAttribute('data-file-id')
 
-    // Click second file if it exists
-    const secondFileCard = page.locator('[data-testid^="file-card-"]').nth(1)
+    // Click second file
+    await fileCards.nth(1).click()
+    await page.waitForTimeout(1000)
 
-    if (await secondFileCard.count() > 0) {
-      await secondFileCard.click()
+    const secondFileId = await transcriptionProgress.getAttribute('data-file-id')
 
-      // Wait for data attribute to update
-      await page.waitForTimeout(500)
-
-      const secondFileId = await transcriptionProgress.getAttribute('data-file-id')
-
-      // File IDs should be different
-      expect(firstFileId).not.toBe(secondFileId)
-    }
+    // File IDs should be different
+    expect(firstFileId).not.toBe(secondFileId)
   })
 
   test('console should log file switches in development mode', async ({ page }) => {
@@ -121,10 +125,12 @@ test.describe('File Cache Isolation', () => {
       }
     })
 
-    // Get file cards
-    const fileCards = page.locator('[data-testid^="file-card-"]')
-    const fileCount = await fileCards.count()
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
+    const fileCards = page.locator('[data-component="file-card"]')
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return
@@ -132,11 +138,11 @@ test.describe('File Cache Isolation', () => {
 
     // Click first file
     await fileCards.first().click()
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(1000)
 
     // Click second file
     await fileCards.nth(1).click()
-    await page.waitForTimeout(500)
+    await page.waitForTimeout(1000)
 
     // Check for cache clearing log
     const hasCacheClearLog = consoleLogs.some(log =>
@@ -144,26 +150,18 @@ test.describe('File Cache Isolation', () => {
     )
 
     // In development mode, we should see cache clearing logs
-    // In production, we won't
     if (process.env.NODE_ENV === 'development') {
       expect(hasCacheClearLog).toBeTruthy()
     }
   })
 
   test('should maintain separate cache for different files', async ({ page }) => {
-    // This test checks React Query cache isolation
-    // We'll need to expose React Query cache to window for testing
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
+    const fileCards = page.locator('[data-component="file-card"]')
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
-    await page.evaluate(() => {
-      // Check if React Query DevTools is available
-      const cache = (window as any).__REACT_QUERY_DEVTOOLS_GLOBAL_HOOK__
-      return cache !== undefined
-    })
-
-    // Get file cards
-    const fileCards = page.locator('[data-testid^="file-card-"]')
     const fileCount = await fileCards.count()
-
     if (fileCount < 2) {
       test.skip()
       return
@@ -205,9 +203,12 @@ test.describe('File Cache Isolation', () => {
   })
 
   test('should not show stale data after file switch', async ({ page }) => {
-    const fileCards = page.locator('[data-testid^="file-card-"]')
-    const fileCount = await fileCards.count()
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
+    const fileCards = page.locator('[data-component="file-card"]')
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return
@@ -245,9 +246,12 @@ test.describe('File Cache Isolation', () => {
       errors.push(error.message)
     })
 
-    const fileCards = page.locator('[data-testid^="file-card-"]')
-    const fileCount = await fileCards.count()
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
+    const fileCards = page.locator('[data-component="file-card"]')
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return

@@ -16,6 +16,13 @@ export interface SystemHealthStatus {
       total?: string;
       speed?: string;
       model_size?: string;
+      active_transcription?: {
+        file_id: number;
+        filename: string;
+        progress: number;
+        stage?: string;
+        started_at?: string;
+      };
     }
     ollama: { status: string; message: string }
     redis: { status: string; message: string }
@@ -68,30 +75,46 @@ export function useBackendReadiness() {
   
   // Consider system ready even if database is busy (during transcription)
   const isDatabaseBusy = health?.components?.database?.status === 'busy'
-  const isEffectivelyReady = isReady || (health?.status !== 'unhealthy' && isDatabaseBusy)
-  
+  const apiStatus = health?.components?.api?.status
+  const storageStatus = health?.components?.storage?.status
+  const databaseStatus = health?.components?.database?.status
+  const infrastructureReady = apiStatus === 'up' && storageStatus === 'up' && databaseStatus !== 'down'
   const whisperStatus = health?.components?.whisper
+  const whisperStatusValue = whisperStatus?.status
+  const backendReportsWhisperReady = whisperStatusValue === 'up' || whisperStatusValue === 'processing'
+  const isEffectivelyReady = isReady || backendReportsWhisperReady || (health?.status !== 'unhealthy' && isDatabaseBusy)
+  const isUiReady = isEffectivelyReady || infrastructureReady
   
   // Enhanced Whisper loading detection - show splash for downloading OR loading with model info
   const hasActualWhisperProgress = whisperProgress && typeof whisperProgress.progress === 'number'
-  const backendReportsWhisperDownloading = whisperStatus?.status === 'downloading'
-  const backendReportsWhisperLoading = whisperStatus?.status === 'loading'
+  const backendReportsWhisperDownloading = whisperStatusValue === 'downloading'
+  const backendReportsWhisperLoading = whisperStatusValue === 'loading'
   
-  const isWhisperLoading = backendReportsWhisperDownloading || hasActualWhisperProgress || backendReportsWhisperLoading
+  const isWhisperLoading =
+    !backendReportsWhisperReady &&
+    (backendReportsWhisperDownloading || hasActualWhisperProgress || backendReportsWhisperLoading)
   
   // Enhanced whisper message with progress and model info
   let whisperMessage = whisperStatus?.message
   const modelSize = whisperStatus?.model_size || 'unknown'
   
-  if (whisperProgress) {
+  if (!backendReportsWhisperReady && whisperProgress) {
     whisperMessage = `Downloading ${modelSize} model... ${whisperProgress.progress}%`
   } else if (backendReportsWhisperLoading) {
     whisperMessage = `Loading ${modelSize} model into memory... (this may take several minutes)`
+  } else if (whisperStatus?.status === 'processing' && whisperStatus.active_transcription) {
+    const active = whisperStatus.active_transcription
+    const progressLabel = typeof active.progress === 'number'
+      ? `${active.progress.toFixed(active.progress < 10 ? 1 : 0)}%`
+      : 'in progress'
+    const stageLabel = active.stage ? ` • ${active.stage}` : ''
+    whisperMessage = `Processing ${active.filename} (${progressLabel})${stageLabel}`
   } else if (isWhisperLoading && !whisperMessage) {
     whisperMessage = 'Loading AI components...'
   }
   
   return {
+    isUiReady,
     isReady: isEffectivelyReady,  // Use the enhanced ready state
     isStarting,
     isUnhealthy,

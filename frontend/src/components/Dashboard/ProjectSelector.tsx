@@ -21,9 +21,7 @@ export default function ProjectSelector({
 
   if (!projects || projects.length === 0) {
     return (
-      <div className="text-sm text-muted-foreground">
-        No projects yet
-      </div>
+      <div className="text-sm text-muted-foreground"></div>
     )
   }
 

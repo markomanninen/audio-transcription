@@ -1,6 +1,9 @@
 """
 Test configuration and fixtures.
 """
+import sys
+from types import SimpleNamespace
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -8,7 +11,47 @@ from fastapi.testclient import TestClient
 import tempfile
 import os
 
+# Provide a lightweight stub for the optional whisper dependency used in tests.
+if "whisper" not in sys.modules:
+    sys.modules["whisper"] = SimpleNamespace(load_model=lambda *args, **kwargs: None)
+
+if "magic" not in sys.modules:
+    sys.modules["magic"] = SimpleNamespace(from_buffer=lambda *args, **kwargs: "audio/wav")
+
+if "pydub" not in sys.modules:
+    class _DummyAudioSegment:
+        @classmethod
+        def from_file(cls, *_args, **_kwargs):
+            return cls()
+
+        def set_channels(self, *_args, **_kwargs):
+            return self
+
+        def set_frame_rate(self, *_args, **_kwargs):
+            return self
+
+        def export(self, *_args, **_kwargs):
+            return None
+
+        def __len__(self):
+            return 0
+
+    sys.modules["pydub"] = SimpleNamespace(AudioSegment=_DummyAudioSegment)
+
+if "pyannote.audio" not in sys.modules:
+    class _DummyPipeline:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __call__(self, *_args, **_kwargs):
+            return {}
+
+    dummy_audio = SimpleNamespace(Pipeline=_DummyPipeline)
+    sys.modules["pyannote"] = SimpleNamespace(audio=dummy_audio)
+    sys.modules["pyannote.audio"] = dummy_audio
+
 from app.main import app
+from app.core import database as app_database
 from app.core.database import get_db
 from app.models.base import Base
 from app.models.project import Project
@@ -29,11 +72,19 @@ def test_engine():
     db_name = f"/tmp/test_{uuid.uuid4().hex}.db"
     test_db_url = f"sqlite:///{db_name}"
 
+    original_engine = app_database.engine
+    original_session_local = app_database.SessionLocal
+
     engine = create_engine(
         test_db_url,
         connect_args={"check_same_thread": False},
         poolclass=None  # Disable connection pooling for tests
     )
+    # Rebind application session maker and engine to the test database
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    app_database.engine = engine
+    app_database.SessionLocal = TestingSessionLocal
+
     # Create tables
     Base.metadata.create_all(bind=engine)
 
@@ -42,6 +93,9 @@ def test_engine():
     # Drop tables and clean up
     Base.metadata.drop_all(bind=engine)
     engine.dispose()
+    # Restore original application database bindings
+    app_database.SessionLocal = original_session_local
+    app_database.engine = original_engine
 
     # Remove database file
     import os
@@ -52,8 +106,7 @@ def test_engine():
 @pytest.fixture(scope="function")
 def test_db(test_engine):
     """Create a test database session."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    db = TestingSessionLocal()
+    db = app_database.SessionLocal()
     try:
         yield db
     finally:

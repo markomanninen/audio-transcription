@@ -64,11 +64,83 @@ AI-powered audio transcription application with speaker recognition, multi-langu
    ```
 
 4. **Access the application**
-   - Frontend: <http://localhost:5175>
-   - Backend API: <http://localhost:8000>
-   - API Docs: <http://localhost:8000/docs>
+   - Frontend: <http://localhost:3000>
+   - Backend API: <http://localhost:8080>
+   - API Docs: <http://localhost:8080/docs>
 
 The first startup will download the Whisper model (~1-2GB), which may take a few minutes.
+
+## 🛠️ Local Development (Non-Docker)
+
+For active development without Docker containers:
+
+### Prerequisites
+
+- Python 3.11+ with virtual environment
+- Node.js 18+
+- FFmpeg (`brew install ffmpeg`)
+
+**Auto-managed services:**
+- Redis (automatically started)
+- Ollama (automatically started for AI features)
+
+### Quick Start
+
+```bash
+# Install dependencies
+brew install ffmpeg
+
+# Clone and setup
+git clone https://github.com/YOUR_USERNAME/audio-transcription.git
+cd audio-transcription
+
+# Setup Python environment
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+# Setup frontend
+cd frontend && npm install && cd ..
+
+# Start development environment (auto-starts Redis & Ollama)
+npm run dev
+```
+
+### Development Commands
+
+```bash
+npm run dev              # Start both backend and frontend
+npm run dev:backend      # Start only backend
+npm run dev:frontend     # Start only frontend
+npm run dev:restart      # Restart all services
+npm run dev:stop         # Stop all services
+npm run dev:check        # Check service status
+npm run dev:logs         # Show live logs
+
+# Alternative direct usage
+./dev                    # Start both services
+python dev_runner.py     # Same as above
+```
+
+### Smart Features
+
+The development runner includes:
+
+- **Automatic service management** - starts Redis and Ollama automatically
+- **Automatic port detection** - finds available ports if defaults are busy
+- **Health checking** - verifies services are ready before reporting success
+- **Dependency validation** - checks all requirements before starting
+- **Process management** - tracks and cleanly shuts down all services
+- **Auto-restart** - restarts failed services automatically
+- **Live logs** - real-time output from both services
+
+### Accessing the Application
+
+- **Frontend**: http://localhost:5173 (or next available port)
+- **Backend API**: http://localhost:8000 (or next available port)
+- **API Documentation**: http://localhost:8000/docs
+
+**📖 Full Development Guide**: See [docs/development/ENVIRONMENT_GUIDE.md](./docs/development/ENVIRONMENT_GUIDE.md) for detailed environment setup and troubleshooting.
 
 ### Production Stack via Docker Hub
 

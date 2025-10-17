@@ -139,6 +139,22 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     }
   }, [status?.status, onStatusChange, fileId])
 
+  useEffect(() => {
+    if (status?.status === 'completed') {
+      queryClient.setQueriesData({ queryKey: ['files'], exact: false }, (data: any) => {
+        if (!Array.isArray(data)) {
+          return data
+        }
+        return data.map((file: any) =>
+          file.file_id === status.file_id
+            ? { ...file, status: 'completed', transcription_completed_at: status.transcription_completed_at }
+            : file
+        )
+      })
+      queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
+    }
+  }, [status?.status, status?.file_id, status?.transcription_completed_at, queryClient])
+
   // Force periodic refetch when processing to ensure real-time updates
   useEffect(() => {
     if (status?.status === 'processing') {
@@ -202,8 +218,7 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
         queryClient.invalidateQueries({ queryKey: ['segments', fileId, 'v3'] })
         queryClient.invalidateQueries({ queryKey: ['speakers', fileId, 'v3'] })
         queryClient.invalidateQueries({ queryKey: ['transcription-status', fileId, 'v3'] })
-        queryClient.invalidateQueries({ queryKey: ['files'] })
-        queryClient.invalidateQueries({ queryKey: ['project-files'] })
+        queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
       }, 1000)
       
     } catch (error) {
@@ -233,19 +248,85 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
 
   // Check if Whisper AI model is still loading
   const whisperStatus = systemHealth.data?.components?.whisper
-  const isWhisperLoading = whisperStatus?.status === 'loading' || whisperStatus?.status === 'downloading'
-  const isWhisperReady = whisperStatus?.status === 'up' ||
-    (whisperStatus?.status === 'downloading' && whisperStatus?.progress === 100)
+  const whisperStatusValue = whisperStatus?.status
+  const whisperProgress =
+    typeof whisperStatus?.progress === 'number' ? whisperStatus.progress : undefined
 
-  // CRITICAL FIX: Only show Whisper loading state for PENDING files
-  // Do NOT show for completed/processing/failed files - they should show their actual status
-  if (isWhisperLoading && status.status === 'pending' && !status.transcription_completed_at) {
+  const isDownloadingInProgress =
+    whisperStatusValue === 'downloading' && (whisperProgress === undefined || whisperProgress < 100)
+  const isLoadingInMemory = whisperStatusValue === 'loading'
+  const isQueued = whisperStatusValue === 'queued'
+
+  const pendingModelMessage =
+    typeof status?.error_message === 'string' &&
+    status.error_message.toLowerCase().includes('whisper model loading')
+
+  const isWhisperLoading =
+    isLoadingInMemory || isDownloadingInProgress || isQueued || pendingModelMessage
+  const isWhisperReady =
+    whisperStatusValue === 'up' ||
+    whisperStatusValue === 'processing' ||
+    whisperStatusValue === 'idle' ||
+    (whisperStatusValue === 'downloading' && whisperProgress === 100)
+
+  // Show simple "Ready to transcribe" state for files that haven't been started
+  const isFileNotStarted = status.status === 'pending' && !status.transcription_started_at
+  
+  if (isFileNotStarted) {
+    return (
+      <div
+        className="bg-card rounded-lg shadow-sm border border-border p-6"
+        data-component="transcription-progress"
+        data-file-id={fileId}
+        data-status="ready"
+        data-progress={0}
+        data-testid={`transcription-progress-${fileId}`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">
+            {projectName ? `${projectName} - ${status.original_filename || status.filename}` : `Audio File - ${status.original_filename || status.filename}`}
+          </h3>
+          <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide bg-blue-100 text-blue-800">
+            Ready to Transcribe
+          </span>
+        </div>
+        
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-3">
+            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+            <span className="text-blue-800 dark:text-blue-200 font-medium">
+              Audio file uploaded successfully
+            </span>
+          </div>
+          
+          <p className="text-blue-700 dark:text-blue-300 text-sm">
+            Click "Start Transcription" in the file list to begin processing this audio file with Whisper AI.
+          </p>
+          
+          <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+            <div>File: {status.original_filename}</div>
+            {status.duration && <div>Duration: {Math.floor(status.duration / 60)}m {Math.floor(status.duration % 60)}s</div>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const shouldShowWhisperLoading =
+    status.status === 'pending' &&
+    status.transcription_started_at &&
+    !status.transcription_completed_at &&
+    (isWhisperLoading)
+
+  // Show Whisper loading state for files where transcription has been started but Whisper is still loading
+  if (shouldShowWhisperLoading) {
     return (
       <div
         className="bg-card rounded-lg shadow-sm border border-border p-6"
         data-component="transcription-progress"
         data-file-id={fileId}
         data-status="whisper-loading"
+        data-progress={0}
         data-model-size={whisperStatus?.model_size}
         data-testid={`transcription-progress-${fileId}`}
       >
@@ -293,7 +374,9 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     )
   }
 
-  const progressPercent = Math.round(status.progress * 100)
+  const preciseProgress = Math.max(0, Math.min(100, (status.progress || 0) * 100))
+  const progressPercent = Math.round(preciseProgress)
+  const progressLabel = preciseProgress.toFixed(preciseProgress < 10 ? 1 : preciseProgress < 100 ? 1 : 0)
   const isStuck = detailedStatus?.is_stuck || false
   const canResume = detailedStatus?.can_resume || false
   
@@ -351,12 +434,21 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
     }
 
     if (status.status === 'pending') {
-      const isModelReadyToLoad = whisperStatus?.status === 'downloading' && whisperStatus?.progress === 100
-      const buttonTitle = !isWhisperReady ? "AI model is still loading - please wait" : 
-        (isModelReadyToLoad ? "Start transcription (will load model automatically)" : "Start transcription")
-      const buttonText = !isWhisperReady ? '⏳ Model Loading...' : 
-        (actionInProgress === 'Start' ? 'Starting...' : 
-         isModelReadyToLoad ? '▶️ Start (Auto-load)' : '▶️ Start')
+      const isModelReadyToLoad =
+        (whisperStatusValue === 'downloading' && whisperProgress === 100) ||
+        whisperStatusValue === 'idle'
+      const buttonTitle = !isWhisperReady
+        ? 'AI model is still loading - please wait'
+        : isModelReadyToLoad
+          ? 'Start transcription (Whisper will load on demand)'
+          : 'Start transcription'
+      const buttonText = !isWhisperReady
+        ? '⏳ Model Loading...'
+        : actionInProgress === 'Start'
+          ? 'Starting...'
+          : isModelReadyToLoad
+            ? '▶️ Start (On-demand)'
+            : '▶️ Start'
       
       return (
         <div className="flex items-center gap-2">
@@ -468,7 +560,7 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
           </div>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {progressPercent}% complete
+              {progressLabel}% complete
             </p>
             {status.processing_stage && (
               <p className="text-sm text-primary-600 dark:text-primary-400 font-medium">
@@ -548,7 +640,7 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
             <div>Stage: {status.processing_stage || 'Starting...'}</div>
             <div>Segments: {status.segment_count || 0}</div>
-            <div>Progress: {Math.round(status.progress * 100)}%</div>
+            <div>Progress: {progressLabel}%</div>
             <div>Model: {(() => {
               if (status.transcription_metadata) {
                 try {

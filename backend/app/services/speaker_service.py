@@ -24,9 +24,12 @@ class SpeakerService:
             # Note: Requires HuggingFace token for pyannote models
             # For now, using a placeholder - user needs to configure
             try:
+                hf_token = settings.HUGGINGFACE_HUB_TOKEN or None
+                if not hf_token:
+                    print("ℹ️ Hugging Face token not provided. If diarization fails, set HUGGINGFACE_HUB_TOKEN in backend/.env.")
                 self.pipeline = Pipeline.from_pretrained(
                     "pyannote/speaker-diarization-3.1",
-                    use_auth_token=None  # Set via HF_TOKEN env var if needed
+                    use_auth_token=hf_token
                 )
                 if settings.WHISPER_DEVICE == "cuda" and torch.cuda.is_available():
                     self.pipeline.to(torch.device("cuda"))

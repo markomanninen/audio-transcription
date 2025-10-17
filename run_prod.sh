@@ -12,6 +12,7 @@ COMPOSE_CMD=()
 PULL_IMAGES=1
 PRELOAD_MODELS=1
 RUN_HEALTH_CHECK=1
+BUILD_IMAGES=1
 
 function print_info() {
   echo "${INFO_PREFIX} $*"
@@ -33,6 +34,7 @@ Bootstraps the production Docker stack (backend, frontend, Redis, Ollama).
 
 Options:
   --no-pull           Skip docker compose pull step.
+  --no-build          Skip docker compose build step.
   --skip-models       Do not pre-download Whisper and Ollama models.
   --skip-health       Skip health checks after startup.
   -h, --help          Show this help and exit.
@@ -43,6 +45,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-pull)
       PULL_IMAGES=0
+      shift
+      ;;
+    --no-build)
+      BUILD_IMAGES=0
       shift
       ;;
     --skip-models)
@@ -93,6 +99,15 @@ function ensure_env_file() {
   if [[ ! -f "${env_file}" ]]; then
     cp "${PROJECT_ROOT}/backend/.env.example" "${env_file}"
     print_info "Created backend/.env from backend/.env.example (update secrets as needed)."
+  fi
+}
+
+function build_images() {
+  if [[ "${BUILD_IMAGES}" -eq 1 ]]; then
+    print_info "Building backend and frontend images..."
+    docker_compose build backend frontend
+  else
+    print_info "Skipping image build (per flag)."
   fi
 }
 
@@ -264,6 +279,7 @@ SUMMARY
 
 ensure_env_file
 check_ports
+build_images
 pull_images
 start_stack
 wait_for_backend

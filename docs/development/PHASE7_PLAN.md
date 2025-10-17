@@ -1,6 +1,7 @@
 # Phase 7: UI/UX Enhancements - Detailed Plan
 
 ## Overview
+
 Improve visual design, usability, and polish the user experience with keyboard shortcuts, mobile responsiveness, error handling, and accessibility features.
 
 ## Task Breakdown
@@ -8,6 +9,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 1. Visual Design Improvements
 
 #### Design System
+
 - [ ] Define color palette (primary, secondary, accent, neutral scales)
 - [ ] Typography scale (headings, body, labels, code)
 - [ ] Spacing system (consistent margins, padding, gaps)
@@ -16,6 +18,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Transition and animation standards
 
 #### Component Styling
+
 - [ ] Buttons (primary, secondary, danger, ghost variants)
 - [ ] Input fields (text, file upload)
 - [ ] Cards and panels
@@ -25,6 +28,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Tooltips and popovers
 
 #### Page Layouts
+
 - [ ] Consistent header/navigation
 - [ ] Proper content spacing
 - [ ] Card-based layouts
@@ -34,6 +38,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 2. Keyboard Shortcuts
 
 #### Core Shortcuts
+
 - `Space` - Play/Pause audio
 - `←` / `→` - Skip backward/forward (5s)
 - `↑` / `↓` - Next/Previous segment
@@ -44,6 +49,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - `?` - Show keyboard shortcuts help
 
 #### Implementation
+
 - [ ] Create `useKeyboardShortcuts` hook
 - [ ] Add keyboard event listeners
 - [ ] Prevent conflicts with browser shortcuts
@@ -54,11 +60,13 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 3. Mobile Responsiveness
 
 #### Breakpoints
+
 - Mobile: < 640px
 - Tablet: 640px - 1024px
 - Desktop: > 1024px
 
 #### Responsive Components
+
 - [ ] Mobile-optimized navigation (hamburger menu)
 - [ ] Touch-friendly audio controls (larger buttons)
 - [ ] Responsive grid layouts (1/2/3 columns)
@@ -68,6 +76,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Touch gestures (swipe for segments)
 
 #### Testing
+
 - [ ] Test on various screen sizes
 - [ ] Test touch interactions
 - [ ] Verify readability on small screens
@@ -75,6 +84,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 4. Error Handling UI
 
 #### Toast Notification System
+
 - [ ] Create `Toast` component (success, error, warning, info)
 - [ ] Position: top-right, auto-dismiss
 - [ ] Stack multiple toasts
@@ -82,6 +92,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Accessibility (screen reader announcements)
 
 #### Error States
+
 - [ ] Network error handling
 - [ ] API error messages (user-friendly)
 - [ ] File upload errors
@@ -89,12 +100,14 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] LLM service errors
 
 #### Retry Mechanisms
+
 - [ ] Automatic retry with exponential backoff
 - [ ] Manual retry buttons
 - [ ] Show retry count
 - [ ] Loading states during retry
 
 #### Empty States
+
 - [ ] No projects yet
 - [ ] No audio files
 - [ ] No transcription available
@@ -103,12 +116,14 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 5. Accessibility (a11y)
 
 #### WCAG 2.1 AA Compliance
+
 - [ ] Color contrast ratios (4.5:1 for text)
 - [ ] Focus indicators (visible, 3:1 contrast)
 - [ ] Focus order (logical tab sequence)
 - [ ] Skip to main content link
 
 #### ARIA Implementation
+
 - [ ] ARIA labels for icons/icon-only buttons
 - [ ] ARIA roles (button, dialog, alert, status)
 - [ ] ARIA live regions (dynamic updates)
@@ -117,6 +132,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] ARIA disabled states
 
 #### Keyboard Navigation
+
 - [ ] All interactive elements keyboard accessible
 - [ ] Modal trap focus
 - [ ] Escape key closes modals
@@ -124,6 +140,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Arrow keys for segment navigation
 
 #### Screen Reader Support
+
 - [ ] Meaningful alt text for images
 - [ ] Descriptive link text
 - [ ] Form labels and error messages
@@ -133,6 +150,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 6. Dark Mode (Optional)
 
 #### Implementation
+
 - [ ] Color scheme variables (light/dark)
 - [ ] Theme toggle component
 - [ ] Persist preference (localStorage)
@@ -140,6 +158,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Smooth theme transitions
 
 #### Dark Mode Colors
+
 - [ ] Background colors (subtle contrast)
 - [ ] Text colors (WCAG AA contrast)
 - [ ] Border colors (visible but subtle)
@@ -149,12 +168,14 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 7. Performance Optimizations
 
 #### Loading Performance
+
 - [ ] Code splitting (lazy load routes)
 - [ ] Image optimization
 - [ ] Font loading strategy
 - [ ] Reduce bundle size
 
 #### Runtime Performance
+
 - [ ] Virtualize long segment lists
 - [ ] Debounce search/filter inputs
 - [ ] Memoize expensive computations
@@ -163,6 +184,7 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 8. Testing
 
 #### Unit Tests
+
 - [ ] Keyboard shortcut handler tests
 - [ ] Toast notification tests
 - [ ] Theme toggle tests
@@ -170,12 +192,14 @@ Improve visual design, usability, and polish the user experience with keyboard s
 - [ ] Hook tests (useKeyboardShortcuts, useToast)
 
 #### Integration Tests
+
 - [ ] Keyboard navigation flow
 - [ ] Error handling scenarios
 - [ ] Responsive layout tests
 - [ ] Accessibility tests (axe-core)
 
 #### E2E Tests
+
 - [ ] Complete user workflows with keyboard
 - [ ] Mobile workflows
 - [ ] Error recovery scenarios
@@ -184,18 +208,21 @@ Improve visual design, usability, and polish the user experience with keyboard s
 ### 9. Documentation
 
 #### User Documentation
+
 - [ ] Update USER_GUIDE.md with keyboard shortcuts
 - [ ] Add mobile usage tips
 - [ ] Document accessibility features
 - [ ] Add troubleshooting section
 
 #### Developer Documentation
+
 - [ ] Design system documentation
 - [ ] Component usage examples
 - [ ] Accessibility guidelines
 - [ ] Testing best practices
 
 #### Update Existing Docs
+
 - [ ] README.md - Add Phase 7 completion
 - [ ] IMPLEMENTATION_PLAN.md - Mark Phase 7 complete
 - [ ] CLAUDE.md - Add UI/UX conventions
@@ -238,41 +265,48 @@ docs/
 ## Success Criteria
 
 ### Visual Design
+
 - ✅ Consistent spacing and typography across all pages
 - ✅ Professional color scheme with proper contrast
 - ✅ Loading states for all async operations
 - ✅ Smooth transitions and animations
 
 ### Keyboard Shortcuts
+
 - ✅ All shortcuts working correctly
 - ✅ No conflicts with browser shortcuts
 - ✅ Help modal accessible via `?` key
 - ✅ Visual feedback for shortcut actions
 
 ### Mobile Responsiveness
+
 - ✅ Usable on 375px width (iPhone SE)
 - ✅ Touch targets min 44x44px
 - ✅ No horizontal scroll
 - ✅ Readable text without zoom
 
 ### Error Handling
+
 - ✅ User-friendly error messages
 - ✅ Toast notifications for all operations
 - ✅ Retry mechanisms working
 - ✅ Empty states implemented
 
 ### Accessibility
+
 - ✅ WCAG 2.1 AA compliant
 - ✅ All functionality keyboard accessible
 - ✅ Screen reader tested (NVDA/VoiceOver)
 - ✅ Focus management correct
 
 ### Testing
+
 - ✅ 80%+ test coverage for new features
 - ✅ All E2E tests passing
 - ✅ Accessibility audit passing (axe)
 
 ### Documentation
+
 - ✅ All user docs updated
 - ✅ Developer docs complete
 - ✅ Examples and screenshots added

@@ -1,7 +1,8 @@
 """
 Transcription service using Whisper.
 """
-import whisper
+# Lazy import whisper to avoid blocking startup
+# import whisper  # Will import when needed
 import time
 import os
 import psutil
@@ -20,13 +21,74 @@ from .audio_service import AudioService
 logger = logging.getLogger(__name__)
 
 
+MODEL_NAME_ALIASES = {
+    "tiny": "tiny",
+    "tiny.en": "tiny.en",
+    "base": "base",
+    "base.en": "base.en",
+    "small": "small",
+    "small.en": "small.en",
+    "medium": "medium",
+    "medium.en": "medium.en",
+    "turbo": "turbo",
+    "large": "large",
+    "large-v1": "large-v1",
+    "large-v2": "large-v2",
+    "large-v3": "large-v3",
+}
+
+VALID_MODEL_SIZES = set(MODEL_NAME_ALIASES.keys())
+MODEL_PRIORITIES = {
+    "tiny": 0,
+    "tiny.en": 0,
+    "base": 10,
+    "base.en": 10,
+    "small": 20,
+    "small.en": 20,
+    "medium": 30,
+    "medium.en": 30,
+    "turbo": 32,
+    "large": 40,
+    "large-v1": 41,
+    "large-v2": 42,
+    "large-v3": 43,
+}
+
+def normalize_model_name(value: Optional[str]) -> Optional[str]:
+    """Return canonical Whisper model name if recognised."""
+    if not value or not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    return MODEL_NAME_ALIASES.get(normalized)
+
+
 class TranscriptionService:
     """Service for transcribing audio files using Whisper."""
 
-    def __init__(self):
-        self.model_size = settings.WHISPER_MODEL_SIZE
+    def __init__(self, model_size_override: Optional[str] = None):
+        configured_raw = settings.WHISPER_MODEL_SIZE
+        configured = normalize_model_name(configured_raw)
+        if not configured:
+            if configured_raw:
+                logger.warning(
+                    f"⚠️ Invalid WHISPER_MODEL_SIZE '{configured_raw}'. Falling back to 'base'."
+                )
+            configured = "base"
+
+        override_raw = model_size_override if model_size_override is not None else configured
+        override_normalized = normalize_model_name(override_raw)
+        if not override_normalized:
+            if override_raw and override_raw != configured:
+                logger.warning(
+                    f"⚠️ Invalid Whisper model override '{override_raw}'. Falling back to configured default '{configured}'."
+                )
+            override_normalized = configured
+
+        self.configured_model_size = configured
+        self.model_size = override_normalized
         self.device = self._detect_optimal_device(settings.WHISPER_DEVICE)
-        self.model = None
+        self.model = None  # Default model matching settings.WHISPER_MODEL_SIZE
+        self.loaded_models: Dict[str, Any] = {}  # Cache for additional models
 
     def _detect_optimal_device(self, device_setting: str) -> str:
         """Detect the optimal device for Whisper based on platform and availability."""
@@ -40,9 +102,11 @@ class TranscriptionService:
                 return "cpu"
         return device_setting
 
-    def _check_system_readiness_for_transcription(self) -> Dict[str, Any]:
+    def _check_system_readiness_for_transcription(self, target_model_size: Optional[str] = None) -> Dict[str, Any]:
         """Check if system has sufficient resources for transcription."""
         try:
+            requested_model = target_model_size or self.model_size
+            requested_model = requested_model.lower()
             # Memory check
             memory = psutil.virtual_memory()
             available_gb = memory.available / (1024**3)
@@ -61,7 +125,7 @@ class TranscriptionService:
                 "large": {"memory_gb": 8.0, "description": "Best accuracy, very slow"}
             }
             
-            current_req = model_requirements.get(self.model_size, {"memory_gb": 2.0, "description": "Unknown"})
+            current_req = model_requirements.get(requested_model, {"memory_gb": 2.0, "description": "Unknown"})
             
             # Determine system status
             memory_sufficient = available_gb >= current_req["memory_gb"]
@@ -87,12 +151,12 @@ class TranscriptionService:
                     "available": cpu_available
                 },
                 "model": {
-                    "size": self.model_size,
+                    "size": requested_model,
                     "device": self.device,
                     "description": current_req["description"],
-                    "loaded": self.model is not None
+                    "loaded": requested_model in self.loaded_models
                 },
-                "recommendations": self._get_system_recommendations(available_gb, cpu_percent)
+                "recommendations": self._get_system_recommendations(available_gb, cpu_percent, requested_model)
             }
         except Exception as e:
             return {
@@ -101,13 +165,14 @@ class TranscriptionService:
                 "recommendations": ["Unable to check system resources"]
             }
     
-    def _get_system_recommendations(self, available_gb: float, cpu_percent: float) -> List[str]:
+    def _get_system_recommendations(self, available_gb: float, cpu_percent: float, model_size: Optional[str] = None) -> List[str]:
         """Get system optimization recommendations."""
         recommendations = []
+        active_model = (model_size or self.model_size).lower()
         
         if available_gb < 2.0:
             recommendations.append("⚠️ Low memory detected. Consider using 'tiny' model or closing other applications.")
-        elif available_gb < 4.0 and self.model_size in ["medium", "large"]:
+        elif available_gb < 4.0 and active_model in ["medium", "large"]:
             recommendations.append("💡 Consider using 'base' or 'small' model for better performance.")
             
         if cpu_percent > 80:
@@ -125,13 +190,36 @@ class TranscriptionService:
                 
         return recommendations
 
-    def load_model(self):
-        """Load Whisper model (lazy loading)."""
-        if self.model is None:
-            self.model = whisper.load_model(
-                self.model_size,
-                device=self.device
-            )
+    def load_model(self, model_size: Optional[str] = None):
+        """
+        Load a Whisper model (lazy loading with caching).
+
+        Args:
+            model_size: Optional model size override (tiny, base, small, medium, large)
+
+        Returns:
+            Loaded Whisper model instance.
+        """
+        # Lazy import whisper to avoid blocking during startup
+        import whisper
+        
+        target_size = (model_size or self.model_size).lower()
+
+        if target_size in self.loaded_models:
+            return self.loaded_models[target_size]
+
+        logger.info(f"Loading Whisper model: {target_size} (device: {self.device})")
+        model = whisper.load_model(
+            target_size,
+            device=self.device
+        )
+        self.loaded_models[target_size] = model
+
+        # Preserve existing behaviour for default model to maintain readiness checks
+        if target_size == self.model_size:
+            self.model = model
+
+        return model
 
     def _update_progress_with_stage(self, audio_file: AudioFile, stage: str, progress: float, db: Session, elapsed_time: float = None):
         """Update progress with stage information and timing."""
@@ -468,6 +556,80 @@ class TranscriptionService:
         if not audio_file:
             raise ValueError(f"Audio file {audio_file_id} not found")
 
+        if settings.E2E_TRANSCRIPTION_STUB:
+            # For local E2E tests, short-circuit Whisper and create deterministic results
+            logger.info("[E2E] Using transcription stub for audio file %s", audio_file_id)
+
+            # Remove existing segments to avoid duplication
+            db.query(Segment).filter(Segment.audio_file_id == audio_file_id).delete()
+
+            now = datetime.utcnow()
+            sample_segments = [
+                {
+                    "start": 0.0,
+                    "end": 5.2,
+                    "text": "Hello there, this is a stub transcription for testing.",
+                },
+                {
+                    "start": 5.2,
+                    "end": 11.9,
+                    "text": "We are ensuring the UI reacts to status updates immediately.",
+                },
+                {
+                    "start": 11.9,
+                    "end": 18.4,
+                    "text": "Transcription completed successfully without Whisper processing.",
+                },
+            ]
+
+            segments: list[Segment] = []
+            for index, segment_def in enumerate(sample_segments, start=1):
+                segment = Segment(
+                    audio_file_id=audio_file_id,
+                    speaker_id=None,
+                    start_time=segment_def["start"],
+                    end_time=segment_def["end"],
+                    original_text=segment_def["text"],
+                    edited_text=None,
+                    sequence=index,
+                )
+                db.add(segment)
+                segments.append(segment)
+
+            metadata = {
+                "model_size": "tiny",
+                "language": audio_file.language or "auto-detect",
+                "include_diarization": True,
+                "mode": "stub"
+            }
+
+            audio_file.transcription_status = TranscriptionStatus.COMPLETED
+            audio_file.transcription_progress = 1.0
+            audio_file.error_message = None
+            audio_file.transcription_started_at = audio_file.transcription_started_at or now
+            audio_file.transcription_completed_at = now
+            audio_file.model_used = "stub"
+            audio_file.processing_stats = json.dumps({"stub": True})
+            audio_file.transcription_stage = "completed"
+            audio_file.last_processed_segment = len(segments)
+            audio_file.resume_token = None
+            audio_file.interruption_count = 0
+            audio_file.recovery_attempts = 0
+            audio_file.whisper_model_loaded = "stub"
+            audio_file.audio_transformed = True
+            audio_file.audio_transformation_path = audio_file.audio_transformation_path or audio_file.file_path
+            audio_file.transcription_metadata = json.dumps(metadata)
+
+            db.commit()
+            return db.query(Segment).filter(Segment.audio_file_id == audio_file_id).order_by(Segment.sequence).all()
+        
+        # Clear previous failure state before retrying
+        if audio_file.transcription_status == TranscriptionStatus.FAILED:
+            audio_file.transcription_status = TranscriptionStatus.PENDING
+            audio_file.error_message = None
+            audio_file.transcription_progress = 0.0
+            db.commit()
+
         # Check for existing segments
         existing_segments = db.query(Segment).filter(Segment.audio_file_id == audio_file_id).all()
         
@@ -513,18 +675,6 @@ class TranscriptionService:
             raise ValueError(f"Audio file {audio_file_id} not found")
 
         try:
-            # Pre-flight system check
-            system_check = self._check_system_readiness_for_transcription()
-            logger.info(f"System readiness check: {system_check['status']}")
-            
-            if system_check['status'] == 'insufficient_memory':
-                error_msg = f"Insufficient memory for {self.model_size} model. Available: {system_check['memory']['available_gb']}GB, Required: {system_check['memory']['required_gb']}GB"
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-            elif system_check['status'] == 'warning':
-                for rec in system_check.get('recommendations', []):
-                    logger.warning(rec)
-            
             # Read file-specific settings from metadata
             file_model_size = self.model_size  # Default to global setting
             file_language = audio_file.language
@@ -536,24 +686,52 @@ class TranscriptionService:
                     requested_model_size = metadata.get("model_size", self.model_size)
                     include_diarization = metadata.get("include_diarization", True)
                     
-                    # Validate requested model size against loaded model
-                    if requested_model_size != self.model_size:
-                        logger.warning(f"⚠️ Requested model '{requested_model_size}' differs from system model '{self.model_size}'. Using system model to prevent crashes.")
-                        logger.warning(f"💡 To use '{requested_model_size}' model, update WHISPER_MODEL_SIZE in config.py and restart the backend.")
-                        
-                    # Always use the system-configured model size for consistency
-                    file_model_size = self.model_size
+                    normalized_requested = normalize_model_name(requested_model_size)
+                    
+                    if not normalized_requested:
+                        logger.warning(f"⚠️ Requested model '{requested_model_size}' is not supported. Falling back to '{self.model_size}'.")
+                        file_model_size = self.model_size
+                    else:
+                        file_model_size = normalized_requested
+                        if file_model_size != self.model_size:
+                            logger.info(f"ℹ️ Using user-selected Whisper model '{file_model_size}' (default configured model: '{self.model_size}').")
                     
                     logger.info(f"Using system settings: model_size={file_model_size}, language={file_language}, diarization={include_diarization}")
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to parse transcription metadata, using defaults: {e}")
-            
+                    file_model_size = self.model_size
+
+            # Pre-flight system check using the requested model
+            system_check = self._check_system_readiness_for_transcription(file_model_size)
+            logger.info(f"System readiness check ({file_model_size}): {system_check['status']}")
+
+            status = system_check['status']
+
+            if status == 'insufficient_memory':
+                error_msg = (
+                    f"Insufficient memory for {file_model_size} model. "
+                    f"Available: {system_check['memory']['available_gb']}GB, "
+                    f"Required: {system_check['memory']['required_gb']}GB"
+                )
+                if settings.WHISPER_STRICT_MEMORY:
+                    logger.error(error_msg)
+                    audio_file.transcription_status = TranscriptionStatus.FAILED
+                    audio_file.error_message = "Transcription failed: " + error_msg
+                    db.commit()
+                    raise RuntimeError(error_msg)
+                else:
+                    logger.warning(error_msg + " — continuing because WHISPER_STRICT_MEMORY is False.")
+
+            if status == 'warning':
+                for rec in system_check.get('recommendations', []):
+                    logger.warning(rec)
+
             # Set initial status with correct model info
             start_time = time.time()
             audio_file.transcription_status = TranscriptionStatus.PROCESSING
             audio_file.model_used = file_model_size  # Set to actual model that will be used
             audio_file.transcription_started_at = datetime.utcnow()
-            
+
             # Update transcription metadata to reflect actual settings used
             if audio_file.transcription_metadata:
                 try:
@@ -562,93 +740,99 @@ class TranscriptionService:
                     metadata["actual_model_used"] = file_model_size
                     metadata["processing_started"] = datetime.utcnow().isoformat()
                     audio_file.transcription_metadata = json.dumps(metadata)
-                except:
+                except Exception:
                     pass
-            
+
             # Save initial checkpoint
-            self.save_transcription_checkpoint(audio_file, "initializing", 0, 
-                                             {}, db)
-            
+            self.save_transcription_checkpoint(audio_file, "initializing", 0, {}, db)
+
             self._update_progress_with_stage(audio_file, "Starting transcription", 0.0, db, 0)
 
             # Convert to WAV if needed
             audio_service = AudioService()
             elapsed = time.time() - start_time
-            
+
             # Save audio conversion checkpoint
-            self.save_transcription_checkpoint(audio_file, "converting_audio", 0, 
-                                             {"original_path": audio_file.file_path}, db)
-            
+            self.save_transcription_checkpoint(
+                audio_file,
+                "converting_audio",
+                0,
+                {"original_path": audio_file.file_path},
+                db,
+            )
+
             self._update_progress_with_stage(audio_file, "Converting audio format", 0.05, db, elapsed)
             wav_path = audio_service.convert_to_wav(audio_file.file_path)
-            
+
             # Mark audio as transformed
             self.mark_audio_transformed(audio_file, wav_path, db)
 
             # Get file info for progress estimation
             file_size_mb = os.path.getsize(wav_path) / 1024 / 1024
             estimated_duration = audio_file.duration or 60  # Default to 60 seconds if unknown
-            
+
             # Load model with proper error handling and resource management
             elapsed = time.time() - start_time
-            
+
             # Save model loading checkpoint
-            self.save_transcription_checkpoint(audio_file, "loading_model", 0, 
-                                             {}, db)
-            
+            self.save_transcription_checkpoint(audio_file, "loading_model", 0, {}, db)
+
             self._update_progress_with_stage(audio_file, "Loading Whisper model", 0.10, db, elapsed)
-            
+
             # Check system resources before model loading
             try:
                 available_memory_gb = psutil.virtual_memory().available / (1024**3)
                 logger.info(f"Available system memory: {available_memory_gb:.1f}GB")
-                
+
                 # Estimate memory requirements by model size
                 model_memory_requirements = {
                     "tiny": 1.0,    # ~1GB
-                    "base": 2.0,    # ~2GB  
+                    "base": 2.0,    # ~2GB
                     "small": 3.0,   # ~3GB
                     "medium": 5.0,  # ~5GB
                     "large": 8.0    # ~8GB
                 }
-                
-                required_memory = model_memory_requirements.get(self.model_size, 2.0)
-                
+
+                required_memory = model_memory_requirements.get(file_model_size, 2.0)
+
                 if available_memory_gb < required_memory:
-                    logger.warning(f"⚠️ Low memory: {available_memory_gb:.1f}GB available, {required_memory}GB recommended for {self.model_size} model")
-                    
+                    logger.warning(
+                        f"⚠️ Low memory: {available_memory_gb:.1f}GB available, {required_memory}GB recommended for {file_model_size} model"
+                    )
+
             except Exception as e:
                 logger.warning(f"Failed to check system memory: {e}")
-            
-            # Load model only if not already loaded
-            if self.model is None:
-                logger.info(f"Loading Whisper model: {self.model_size} (device: {self.device})")
-                try:
-                    self.model = whisper.load_model(self.model_size, device=self.device)
-                    logger.info(f"✅ Whisper model '{self.model_size}' loaded successfully")
-                except Exception as e:
-                    logger.error(f"❌ Failed to load Whisper model '{self.model_size}': {e}")
-                    raise RuntimeError(f"Failed to load Whisper model: {e}")
-            else:
-                logger.info(f"✅ Using already loaded Whisper model: {self.model_size}")
-            
-            # Mark model as loaded with actual model size
-            audio_file.whisper_model_loaded = self.model_size
+
+            # Load model (cached) and mark actual model used
+            try:
+                model_to_use = self.load_model(file_model_size)
+            except Exception as e:
+                logger.error(f"❌ Failed to load Whisper model '{file_model_size}': {e}")
+                raise RuntimeError(f"Failed to load Whisper model '{file_model_size}': {e}")
+
+            audio_file.whisper_model_loaded = file_model_size
 
             # Transcribe with word-level timestamps with progress monitoring
             elapsed = time.time() - start_time
-            self._update_progress_with_stage(audio_file, "Running Whisper transcription - this may take several minutes", 0.15, db, elapsed)
-            
+            self._update_progress_with_stage(
+                audio_file,
+                "Running Whisper transcription - this may take several minutes",
+                0.15,
+                db,
+                elapsed,
+            )
+
             # Use specified language or auto-detect (None)
             language = audio_file.language if audio_file.language else None
-            
-            print(f"Starting Whisper transcription with {self.model_size} model...")
-            
+
+            print(f"Starting Whisper transcription with {file_model_size} model...")
+
             # Start a progress monitor thread that updates during transcription
             import threading
+
             progress_active = threading.Event()
             progress_active.set()
-            
+
             def monitor_progress():
                 """Monitor progress during transcription."""
                 monitor_start = time.time()
@@ -659,7 +843,7 @@ class TranscriptionService:
                         # For 30-second file with tiny model, expect ~30-60 seconds processing
                         estimated_total_time = max(estimated_duration * 2, 30)  # At least 30 seconds
                         time_progress = min(elapsed_monitor / estimated_total_time, 0.95)
-                        
+
                         # Progressive stages during transcription
                         if time_progress < 0.3:
                             progress = 0.15 + (time_progress * 0.3)  # 15% to 45%
@@ -670,8 +854,12 @@ class TranscriptionService:
                         else:
                             progress = 0.70 + ((time_progress - 0.7) * 0.15)  # 70% to 85%
                             stage = f"Transcribing audio - finalizing ({elapsed_monitor:.0f}s)"
-                        
+
                         # Update database in a separate session
+                        monitor_elapsed = time.time() - monitor_start
+                        if monitor_elapsed > 300:
+                            stage += " (long running)"
+
                         monitor_db = SessionLocal()
                         try:
                             fresh_file = monitor_db.query(AudioFile).filter(AudioFile.id == audio_file.id).first()
@@ -679,19 +867,21 @@ class TranscriptionService:
                                 self._update_progress_with_stage(fresh_file, stage, progress, monitor_db, elapsed_monitor)
                         finally:
                             monitor_db.close()
-                            
-                        time.sleep(3)  # Update every 3 seconds
-                    except Exception as e:
-                        print(f"Progress monitor error: {e}")
+
+                    except Exception as monitor_error:
+                        logger.debug(f"Progress monitor error: {monitor_error}")
                         break
-            
-            # Start progress monitor
+
+                    time.sleep(3)
+
             progress_thread = threading.Thread(target=monitor_progress, daemon=True)
             progress_thread.start()
-            
+
             try:
-                result = self.model.transcribe(
+                # Run Whisper transcription with progress reporting
+                result = model_to_use.transcribe(
                     wav_path,
+                    temperature=0.0,
                     word_timestamps=True,
                     language=language,  # Auto-detect if None, or use specified language code
                     task="transcribe",
@@ -701,7 +891,7 @@ class TranscriptionService:
                 # Stop progress monitor
                 progress_active.clear()
                 progress_thread.join(timeout=2)
-            
+
             print(f"Whisper transcription completed! Found {len(result['segments'])} segments.")
 
             # Update progress for segment creation
@@ -713,11 +903,11 @@ class TranscriptionService:
             # First, get existing segments to preserve them in case of failure
             existing_segments = db.query(Segment).filter(Segment.audio_file_id == audio_file_id).all()
             logger.info(f"Found {len(existing_segments)} existing segments to preserve during transcription")
-            
+
             new_segments = []
             total_segments = len(result["segments"])
             batch_size = 100  # Process segments in batches for better performance
-            
+
             try:
                 # Create new segments first (don't delete old ones yet)
                 for i, segment_data in enumerate(result["segments"]):
@@ -730,11 +920,11 @@ class TranscriptionService:
                     )
                     db.add(segment)
                     new_segments.append(segment)
-                    
+
                     # Commit new segments in batches
                     if (i + 1) % batch_size == 0 or (i + 1) == total_segments:
                         db.commit()
-                        
+
                         # Update progress during segment creation
                         elapsed = time.time() - start_time
                         segment_progress = 0.85 + (0.10 * (i + 1) / total_segments)
@@ -747,9 +937,9 @@ class TranscriptionService:
                         db.delete(old_segment)
                     db.commit()
                     logger.info("Old segments safely removed after successful transcription")
-                
+
                 segments = new_segments  # Use the new segments
-                
+
             except Exception as e:
                 # If segment creation failed, clean up any partial new segments
                 logger.error(f"Segment creation failed: {e}")
@@ -765,7 +955,7 @@ class TranscriptionService:
             # Calculate final timing and performance stats
             end_time = time.time()
             total_duration = end_time - start_time
-            
+
             # Create performance stats
             process_info = self._get_process_info()
             performance_stats = {
@@ -773,13 +963,13 @@ class TranscriptionService:
                 "audio_duration_seconds": estimated_duration,
                 "processing_speed_ratio": total_duration / max(estimated_duration, 1),
                 "segments_created": total_segments,
-                "model_used": self.model_size,
+                "model_used": file_model_size,
                 "device": self.device,
                 "file_size_mb": file_size_mb,
                 "final_memory_mb": process_info.get("memory_mb", 0),
                 "completed_at": datetime.utcnow().isoformat()
             }
-            
+
             # Update status to completed with audit data
             audio_file.transcription_status = TranscriptionStatus.COMPLETED
             audio_file.transcription_progress = 1.0
@@ -807,7 +997,7 @@ class TranscriptionService:
             error_details = {
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "model_size": self.model_size,
+                "model_size": file_model_size,
                 "device": self.device,
                 "timestamp": datetime.utcnow().isoformat()
             }

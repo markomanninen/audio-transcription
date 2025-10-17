@@ -48,8 +48,12 @@ def test_start_transcription(client, project_with_file, test_db):
     file_id = project_with_file["file_id"]
 
     # Patch SessionLocal where it's imported (in the function)
-    with patch('app.core.database.SessionLocal') as mock_session:
+    with patch('app.core.database.SessionLocal') as mock_session, \
+         patch('app.api.transcription.initialize_transcription_service') as mock_init, \
+         patch('app.api.transcription.add_pending_transcription') as mock_add_pending:
         mock_session.return_value = test_db
+        mock_init.return_value = None
+        mock_add_pending.return_value = None
 
         response = client.post(
             f"/api/transcription/{file_id}/start",

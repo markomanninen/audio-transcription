@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, API_BASE_URL } from '../../api/client'
 import { TranscriptionSettingsModal, TranscriptionSettings } from './TranscriptionSettingsModal'
 import { getStatusBadgeColors } from '../../utils/statusColors'
+import type { TranscriptionStatus as TranscriptionStatusResult, AudioFile } from '../../types'
 
 interface FileListProps {
   projectId: number
@@ -39,8 +40,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
     },
     onSuccess: () => {
       console.log('Delete successful, invalidating queries')
-      queryClient.invalidateQueries({ queryKey: ['files', projectId] })
-      queryClient.invalidateQueries({ queryKey: ['project-files'] })
+      queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
     },
     onError: (error) => {
       console.error('Delete error details:', error)
@@ -76,13 +76,52 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       console.log('No modal state, exiting early')
       return
     }
-    
+
+    const fileId = showTranscriptionModal.fileId
+    const statusQueryKey = ['transcription-status', fileId, 'v3'] as const
+    const filesQueryKey = ['files', projectId] as const
+    const previousStatus = queryClient.getQueryData<TranscriptionStatusResult>(statusQueryKey)
+    const previousFiles = queryClient.getQueryData<AudioFile[]>(filesQueryKey)
+    const now = new Date().toISOString()
+
+    const optimisticStatus: TranscriptionStatusResult = {
+      file_id: previousStatus?.file_id ?? fileId,
+      filename: previousStatus?.filename ?? showTranscriptionModal.fileName,
+      original_filename: previousStatus?.original_filename ?? showTranscriptionModal.fileName,
+      status: 'processing',
+      progress: previousStatus?.progress ?? 0,
+      error_message: undefined,
+      processing_stage: 'Preparing transcription...',
+      segment_count: previousStatus?.segment_count ?? 0,
+      duration: previousStatus?.duration,
+      transcription_started_at: previousStatus?.transcription_started_at ?? now,
+      transcription_completed_at: undefined,
+      created_at: previousStatus?.created_at ?? now,
+      updated_at: now,
+      transcription_metadata: previousStatus?.transcription_metadata ?? undefined,
+    }
+
     console.log('Setting action in progress...')
     setActionInProgress({ 
-      fileId: showTranscriptionModal.fileId, 
+      fileId, 
       action: 'Starting transcription' 
     })
     
+    // Apply optimistic updates so the UI reflects the new state immediately
+    queryClient.setQueryData(statusQueryKey, optimisticStatus)
+    queryClient.setQueryData<AudioFile[] | undefined>(filesQueryKey, (current) =>
+      current?.map((audioFile) =>
+        audioFile.file_id === fileId
+          ? {
+              ...audioFile,
+              status: 'processing',
+              transcription_started_at: optimisticStatus.transcription_started_at,
+              transcription_completed_at: undefined,
+            }
+          : audioFile
+      )
+    )
+
     console.log('Starting try block for API call...')
     try {
       // Save the last used settings for future transcriptions
@@ -121,8 +160,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       
       // Immediate invalidation of all relevant queries to refresh the UI with v3 cache keys
       console.log('Invalidating queries for UI refresh')
-      queryClient.invalidateQueries({ queryKey: ['project-files'] })
-      queryClient.invalidateQueries({ queryKey: ['files'] })
+      queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
       queryClient.invalidateQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['segments', showTranscriptionModal.fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['speakers', showTranscriptionModal.fileId, 'v3'] })
@@ -141,13 +179,23 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       console.log('Transcription start completed successfully')
     } catch (error) {
       console.error('Failed to start transcription:', error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      alert(`Failed to start transcription: ${errorMessage}`)
-      
-      // Force close modal even on error
-      console.log('Closing modal due to error')
-      setShowTranscriptionModal(null)
-      setActionInProgress(null)
+      // Revert optimistic updates if start fails
+      if (previousStatus) {
+        queryClient.setQueryData(statusQueryKey, previousStatus)
+      } else {
+        queryClient.removeQueries({ queryKey: statusQueryKey, exact: true })
+      }
+      if (previousFiles) {
+        queryClient.setQueryData(filesQueryKey, previousFiles)
+      }
+
+      // Even on error, refresh status queries so the UI shows latest state from backend
+      queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
+      if (showTranscriptionModal) {
+        queryClient.invalidateQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
+        queryClient.invalidateQueries({ queryKey: ['segments', showTranscriptionModal.fileId, 'v3'] })
+        queryClient.invalidateQueries({ queryKey: ['speakers', showTranscriptionModal.fileId, 'v3'] })
+      }
     } finally {
       // Ensure action state is cleared and modal is closed (defensive programming)
       setActionInProgress(null)
@@ -227,26 +275,37 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
 
   return (
     <>
-      <div className="space-y-4">
-        {files.map((file) => (
-        <div
-          key={file.file_id}
-          className={`
-            bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
-            rounded-xl p-6 transition-all duration-200 hover:shadow-md cursor-pointer
-            ${
-              selectedFileId === file.file_id
-                ? 'ring-2 ring-blue-500 border-blue-500'
-                : 'hover:border-gray-300 dark:hover:border-gray-600'
-            }
-          `}
-          onClick={() => onSelectFile?.(file.file_id)}
-        >
+      <div className="space-y-4" data-component="file-list">
+        {files.map((file) => {
+          const cachedStatus = queryClient.getQueryData<TranscriptionStatusResult>([
+            'transcription-status',
+            file.file_id,
+            'v3',
+          ])
+          const effectiveStatus = cachedStatus?.status ?? file.status
+
+          return (
+            <div
+              key={file.file_id}
+              className={`
+                bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
+                rounded-xl p-6 transition-all duration-200 hover:shadow-md cursor-pointer
+                ${
+                  selectedFileId === file.file_id
+                    ? 'ring-2 ring-blue-500 border-blue-500'
+                    : 'hover:border-gray-300 dark:hover:border-gray-600'
+                }
+              `}
+              data-component="file-card"
+              data-file-id={file.file_id}
+              data-status={effectiveStatus}
+              onClick={() => onSelectFile?.(file.file_id)}
+            >
           {/* Header Row */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                {file.original_filename}
+                <span data-file-name>{file.original_filename}</span>
               </h3>
               <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
                 <span className="flex items-center gap-1">
@@ -282,7 +341,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Primary Action Button */}
-              {file.status === 'pending' && (
+              {effectiveStatus === 'pending' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -299,7 +358,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                 </button>
               )}
 
-              {file.status === 'completed' && (
+              {effectiveStatus === 'completed' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -314,7 +373,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                 </button>
               )}
 
-              {file.status === 'failed' && (
+              {effectiveStatus === 'failed' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -336,15 +395,15 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
               <span
                 className={`
                   px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide
-                  ${getStatusBadgeColors(file.status)}
+                  ${getStatusBadgeColors(effectiveStatus)}
                 `}
               >
-                {file.status}
+                {effectiveStatus}
               </span>
 
               {/* No secondary actions for failed files - use details panel instead */}
 
-              {file.status === 'processing' && (
+              {effectiveStatus === 'processing' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -365,7 +424,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
             </div>
           </div>
 
-          {/* Action Progress Indicator */}
+
           {actionInProgress?.fileId === file.file_id && (
             <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
@@ -374,8 +433,9 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
               </div>
             </div>
           )}
-        </div>
-      ))}
+            </div>
+          )
+        })}
       </div>
 
       {/* Transcription Settings Modal */}

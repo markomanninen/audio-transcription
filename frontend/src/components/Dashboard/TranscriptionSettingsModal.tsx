@@ -57,7 +57,7 @@ export function TranscriptionSettingsModal({
   
   // Default fallback settings
   const getDefaultSettings = (): TranscriptionSettings => ({
-    model_size: 'large',
+    model_size: 'tiny',
     language: null,
     include_diarization: true
   })
