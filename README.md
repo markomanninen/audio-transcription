@@ -10,6 +10,7 @@ AI-powered audio transcription application with speaker recognition, multi-langu
 ## ✨ Features
 
 ### Core Transcription
+
 - **🌍 Multi-language Support**: 22+ languages including English, Finnish, Swedish, French, German, Spanish, and more
 - **🎯 Auto Language Detection**: Automatically detects spoken language
 - **👥 Speaker Diarization**: Automatic speaker identification and labeling
@@ -17,12 +18,14 @@ AI-powered audio transcription application with speaker recognition, multi-langu
 - **📝 Multiple Output Formats**: Export as SRT, HTML, or TXT
 
 ### AI-Powered Editing
+
 - **✨ Context-Aware Corrections**: Smart grammar and spelling fixes with segment context
 - **🔍 Content Analysis**: AI-powered project-wide analysis and summaries  
 - **🎨 Customizable Speakers**: Rename speakers and assign custom colors
 - **📊 LLM Monitoring**: Track and debug all AI interactions
 
 ### User Experience
+
 - **🎵 Built-in Audio Player**: Play, pause, and jump to specific segments
 - **✏️ Inline Editing**: Edit transcriptions directly with live preview
 - **🌓 Dark/Light Mode**: Comfortable viewing in any environment
@@ -41,28 +44,128 @@ AI-powered audio transcription application with speaker recognition, multi-langu
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/audio-transcription.git
    cd audio-transcription
    ```
 
 2. **Configure environment** (optional)
+
    ```bash
    cp backend/.env.example backend/.env
    # Edit backend/.env if you want to use OpenRouter for AI features
    ```
 
 3. **Start the application**
+
    ```bash
    docker-compose up -d
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:5175
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+   - Frontend: <http://localhost:3000>
+   - Backend API: <http://localhost:8080>
+   - API Docs: <http://localhost:8080/docs>
 
 The first startup will download the Whisper model (~1-2GB), which may take a few minutes.
+
+## 🛠️ Local Development (Non-Docker)
+
+For active development without Docker containers:
+
+### Prerequisites
+
+- Python 3.11+ with virtual environment
+- Node.js 18+
+- FFmpeg (`brew install ffmpeg`)
+
+**Auto-managed services:**
+- Redis (automatically started)
+- Ollama (automatically started for AI features)
+
+### Quick Start
+
+```bash
+# Install dependencies
+brew install ffmpeg
+
+# Clone and setup
+git clone https://github.com/YOUR_USERNAME/audio-transcription.git
+cd audio-transcription
+
+# Setup Python environment
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+# Setup frontend
+cd frontend && npm install && cd ..
+
+# Start development environment (auto-starts Redis & Ollama)
+npm run dev
+```
+
+### Development Commands
+
+```bash
+npm run dev              # Start both backend and frontend
+npm run dev:backend      # Start only backend
+npm run dev:frontend     # Start only frontend
+npm run dev:restart      # Restart all services
+npm run dev:stop         # Stop all services
+npm run dev:check        # Check service status
+npm run dev:logs         # Show live logs
+
+# Alternative direct usage
+./dev                    # Start both services
+python dev_runner.py     # Same as above
+```
+
+### Smart Features
+
+The development runner includes:
+
+- **Automatic service management** - starts Redis and Ollama automatically
+- **Automatic port detection** - finds available ports if defaults are busy
+- **Health checking** - verifies services are ready before reporting success
+- **Dependency validation** - checks all requirements before starting
+- **Process management** - tracks and cleanly shuts down all services
+- **Auto-restart** - restarts failed services automatically
+- **Live logs** - real-time output from both services
+
+### Accessing the Application
+
+- **Frontend**: http://localhost:5173 (or next available port)
+- **Backend API**: http://localhost:8000 (or next available port)
+- **API Documentation**: http://localhost:8000/docs
+
+**📖 Full Development Guide**: See [docs/development/ENVIRONMENT_GUIDE.md](./docs/development/ENVIRONMENT_GUIDE.md) for detailed environment setup and troubleshooting.
+
+### Production Stack via Docker Hub
+
+If you only need the production build (no local development tooling), install Docker, make sure `docker-compose.prod.yml` and `run_prod.sh` are available (for example by cloning this repository), then run:
+
+```bash
+./run_prod.sh
+```
+
+The helper script will:
+
+- Ensure `backend/.env` exists (copies the example on first run so you can edit secrets).
+- Pull the published backend/frontend images plus Redis and Ollama.
+- Start the production stack and wait for the API health endpoint.
+- Preload the configured Whisper and Ollama models so the first transcription is ready to go.
+- Report the local URLs for the UI, API docs, and supporting services.
+
+Use `docker compose -f docker-compose.prod.yml down` when you want to stop the services.
+
+Prefer to avoid helper scripts? Run the stack manually:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
 
 ## 📖 Usage
 
@@ -94,14 +197,16 @@ The first startup will download the Whisper model (~1-2GB), which may take a few
    - Choose format: SRT (subtitles), HTML (styled), or TXT (plain text)
    - Download your transcription
 
-### AI Features
+### Advanced AI Features
 
-**Grammar Correction**
+#### Grammar Correction
+
 - Click ✨ on any segment for AI-powered corrections
 - Maintains speaker context and content type
 - Shows changes before applying
 
-**Project Analysis**
+#### Project Analysis
+
 - Use "AI Analysis" from Project menu
 - Generates summaries, themes, and key points
 - Great for understanding long interviews or meetings
@@ -147,6 +252,7 @@ OLLAMA_VERIFY_SSL=true
 | large  | ~3GB | Slowest | Best | Maximum accuracy |
 
 Change model in `backend/.env`:
+
 ```env
 WHISPER_MODEL_SIZE=small
 ```
@@ -154,18 +260,21 @@ WHISPER_MODEL_SIZE=small
 ## 📊 Limitations
 
 ### Audio Files
+
 - **Maximum file size**: 500MB
 - **Supported formats**: MP3, WAV, M4A, WebM, OGG, FLAC
 - **Minimum quality**: 16kHz recommended for best results
 - **Stereo/Mono**: Both supported
 
 ### Transcription
+
 - **Processing time**: Typically 20-40% of audio duration (3-minute audio = ~1-2 minutes)
 - **Languages**: 22 languages supported (see Whisper documentation)
 - **Speaker diarization**: Works best with 2-10 speakers
 - **Background noise**: May affect accuracy - use noise reduction tools if needed
 
 ### AI Features
+
 - **Rate limits**: Depends on chosen provider (Ollama local = unlimited, OpenRouter = per API key)
 - **Context length**: Limited to segment + surrounding context (~2000 characters)
 - **Accuracy**: AI suggestions should be reviewed before accepting
@@ -173,6 +282,7 @@ WHISPER_MODEL_SIZE=small
 ## 🏗️ Architecture
 
 ### Backend
+
 - **Framework**: FastAPI (Python 3.11+)
 - **Transcription**: OpenAI Whisper
 - **Speaker Diarization**: PyAnnote Audio
@@ -180,12 +290,14 @@ WHISPER_MODEL_SIZE=small
 - **Database**: SQLite (easily upgradable to PostgreSQL)
 
 ### Frontend
+
 - **Framework**: React 18 + TypeScript
 - **Styling**: Tailwind CSS
 - **State Management**: TanStack Query
 - **Audio Player**: Custom HTML5 Audio implementation
 
 ### Infrastructure
+
 - **Containerization**: Docker + Docker Compose
 - **Reverse Proxy**: Nginx (production)
 - **Storage**: Local filesystem (configurable)
@@ -197,6 +309,7 @@ WHISPER_MODEL_SIZE=small
 For better performance or to share resources, you can configure the application to use an external Ollama service:
 
 **Quick Setup**:
+
 1. Set `OLLAMA_EXTERNAL=true` in your `.env` file
 2. Update `OLLAMA_BASE_URL` to your external service URL
 3. Configure authentication if required
@@ -238,7 +351,7 @@ npm run test:e2e
 
 ### API Documentation
 
-Visit http://localhost:8000/docs for interactive Swagger documentation.
+Visit <http://localhost:8000/docs> for interactive Swagger documentation.
 
 ## 📦 Deployment
 
@@ -281,6 +394,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Support
 
 For issues and questions:
+
 - Create an issue on GitHub
 - Check existing issues for solutions
 - Review the interactive tutorial in the app

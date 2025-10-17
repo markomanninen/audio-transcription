@@ -29,6 +29,17 @@ export default function AudioPlayer({
     onPlayingChange?.(isPlaying)
   }, [isPlaying, onPlayingChange])
 
+  // Stop audio when URL changes (file switch)
+  useEffect(() => {
+    const audio = audioRef.current
+    if (audio) {
+      // Pause audio when switching files
+      audio.pause()
+      setIsPlaying(false)
+      setLocalCurrentTime(0)
+    }
+  }, [audioUrl])
+
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -115,10 +126,8 @@ export default function AudioPlayer({
     if (currentTime !== undefined && audio && Math.abs(audio.currentTime - currentTime) > 1) {
       // Only seek if the difference is more than 1 second to avoid constant updates
       audio.currentTime = currentTime
-      // Always start playing after seeking (segment click or replay)
-      audio.play()
-        .then(() => setIsPlaying(true))
-        .catch(err => console.error('Playback error:', err))
+      // DO NOT auto-start playing - only seek to position
+      // User must explicitly click play button to start audio
     }
   }, [currentTime])
 
@@ -147,11 +156,13 @@ export default function AudioPlayer({
     const audio = audioRef.current
     if (!audio) return
 
+    // Always reset to beginning
     audio.currentTime = 0
     setLocalCurrentTime(0)
-    if (isPlaying) {
-      audio.play().catch(err => console.error('Replay error:', err))
-    }
+    onSeek?.(0) // Notify parent of position change
+    
+    // DO NOT auto-start playing - user must click play button
+    // Replay only resets position to beginning
   }
 
   const formatTime = (seconds: number): string => {

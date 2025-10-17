@@ -23,10 +23,12 @@ test.describe('File Status Consistency', () => {
   })
 
   test('file list and status panel show consistent status when switching files', async ({ page }) => {
-    // Get all file cards
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return
@@ -90,9 +92,12 @@ test.describe('File Status Consistency', () => {
   })
 
   test('refreshing page maintains correct status display', async ({ page }) => {
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 1) {
       test.skip()
       return
@@ -141,9 +146,12 @@ test.describe('File Status Consistency', () => {
   })
 
   test('switching between completed files shows correct segment counts', async ({ page }) => {
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return
@@ -203,9 +211,12 @@ test.describe('File Status Consistency', () => {
       console.error('Page error:', error.message)
     })
 
+    // Wait for seeded files
+    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    await expect(fileCards.first()).toBeVisible({ timeout: 10000 })
 
+    const fileCount = await fileCards.count()
     if (fileCount < 2) {
       test.skip()
       return

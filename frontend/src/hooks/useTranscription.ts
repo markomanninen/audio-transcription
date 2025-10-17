@@ -63,7 +63,36 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
         console.log(`[useTranscriptionStatus] File ${fileId} status:`, response.data.status)
       }
 
-      return response.data
+      const raw = response.data
+
+      const statusValue = typeof raw.status === 'string' ? raw.status.toLowerCase() : 'pending'
+      const normalizedStatus: TranscriptionStatus['status'] =
+        statusValue === 'processing' ||
+        statusValue === 'completed' ||
+        statusValue === 'failed' ||
+        statusValue === 'pending'
+          ? (statusValue as TranscriptionStatus['status'])
+          : 'pending'
+
+      let normalizedProgress = typeof raw.progress === 'number' ? raw.progress : 0
+      if (normalizedProgress > 1) {
+        normalizedProgress = normalizedProgress / 100
+      }
+      normalizedProgress = Math.min(Math.max(normalizedProgress, 0), 1)
+
+      const stageFromError =
+        typeof raw.error_message === 'string' && raw.error_message.startsWith('Stage: ')
+          ? raw.error_message.slice(7)
+          : null
+      const normalizedStage = raw.processing_stage ?? stageFromError
+
+      return {
+        ...raw,
+        status: normalizedStatus,
+        progress: normalizedProgress,
+        processing_stage: normalizedStage ?? undefined,
+        error_message: stageFromError ? undefined : raw.error_message ?? undefined,
+      }
     },
     enabled: !!fileId,
     staleTime: 0, // Always consider data stale
@@ -90,6 +119,7 @@ export const useTranscriptionStatus = (fileId: number | null, pollInterval?: num
   // Handle transcription completion side effects
   useEffect(() => {
     if (query.data?.status === 'completed') {
+      console.log(`[useTranscriptionStatus] Transcription completed for file ${fileId} - invalidating segments and speakers`)
       // Only invalidate related queries, NOT the status query itself
       queryClient.invalidateQueries({ queryKey: ['segments', fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['speakers', fileId, 'v3'] })
@@ -116,19 +146,21 @@ export const useSegments = (fileId: number | null) => {
     // Enhanced cache key with version for isolation
     queryKey: ['segments', fileId, 'v3'],
     queryFn: async (): Promise<Segment[]> => {
-      if (!fileId) return []
-
-      if (import.meta.env.DEV) {
-        console.log(`[useSegments] Fetching segments for file ${fileId}`)
+      if (!fileId) {
+        console.log(`[useSegments] No fileId provided, returning empty array`)
+        return []
       }
 
-      const response = await apiClient.get<Segment[]>(`/api/transcription/${fileId}/segments`)
+      console.log(`[useSegments] Fetching segments for file ${fileId}`)
 
-      if (import.meta.env.DEV) {
-        console.log(`[useSegments] File ${fileId} returned ${response.data.length} segments`)
+      try {
+        const response = await apiClient.get<Segment[]>(`/api/transcription/${fileId}/segments`)
+        console.log(`[useSegments] File ${fileId} returned ${response.data.length} segments:`, response.data)
+        return response.data
+      } catch (error) {
+        console.error(`[useSegments] Error fetching segments for file ${fileId}:`, error)
+        throw error
       }
-
-      return response.data
     },
     enabled: !!fileId,
     staleTime: 5000, // Consider data fresh for 5 seconds

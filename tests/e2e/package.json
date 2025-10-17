@@ -6,9 +6,12 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.2"
+    "@playwright/test": "^1.48.2",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.9.3"
   }
 }

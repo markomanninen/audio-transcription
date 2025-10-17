@@ -1,41 +1,73 @@
 """
 FastAPI main application entry point.
 """
+import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from .core.database import init_db
+from .core.database import init_db, engine, SessionLocal
 from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs
+from .core.config import settings
+from .services.status_normalizer import normalize_transcription_statuses
+from .models.audio_file import AudioFile, TranscriptionStatus
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    print("[STARTUP] Starting application lifespan...")
+    
     # Startup: Initialize database with complete schema
-    init_db()
+    print("[STARTUP] Initializing database...")
+    try:
+        init_db()
+        print("[STARTUP] Database initialized")
+    except Exception as e:
+        print(f"[STARTUP] ❌ Database initialization failed: {e}")
+        raise
+
+    # Normalize legacy lowercase transcription statuses so they align with the current enum.
+    print("[STARTUP] Normalizing transcription statuses...")
+    try:
+        results = normalize_transcription_statuses(engine)
+        normalized = results.get("normalized", 0)
+        invalid_reset = results.get("invalid_reset", 0)
+        print(f"[STARTUP] 🛠️ Normalized {normalized} transcription status value(s); reset {invalid_reset} invalid record(s).")
+    except Exception as exc:
+        print(f"[STARTUP] ⚠️ Failed to normalize transcription statuses: {exc}")
+
+    # Optionally seed deterministic data for local end-to-end tests.
+    if os.getenv("SEED_E2E_DATA", "").lower() in {"1", "true", "yes", "on"}:
+        try:
+            from .test_data.seed_e2e import seed_e2e_data
+
+            seed_e2e_data()
+        except Exception as exc:
+            print(f"⚠️ Failed to seed E2E data: {exc}")
     
     # Clean up any orphaned transcriptions from previous server crashes/restarts
-    from .core.database import SessionLocal
-    from .models.audio_file import AudioFile, TranscriptionStatus
-    
+    print("[STARTUP] Cleaning up orphaned transcriptions...")
     db = SessionLocal()
     try:
         # Reset any PROCESSING transcriptions to PENDING
         # Because if we're starting up, any previous processes are dead
+        print("[STARTUP] Querying for orphaned files...")
         orphaned_files = db.query(AudioFile).filter(
             AudioFile.transcription_status == TranscriptionStatus.PROCESSING
         ).all()
-        
+        print(f"[STARTUP] Found {len(orphaned_files)} orphaned files")
+
         for file in orphaned_files:
             print(f"🧹 Cleaning up orphaned transcription for file {file.id}")
             file.transcription_status = TranscriptionStatus.PENDING
             file.transcription_progress = 0.0
             file.error_message = "Transcription was interrupted by server restart"
             file.transcription_started_at = None
-            
+
         if orphaned_files:
+            print("[STARTUP] Committing orphaned file changes...")
             db.commit()
             print(f"🧹 Cleaned up {len(orphaned_files)} orphaned transcription(s)")
         else:
@@ -61,14 +93,24 @@ app = FastAPI(
 )
 
 # CORS configuration
+cors_origins = settings.cors_origins_list
+# Ensure http(s)://localhost is always allowed when serving through nginx on port 80
+fallback_origins = ["http://localhost", "http://127.0.0.1", "https://localhost"]
+allow_origins = list(dict.fromkeys([*cors_origins, *fallback_origins]))
+# Permit any localhost/127.0.0.1 port during development and automated tests.
+local_origin_regex = r"http://(localhost|127\.0\.0\.1)(:\d+)?$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    allow_origins=allow_origins,
+    allow_origin_regex=local_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
+
+# Removed request logging middleware that might be causing issues
 
 # Include routers
 app.include_router(upload.router)
@@ -86,142 +128,204 @@ async def root():
     return {"status": "healthy", "service": "audio-transcription-api"}
 
 
+@app.get("/health-simple")
+async def health_simple():
+    """Ultra-simple health check - just returns 200 OK."""
+    import time
+    print(f"[HEALTH-SIMPLE] Health check requested at {time.time()}")
+    return {"status": "ok", "timestamp": time.time()}
+
+
 @app.get("/health")
 async def health():
-    """Detailed health check with component status."""
-    import os
-    import sqlite3
-    import requests
+    """Non-blocking health check with essential transcription status."""
+    import time
     from pathlib import Path
-
+    
     components = {
         "api": {"status": "up", "message": "FastAPI running"},
-        "database": {"status": "unknown", "message": ""},
-        "whisper": {"status": "unknown", "message": ""},
-        "ollama": {"status": "unknown", "message": ""},
-        "redis": {"status": "unknown", "message": ""},
-        "storage": {"status": "unknown", "message": ""},
+        "database": {"status": "up", "message": "Available"},
+        "whisper": {"status": "idle", "message": "Will load on demand"},
+        "ollama": {"status": "unknown", "message": "Not checked (optional)"},
+        "redis": {"status": "unknown", "message": "Not checked (optional)"},
+        "storage": {"status": "up", "message": "Available"},
     }
 
-    # Check database
+    # Check Redis (optional, fast check with timeout)
     try:
-        from .core.config import settings
-        db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-        if Path(db_path).exists():
-            # Use a short timeout to avoid blocking during heavy operations
-            conn = sqlite3.connect(db_path, timeout=5.0)
-            conn.execute("SELECT 1")
-            conn.close()
-            components["database"] = {"status": "up", "message": f"SQLite database accessible"}
-        else:
-            components["database"] = {"status": "down", "message": "Database file not found"}
+        import redis
+        redis_client = redis.from_url(
+            settings.REDIS_URL,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            decode_responses=False,
+            health_check_interval=0  # Disable background health checks
+        )
+        redis_client.ping()
+        redis_client.close()
+        components["redis"] = {"status": "up", "message": "Connected"}
+    except ImportError:
+        components["redis"] = {"status": "down", "message": "Redis library not installed"}
+    except redis.exceptions.ConnectionError:
+        components["redis"] = {"status": "down", "message": "Connection refused"}
+    except redis.exceptions.TimeoutError:
+        components["redis"] = {"status": "down", "message": "Connection timeout"}
     except Exception as e:
-        # During heavy transcription, database might be busy - this is normal
-        if "database is locked" in str(e).lower() or "busy" in str(e).lower():
-            components["database"] = {"status": "busy", "message": "Database busy (transcription in progress)"}
-        else:
-            components["database"] = {"status": "down", "message": str(e)}
+        error_msg = str(e)[:50] if str(e) else "Connection failed"
+        components["redis"] = {"status": "down", "message": f"Not available: {error_msg}"}
 
-    # Check Whisper model
+    # Check Ollama (optional, fast check with timeout)
     try:
-        from .services.transcription_singleton import is_transcription_service_ready, get_transcription_service, get_model_download_progress
-        from .core.config import settings
+        import requests
+        ollama_url = settings.OLLAMA_BASE_URL or "http://localhost:11434"
+        response = requests.get(f"{ollama_url}/api/tags", timeout=1.0)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            model_count = len(models)
+            components["ollama"] = {"status": "up", "message": f"Connected ({model_count} models)"}
+        else:
+            components["ollama"] = {"status": "down", "message": f"HTTP {response.status_code}"}
+    except ImportError:
+        components["ollama"] = {"status": "down", "message": "Requests library not installed"}
+    except requests.exceptions.Timeout:
+        components["ollama"] = {"status": "down", "message": "Connection timeout"}
+    except requests.exceptions.ConnectionError:
+        components["ollama"] = {"status": "down", "message": "Connection refused"}
+    except Exception as e:
+        error_msg = str(e)[:50] if str(e) else "Connection failed"
+        components["ollama"] = {"status": "down", "message": f"Not available: {error_msg}"}
+    
+    # Check storage (fast, non-blocking)
+    try:
+        storage_path = Path(settings.AUDIO_STORAGE_PATH)
+        if storage_path.exists():
+            components["storage"] = {"status": "up", "message": f"Storage accessible"}
+        else:
+            components["storage"] = {"status": "down", "message": "Storage path missing"}
+    except Exception as e:
+        components["storage"] = {"status": "down", "message": str(e)}
+    
+    # Check Whisper status (non-blocking, no model loading)
+    try:
+        from .services.transcription_singleton import (
+            is_transcription_service_ready, 
+            is_initialization_in_progress,
+            get_model_download_progress,
+            get_target_model_size
+        )
         
         if is_transcription_service_ready():
-            service = get_transcription_service()
-            components["whisper"] = {
-                "status": "up", 
-                "message": f"Whisper model '{service.model_size}' loaded and ready",
-                "model_size": service.model_size
-            }
-        else:
-            # Try to get download progress
+            # Service is ready - get model size without blocking
+            try:
+                from .services.transcription_singleton import get_transcription_service
+                service = get_transcription_service()
+                components["whisper"] = {
+                    "status": "up", 
+                    "message": f"Whisper model '{service.model_size}' ready",
+                    "model_size": service.model_size
+                }
+            except:
+                # Fallback if getting service fails
+                components["whisper"] = {
+                    "status": "up", 
+                    "message": "Whisper service ready",
+                    "model_size": get_target_model_size()
+                }
+        elif is_initialization_in_progress():
+            # Check for download progress (non-blocking)
             download_info = get_model_download_progress()
+            model_size = get_target_model_size()
+            
             if download_info:
-                # CRITICAL FIX: If download is at 100%, mark as ready to load (not downloading)
                 if download_info['progress'] >= 100:
                     components["whisper"] = {
-                        "status": "up",
-                        "message": f"Whisper model downloaded and ready to load",
-                        "model_size": settings.WHISPER_MODEL_SIZE
+                        "status": "loading",
+                        "message": f"Loading {model_size} model into memory...",
+                        "model_size": model_size
                     }
                 else:
                     components["whisper"] = {
                         "status": "downloading",
-                        "message": f"Downloading Whisper model: {download_info['progress']}% ({download_info['downloaded']}/{download_info['total']})",
+                        "message": f"Downloading {model_size}: {download_info['progress']}%",
                         "progress": download_info['progress'],
                         "downloaded": download_info['downloaded'],
                         "total": download_info['total'],
-                        "speed": download_info.get('speed', 'unknown'),
-                        "model_size": settings.WHISPER_MODEL_SIZE
+                        "speed": download_info.get('speed', ''),
+                        "model_size": model_size
                     }
             else:
                 components["whisper"] = {
                     "status": "loading",
-                    "message": f"Whisper model loading... (this may take several minutes)",
-                    "model_size": settings.WHISPER_MODEL_SIZE
+                    "message": f"Initializing {model_size} model...",
+                    "model_size": model_size
                 }
-    except Exception as e:
-        components["whisper"] = {"status": "down", "message": f"Whisper error: {str(e)}"}
-
-    # Check Ollama
-    try:
-        response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2)
-        if response.status_code == 200:
-            models = response.json().get("models", [])
-            model_names = [m["name"] for m in models]
-            components["ollama"] = {
-                "status": "up",
-                "message": f"{len(models)} model(s) available: {', '.join(model_names[:3])}"
+        else:
+            # Not initialized yet
+            model_size = get_target_model_size()
+            components["whisper"] = {
+                "status": "idle",
+                "message": f"Will load {model_size} model on demand",
+                "model_size": model_size
             }
-        else:
-            components["ollama"] = {"status": "down", "message": "Ollama API unreachable"}
+            
     except Exception as e:
-        components["ollama"] = {"status": "down", "message": "Ollama not available (optional)"}
-
-    # Check Redis
+        components["whisper"] = {"status": "unknown", "message": f"Status check failed: {str(e)}"}
+    
+    # Check for active transcriptions (quick database check)
     try:
-        import redis
-        r = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
-        r.ping()
-        components["redis"] = {"status": "up", "message": "Redis connection successful"}
+        # Quick check for processing files without blocking
+        db = SessionLocal()
+        try:
+            processing_count = db.query(AudioFile).filter(
+                AudioFile.transcription_status == TranscriptionStatus.PROCESSING
+            ).count()
+            
+            if processing_count > 0:
+                components["database"] = {"status": "busy", "message": f"Processing {processing_count} transcription(s)"}
+                # Update whisper status if processing
+                if components["whisper"]["status"] == "up":
+                    # Get active transcription info
+                    active_file = db.query(AudioFile).filter(
+                        AudioFile.transcription_status == TranscriptionStatus.PROCESSING
+                    ).first()
+                    if active_file:
+                        components["whisper"]["status"] = "processing"
+                        components["whisper"]["active_transcription"] = {
+                            "file_id": active_file.id,
+                            "filename": active_file.original_filename,
+                            "progress": float(active_file.transcription_progress or 0),
+                            "stage": active_file.transcription_stage,
+                            "started_at": active_file.transcription_started_at.isoformat() if active_file.transcription_started_at else None
+                        }
+            else:
+                components["database"] = {"status": "up", "message": "Available"}
+        finally:
+            db.close()
+            
     except Exception as e:
-        components["redis"] = {"status": "down", "message": "Redis not available (optional)"}
-
-    # Check storage
-    try:
-        storage_path = Path(settings.AUDIO_STORAGE_PATH)
-        if storage_path.exists():
-            components["storage"] = {"status": "up", "message": f"Storage accessible at {settings.AUDIO_STORAGE_PATH}"}
-        else:
-            os.makedirs(settings.AUDIO_STORAGE_PATH, exist_ok=True)
-            components["storage"] = {"status": "up", "message": "Storage created"}
-    except Exception as e:
-        components["storage"] = {"status": "down", "message": str(e)}
-
+        # Don't fail health check on database issues
+        components["database"] = {"status": "unknown", "message": "Could not check status"}
+    
     # Determine overall status
     critical_down = any(
         components[k]["status"] == "down"
-        for k in ["api", "storage"]  # Remove database from critical for busy state
+        for k in ["api", "storage"]
     )
     
-    # Database is critical only if truly down, not just busy
-    database_critical_down = components["database"]["status"] == "down"
+    whisper_loading = components["whisper"]["status"] in ["downloading", "loading"]
     
-    # Check if Whisper is still loading
-    whisper_loading = components["whisper"]["status"] == "loading"
-    
-    if critical_down or database_critical_down:
+    if critical_down:
         overall_status = "unhealthy"
     elif whisper_loading:
-        overall_status = "starting"  # Still initializing
+        overall_status = "starting"
     else:
         overall_status = "healthy"
-
+    
     return {
         "status": overall_status,
         "version": "0.1.0",
         "components": components,
         "critical": ["api", "database", "whisper", "storage"],
-        "optional": ["ollama", "redis"]
+        "optional": ["ollama", "redis"],
+        "timestamp": time.time()
     }

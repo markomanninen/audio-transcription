@@ -5,12 +5,56 @@ import re
 import subprocess
 import threading
 from typing import Optional, Dict, Any
-from .transcription_service import TranscriptionService
+from .transcription_service import (
+    TranscriptionService,
+    VALID_MODEL_SIZES,
+    MODEL_PRIORITIES,
+    normalize_model_name,
+)
+from ..core.config import settings
 
 # Global instance and lock for thread safety
 _global_transcription_service: Optional[TranscriptionService] = None
 _initialization_lock = threading.Lock()
 _initialization_in_progress = False
+_model_ready = False
+
+
+def _model_cache_candidates(model_size: str) -> list[str]:
+    """Return possible cache filenames for a given model."""
+    special_cases = {
+        "large": ["large-v3.pt", "large-v2.pt", "large.pt"],
+        "large-v1": ["large-v1.pt"],
+        "large-v2": ["large-v2.pt"],
+        "large-v3": ["large-v3.pt"],
+        "turbo": ["turbo.pt"],
+    }
+    return special_cases.get(model_size, [f"{model_size}.pt"])
+
+
+def _normalize_model_size(value: Optional[str]) -> Optional[str]:
+    """Convert model size to canonical form if valid."""
+    return normalize_model_name(value)
+
+
+def _determine_initial_model_size() -> str:
+    """Decide which Whisper model should be initialized first."""
+    from ..core.config import settings
+
+    configured = normalize_model_name(settings.WHISPER_MODEL_SIZE) or "base"
+
+    pending_models: list[str] = []
+    for entry in _pending_transcriptions:
+        model_value = _normalize_model_size(entry.get("model_size"))
+        if model_value:
+            pending_models.append(model_value)
+
+    if pending_models:
+        preferred = max(pending_models, key=lambda size: MODEL_PRIORITIES[size])
+        if MODEL_PRIORITIES[preferred] > MODEL_PRIORITIES[configured]:
+            return preferred
+
+    return configured
 
 
 def get_transcription_service() -> TranscriptionService:
@@ -44,6 +88,37 @@ def is_transcription_service_ready() -> bool:
         )
 
 
+def is_initialization_in_progress() -> bool:
+    """Return True if the Whisper service is currently being initialized."""
+    global _initialization_in_progress
+
+    with _initialization_lock:
+        return _initialization_in_progress
+
+
+def get_target_model_size() -> str:
+    """
+    Get the Whisper model size that should be loaded next.
+    If the service is ready, return the active model size; otherwise, return the pending/configured target.
+    """
+    with _initialization_lock:
+        if _global_transcription_service and _global_transcription_service.model:
+            return _global_transcription_service.model_size
+
+    return _determine_initial_model_size()
+
+
+def _mark_model_ready(is_ready: bool) -> None:
+    """Update internal readiness flag."""
+    global _model_ready
+    _model_ready = is_ready
+
+
+def is_model_ready() -> bool:
+    """Return True if the Whisper model has been loaded into memory."""
+    return _model_ready
+
+
 def initialize_transcription_service() -> None:
     """Initialize the global transcription service and pre-load the model."""
     global _global_transcription_service, _initialization_in_progress
@@ -63,7 +138,20 @@ def initialize_transcription_service() -> None:
         _initialization_in_progress = True
     
     try:
+        _mark_model_ready(False)
+        if settings.E2E_TRANSCRIPTION_STUB:
+            print("🤖 [E2E] Initializing transcription stub service (skipping Whisper download)...")
+            service = TranscriptionService(model_size_override="tiny")
+            service.model = "stub"  # Mark as ready without loading actual model
+            with _initialization_lock:
+                _global_transcription_service = service
+                _initialization_in_progress = False
+                _mark_model_ready(True)
+            process_pending_transcriptions()
+            return
+
         print("🤖 Initializing Whisper transcription service...")
+        desired_model_size = _determine_initial_model_size()
         
         # Monitor memory usage
         import psutil
@@ -72,24 +160,37 @@ def initialize_transcription_service() -> None:
         print(f"💾 Initial memory usage: {initial_memory:.1f}MB")
         
         # Create service instance
-        service = TranscriptionService()
+        service = TranscriptionService(model_size_override=desired_model_size)
+        if service.model_size != service.configured_model_size:
+            print(
+                f"🎯 Pending transcription requested Whisper '{service.model_size}' "
+                f"(configured default: '{service.configured_model_size}'). Using requested model for initialization."
+            )
         
         # Check if model cache exists before loading
         import os
+        # Lazy import whisper to avoid blocking during module import
         import whisper
         
         model_size = service.model_size
         cache_dir = os.path.expanduser("~/.cache/whisper")
         
-        # Check for the actual model file that Whisper creates (it uses -v3 suffix for large model)
-        model_filename = f"{model_size}-v3.pt" if model_size == "large" else f"{model_size}.pt"
-        model_path = os.path.join(cache_dir, model_filename)
+        # Resolve potential cache filenames for the selected model
+        cache_candidates = _model_cache_candidates(model_size)
+        model_filename = cache_candidates[0]
+        existing_path = None
+        for candidate in cache_candidates:
+            candidate_path = os.path.join(cache_dir, candidate)
+            if os.path.exists(candidate_path):
+                existing_path = candidate_path
+                model_filename = candidate
+                break
         
-        if os.path.exists(model_path):
-            file_size = os.path.getsize(model_path) / (1024 * 1024)
+        if existing_path:
+            file_size = os.path.getsize(existing_path) / (1024 * 1024)
             print(f"📁 Found cached Whisper model '{model_filename}' ({file_size:.1f}MB) - loading from cache...")
         else:
-            print(f"📦 Whisper model '{model_size}' not cached - downloading...")
+            print(f"📦 Whisper model '{model_filename}' not cached - downloading...")
             print("⏳ Please wait - this may take several minutes on first download...")
         
         # Load model with memory monitoring
@@ -98,6 +199,7 @@ def initialize_transcription_service() -> None:
         print(f"💾 Memory before model load: {pre_load_memory:.1f}MB")
         
         service.load_model()  # This will block until loading completes
+        _mark_model_ready(True)
         
         post_load_memory = process.memory_info().rss / 1024 / 1024
         memory_increase = post_load_memory - pre_load_memory
@@ -122,6 +224,7 @@ def initialize_transcription_service() -> None:
         with _initialization_lock:
             _global_transcription_service = None
             _initialization_in_progress = False
+            _mark_model_ready(False)
             
         raise RuntimeError(f"Whisper initialization failed: {e}")
 
@@ -143,45 +246,57 @@ def get_model_download_progress() -> Optional[Dict[str, Any]]:
     
     # Check if model file already exists (download completed)
     import os
-    import os
     import glob
-    from .transcription_service import TranscriptionService
-    temp_service = TranscriptionService()
-    model_size = temp_service.model_size
+    model_size = get_target_model_size()
     cache_dir = os.path.expanduser("~/.cache/whisper")
     
-    # Model sizes in MB
+    # Model sizes in MB (approximate)
     model_sizes = {
         "tiny": 39,
-        "base": 142, 
+        "tiny.en": 39,
+        "base": 142,
+        "base.en": 142,
         "small": 488,
+        "small.en": 488,
         "medium": 1460,
-        "large": 2900
+        "medium.en": 1460,
+        "turbo": 1540,
+        "large": 2900,
+        "large-v1": 2900,
+        "large-v2": 2900,
+        "large-v3": 2900,
     }
     
     model_size_mb = model_sizes.get(model_size, 142)  # Default to base size
     model_size_display = f"{model_size_mb}MB" if model_size_mb < 1000 else f"{model_size_mb/1000:.1f}GB"
     
-    # Check for the actual model file that Whisper creates (it uses -v3 suffix for large model)
-    model_filename = f"{model_size}-v3.pt" if model_size == "large" else f"{model_size}.pt"
-    model_path = os.path.join(cache_dir, model_filename)
-    
-    if os.path.exists(model_path):
-        # Model file exists, download is complete
-        return {
-            'progress': 100,
-            'downloaded': model_size_display,
-            'total': model_size_display,
-            'speed': "Complete - ready to load into memory"
-        }
+    cache_candidates = _model_cache_candidates(model_size)
+    for candidate in cache_candidates:
+        model_path = os.path.join(cache_dir, candidate)
+        if os.path.exists(model_path):
+            file_size = os.path.getsize(model_path) / (1024 * 1024)
+            downloaded_display = f"{int(file_size)}MB" if file_size < 1000 else f"{file_size/1000:.1f}GB"
+            return {
+                'progress': 100,
+                'downloaded': downloaded_display,
+                'total': model_size_display,
+                'speed': "Complete - ready to load into memory"
+            }
     
     # Check if we're in the process of loading/downloading
     if not is_transcription_service_ready():
         # Check if download is in progress by looking for partial file or active downloads
         import glob
-        partial_files = glob.glob(os.path.join(cache_dir, f"{model_size}*.pt.tmp")) + \
-                       glob.glob(os.path.join(cache_dir, f"{model_size}*.pt.part"))
-        
+        partial_patterns = []
+        for candidate in cache_candidates:
+            base = candidate.rsplit(".pt", 1)[0]
+            partial_patterns.append(os.path.join(cache_dir, f"{base}*.pt.tmp"))
+            partial_patterns.append(os.path.join(cache_dir, f"{base}*.pt.part"))
+
+        partial_files = []
+        for pattern in partial_patterns:
+            partial_files.extend(glob.glob(pattern))
+    
         if partial_files:
             # Get the size of the downloading file
             partial_file = partial_files[0]
@@ -223,29 +338,57 @@ def get_model_download_progress() -> Optional[Dict[str, Any]]:
 _download_progress = None
 
 # Track pending transcription requests (file_id, include_diarization)
-_pending_transcriptions = []
+_pending_transcriptions: list[dict] = []
 
 
 def cleanup_transcription_service() -> None:
     """Clean up the global transcription service."""
     global _global_transcription_service
     _global_transcription_service = None
+    _mark_model_ready(False)
     print("Transcription service cleaned up.")
 
 
-def add_pending_transcription(file_id: int, include_diarization: bool = False) -> None:
-    """Add a transcription request to the pending queue."""
+def add_pending_transcription(
+    file_id: int,
+    *,
+    include_diarization: bool = True,
+    model_size: str | None = None,
+    language: str | None = None,
+    force_restart: bool = False,
+) -> None:
+    """Add or update a transcription request in the pending queue."""
     global _pending_transcriptions
-    # Avoid duplicates
-    if not any(req[0] == file_id for req in _pending_transcriptions):
-        _pending_transcriptions.append((file_id, include_diarization))
-        print(f"📝 Added file {file_id} to pending transcription queue")
+
+    for entry in _pending_transcriptions:
+        if entry["file_id"] == file_id:
+            entry.update(
+                {
+                    "include_diarization": include_diarization,
+                    "model_size": model_size,
+                    "language": language,
+                    "force_restart": force_restart,
+                }
+            )
+            break
+    else:
+        _pending_transcriptions.append(
+            {
+                "file_id": file_id,
+                "include_diarization": include_diarization,
+                "model_size": model_size,
+                "language": language,
+                "force_restart": force_restart,
+            }
+        )
+
+    print(f"📝 Added file {file_id} to pending transcription queue")
 
 
 def get_pending_transcriptions() -> list:
     """Get and clear the list of pending transcriptions."""
     global _pending_transcriptions
-    pending = _pending_transcriptions.copy()
+    pending = [entry.copy() for entry in _pending_transcriptions]
     _pending_transcriptions.clear()
     return pending
 
@@ -263,21 +406,31 @@ def process_pending_transcriptions() -> None:
         print(f"🚀 Processing {len(pending)} pending transcription request(s)...")
         
         # Import here to avoid circular imports
-        from fastapi import BackgroundTasks
         from ..api.transcription import transcribe_task
-        from ..core.database import SessionLocal
-        
-        # Create a background tasks instance and process each pending request
-        for file_id, include_diarization in pending:
+
+        for entry in pending:
+            file_id = entry["file_id"]
+            include_diarization = entry.get("include_diarization", True)
+            model_size = entry.get("model_size")
+            language = entry.get("language")
+            force_restart = entry.get("force_restart", False)
             try:
                 print(f"📝 Starting transcription for file {file_id}")
                 # Create a new thread for each transcription to avoid blocking
                 import threading
                 thread = threading.Thread(
                     target=transcribe_task, 
-                    args=(file_id, include_diarization),
+                    kwargs={
+                        "audio_file_id": file_id,
+                        "include_diarization": include_diarization,
+                        "model_size": model_size,
+                        "language": language,
+                        "force_restart": force_restart,
+                    },
                     daemon=True
                 )
                 thread.start()
             except Exception as e:
                 print(f"❌ Failed to start transcription for file {file_id}: {e}")
+    else:
+        print("ℹ️ No pending transcription requests to process after model initialization.")

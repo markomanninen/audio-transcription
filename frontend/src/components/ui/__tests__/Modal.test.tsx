@@ -36,8 +36,10 @@ describe('Modal', () => {
       </Modal>
     );
 
-    const backdrop = screen.getByRole('dialog').previousSibling;
-    await user.click(backdrop as HTMLElement);
+    const dialog = screen.getByRole('dialog');
+    const backdrop = dialog.parentElement?.querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(backdrop).toBeTruthy();
+    await user.click(backdrop);
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
 

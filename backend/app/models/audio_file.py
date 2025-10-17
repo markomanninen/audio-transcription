@@ -2,7 +2,7 @@
 AudioFile model - represents an uploaded audio file.
 """
 from sqlalchemy import String, Integer, Float, ForeignKey, Enum as SQLEnum, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from typing import List
 import enum
 from datetime import datetime
@@ -12,10 +12,10 @@ from .base import Base, TimestampMixin
 
 class TranscriptionStatus(str, enum.Enum):
     """Status of transcription processing."""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class AudioFile(Base, TimestampMixin):
@@ -72,3 +72,24 @@ class AudioFile(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<AudioFile(id={self.id}, filename='{self.filename}', status={self.transcription_status})>"
+
+    @staticmethod
+    def _coerce_status(value):
+        """Coerce incoming values to TranscriptionStatus enum."""
+        if value is None:
+            return None
+
+        if isinstance(value, TranscriptionStatus):
+            return value
+
+        if isinstance(value, str):
+            upper_value = value.upper()
+            if upper_value in TranscriptionStatus.__members__:
+                return TranscriptionStatus[upper_value]
+
+        raise ValueError(f"Invalid transcription status value: {value}")
+
+    @validates("transcription_status")
+    def validate_transcription_status(self, key, value):  # noqa: D401
+        """Ensure transcription status values always map to the enum."""
+        return self._coerce_status(value)

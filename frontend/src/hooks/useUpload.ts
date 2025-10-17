@@ -64,7 +64,16 @@ export const useProjectFiles = (projectId: number | null) => {
       if (!projectId) return []
       try {
         const response = await apiClient.get<AudioFile[]>(`/api/upload/files/${projectId}`)
-        return response.data
+        return response.data.map((file) => {
+          const normalizedStatus =
+            typeof file.status === 'string'
+              ? (file.status.toLowerCase() as AudioFile['status'])
+              : 'pending'
+          return {
+            ...file,
+            status: normalizedStatus,
+          }
+        })
       } catch (error: any) {
         // Enhanced error handling
         if (error.code === 'ECONNABORTED') {

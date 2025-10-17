@@ -24,9 +24,12 @@ class Settings(BaseSettings):
     # Whisper configuration
     WHISPER_MODEL_SIZE: str = "medium"  # tiny, base, small, medium, large
     WHISPER_DEVICE: str = "auto"  # auto, cpu, cuda, mps
+    WHISPER_STRICT_MEMORY: bool = False  # If True, abort when memory below threshold
+    E2E_TRANSCRIPTION_STUB: bool = False  # When true, skip Whisper processing and stub results (for local E2E tests)
 
     # LLM services
     OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "anthropic/claude-3-haiku"
     
     # Ollama Configuration
     OLLAMA_BASE_URL: str = "http://ollama:11434"  # Default to internal Docker service
@@ -50,12 +53,40 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
+    # External integrations
+    HUGGINGFACE_HUB_TOKEN: str = ""
+
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: str = (
+        "http://localhost,"
+        "http://127.0.0.1,"
+        "http://localhost:3000,"
+        "http://localhost:5173,"
+        "http://localhost:5174,"
+        "http://localhost:5175,"
+        "https://localhost"
+    )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if not self.CORS_ORIGINS:
+            return []
+        raw = self.CORS_ORIGINS.strip()
+        if raw.startswith("[") and raw.endswith("]"):
+            import json
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    return [item.strip() for item in parsed if isinstance(item, str) and item.strip()]
+            except json.JSONDecodeError:
+                pass
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
+        env_prefix="",
+        env_file_encoding="utf-8",
     )
 
 

@@ -1,0 +1,26 @@
+{
+  "development": {
+    "backend": 8000,
+    "frontend": 5173,
+    "redis": 6379,
+    "ollama": 11434
+  },
+  "docker": {
+    "backend": 8080,
+    "frontend": 3000,
+    "redis": 6379,
+    "ollama": 11434
+  },
+  "test": {
+    "backend": 8081,
+    "frontend": 80,
+    "redis": 6379,
+    "ollama": 11434
+  },
+  "e2e": {
+    "backend": 18200,
+    "frontend": 18300,
+    "redis": 18380,
+    "ollama": 18435
+  }
+}
