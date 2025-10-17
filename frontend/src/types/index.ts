@@ -2,6 +2,7 @@ export interface Project {
   id: number
   name: string
   description?: string | null
+  project_type: 'audio' | 'text'
   content_type?: string | null
   created_at: string
 }
@@ -51,4 +52,11 @@ export interface TranscriptionStatus {
   created_at?: string
   updated_at?: string
   transcription_metadata?: string
+}
+
+export interface ExportTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  content: string;
 }

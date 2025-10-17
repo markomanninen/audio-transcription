@@ -114,8 +114,17 @@ def test_db(test_engine):
 
 
 @pytest.fixture
-def client(test_db, test_engine):
+def client(test_db, monkeypatch):
     """Create a test client with test database."""
+
+    # Prevent the app's startup lifecycle from running db initializations.
+    # The test setup already handles creating the test database and tables.
+    def do_nothing():
+        pass
+
+    monkeypatch.setattr("app.main.init_db", do_nothing)
+    monkeypatch.setattr("app.main.run_migrations", do_nothing)
+
     def override_get_db():
         try:
             yield test_db
@@ -126,6 +135,7 @@ def client(test_db, test_engine):
 
     with TestClient(app) as test_client:
         yield test_client
+
     app.dependency_overrides.clear()
 
 
