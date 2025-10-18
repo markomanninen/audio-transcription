@@ -55,17 +55,17 @@ def test_start_transcription(client, project_with_file, test_db):
         mock_init.return_value = None
         mock_add_pending.return_value = None
 
-            response = client.post(
-                f"/api/transcription/{file_id}/start",
-                json={"include_diarization": True}
-            )
-            assert response.status_code == 202
-            data = response.json()
-            assert data["file_id"] == file_id
-            assert data["include_diarization"] is True
-            
-            # Verify the background task was called
-            mock_task.assert_called_once_with(file_id, True)
+        response = client.post(
+            f"/api/transcription/{file_id}/start",
+            json={"include_diarization": True}
+        )
+        assert response.status_code == 202
+        data = response.json()
+        assert data["file_id"] == file_id
+        assert data["include_diarization"] is True
+
+        # Verify the background task was called
+        mock_task.assert_called_once_with(file_id, True)
 
 
 def test_get_segments_empty(client, project_with_file):
