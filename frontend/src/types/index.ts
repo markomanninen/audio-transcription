@@ -1,3 +1,10 @@
+export interface TextDocument {
+  id: number
+  project_id: number
+  content: string
+  history: string
+}
+
 export interface Project {
   id: number
   name: string
@@ -5,6 +12,8 @@ export interface Project {
   project_type: 'audio' | 'text'
   content_type?: string | null
   created_at: string
+  updated_at?: string
+  text_document?: TextDocument
 }
 
 export interface AudioFile {

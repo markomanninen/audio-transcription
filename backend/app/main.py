@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.database import init_db, engine, SessionLocal
 from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
-from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor, projects, export_templates
+from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor, projects, export_templates, test_helpers
 from .core.config import settings
 from .services.status_normalizer import normalize_transcription_statuses
 from .models.audio_file import AudioFile, TranscriptionStatus
@@ -123,6 +123,7 @@ app.include_router(ai_analysis.router)
 app.include_router(llm_logs.router)
 app.include_router(ai_editor.router)
 app.include_router(export_templates.router)
+app.include_router(test_helpers.router)  # Test helper endpoints for E2E testing
 
 
 @app.get("/")

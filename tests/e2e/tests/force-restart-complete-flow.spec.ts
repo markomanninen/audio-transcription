@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { setupAudioProject } from '../helpers/audio-project-helpers'
 
 test.describe('Force Restart Complete Flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
+    // Create a project so we have a place for files
+    await setupAudioProject(page)
 
     // Reset circuit breaker
     await page.evaluate(() => {
@@ -10,21 +12,19 @@ test.describe('Force Restart Complete Flow', () => {
         (window as any).resetCircuitBreaker()
       }
     })
-
-    // Dismiss tutorial
-    const skipButton = page.getByRole('button', { name: /skip/i })
-    if (await skipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await skipButton.click()
-    }
-
-    // Wait for file list
-    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
   })
 
   test('complete force-restart flow: completed → restart → processing/completed', async ({ page }) => {
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    const hasFiles = await fileCards.first().isVisible({ timeout: 5000 }).catch(() => false)
 
+    if (!hasFiles) {
+      console.log('No files found, skipping test')
+      test.skip()
+      return
+    }
+
+    const fileCount = await fileCards.count()
     if (fileCount < 1) {
       console.log('No files found, skipping test')
       test.skip()

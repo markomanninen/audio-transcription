@@ -96,11 +96,12 @@ test.describe('Local Whisper progress lifecycle', { tag: '@whisper-real' }, () =
     test.setTimeout(3 * 60 * 1000) // 3 minutes: plenty for 39MB download + load + transcribe
     const project = await createProject(page)
     const file = await uploadAudio(page, project.id)
-    await page.goto('/')
+  await page.goto('/audio')
     await page.waitForLoadState('domcontentloaded')
     await page.evaluate(() => {
       try {
         window.localStorage.setItem('hasSeenTutorial', 'true')
+        window.localStorage.setItem('hasSeenAudioTutorial', 'true')
         // Use tiny model instead of small for faster testing (~39MB vs ~488MB)
         const stubSettings = JSON.stringify({ model_size: 'tiny', language: null, include_diarization: true })
         window.localStorage.setItem('lastUsedTranscriptionSettings', stubSettings)
@@ -174,7 +175,7 @@ test.describe('Local Whisper progress lifecycle', { tag: '@whisper-real' }, () =
     test.setTimeout(2 * 60 * 1000) // 2 minutes: cached model loads fast, ~40s total expected
     const project = await createProject(page)
     const file = await uploadAudio(page, project.id)
-    await page.goto('/')
+  await page.goto('/audio')
     await page.waitForLoadState('domcontentloaded')
     await page.evaluate(() => {
       try {

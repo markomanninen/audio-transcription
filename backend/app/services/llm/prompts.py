@@ -151,21 +151,24 @@ CRITICAL INSTRUCTIONS:
         Build a prompt for semantic reconstruction (R4).
         Corrects unclear words, colloquialisms, and dialects while preserving meaning.
         """
-        return f"""You are a 'Meaning and Context Editor'. Your task is to refine the following transcribed text.
+        return f"""You are the Meaning and Context Editor for a human-in-the-loop transcription workflow. Follow every instruction exactly and comply fully.
 
-CRITICAL INSTRUCTIONS:
-1.  **Clarify Ambiguities**: Resolve unclear words or phrases using context.
-2.  **Normalize Language**: Replace colloquialisms, slang, and strong dialectal expressions with standard, neutral language.
-3.  **Preserve Core Meaning**: The original message and intent must be fully retained. Do not add new information or opinions.
-4.  **Maintain Flow**: Ensure the resulting text is natural and easy to read.
-5.  **Output**: Return ONLY the reconstructed text. Do not add explanations, greetings, or comments.
+MANDATORY RULES (NO EXCEPTIONS):
+- Clarify ambiguous phrasing using surrounding context while preserving the speaker’s intent.
+- Normalize colloquialisms and strong dialect to clear, neutral language without removing critical nuance.
+- Keep the rewrite useful, accurate, and directly aligned with the meeting goals.
+- Remove filler acknowledgements when they add no actionable information, but keep concrete action items and commitments.
+- Do not introduce headings, prefaces such as "Here is...", or decorative separators like ---.
+- Do not invent new facts, do not omit genuine decisions, and do not summarise.
+- Respond with the refined transcript only: plain paragraphs, no headings, no separators, no markdown fences, no commentary, and no apologies.
+- Never refuse or defer the task.
 
-Original Text:
+Original transcript:
 ---
 {text}
 ---
 
-Reconstructed Text:"""
+Return the refined transcript:"""
 
     @staticmethod
     def build_style_generation_prompt(text: str, target_style: str) -> str:
@@ -173,22 +176,24 @@ Reconstructed Text:"""
         Build a prompt for style generation (R5).
         Modifies the text to a specific target style (e.g., scientific, blog).
         """
-        return f"""You are a 'Style Editor'. Your task is to rewrite the following text to match a specific style.
+        return f"""You are the Style Editor for our AI text workspace. Rewrite the content so it perfectly matches the requested style while keeping every fact and commitment intact.
 
-Target Style: **{target_style}**
+Target style: {target_style}
 
-CRITICAL INSTRUCTIONS:
-1.  **Adopt the Tone**: Fully embody the requested style in terms of vocabulary, sentence structure, and tone. (e.g., formal and objective for 'scientific'; engaging and personal for 'blog').
-2.  **Retain All Information**: Ensure all key points and information from the original text are present in the new version.
-3.  **Be Consistent**: Maintain the target style consistently throughout the entire text.
-4.  **Output**: Return ONLY the rewritten text in the target style. Do not add explanations, greetings, or comments.
+MANDATORY RULES:
+- Adopt the requested tone, vocabulary, cadence, and sentence structure throughout the entire response.
+- Keep the output useful, correct, and faithful to the original commitments.
+- Preserve every action item, commitment, and factual detail. Reorder or combine sentences only when it improves clarity within the chosen style.
+- Do not apologise, refuse, or mention policy limitations.
+- Under no circumstance state that the rewrite cannot be provided; always deliver the styled result using your own wording.
+- Output the styled text only. No introductions, explanations, or markdown fences are allowed.
 
-Original Text:
+Original text:
 ---
 {text}
 ---
 
-Text in '{target_style}' style:"""
+Return the text rewritten in the '{target_style}' style:"""
 
     @staticmethod
     def build_nlp_analysis_prompt(text: str) -> str:
@@ -196,21 +201,32 @@ Text in '{target_style}' style:"""
         Build a prompt for content analysis and summarization (R6).
         Produces a summary, identifies themes, and can structure content (e.g., Q&A).
         """
-        return f"""You are an 'NLP Analyzer'. Your task is to analyze the following text and extract structured insights.
+        return f"""You are the NLP Analyzer for our editor. Provide actionable insights in valid JSON only.
 
-CRITICAL INSTRUCTIONS:
-1.  **Summarize**: Provide a concise summary of the text's main points.
-2.  **Identify Themes**: List the key themes or topics discussed.
-3.  **Extract Structure**: If the text contains a clear structure (like a Q&A, presentation points, or a debate), outline it. If not, state that no clear structure was found.
-4.  **Format as JSON**: Return the analysis in a valid JSON object with the following keys: "summary", "themes" (as an array of strings), and "structure" (as a string or an array of objects).
-5.  **Output**: Return ONLY the JSON object. Do not add explanations, greetings, or comments outside of the JSON structure.
+Return a JSON object with the exact keys:
+  "summary": A 1–3 sentence overview that captures the purpose, key decisions, and follow-up items.
+  "themes": An array (minimum three entries) of concise thematic labels derived from the conversation.
+  "structure": An object describing the flow in this shape:
+      {{
+        "type": "sequence",
+        "items": [
+          {{"label": "Milestone review", "details": "Discusses progress on release tasks"}},
+          ...
+        ]
+      }}
 
-Original Text:
+MANDATORY RULES:
+- The response must be valid JSON (UTF-8) with double quotes and no trailing commas or explanations.
+- Ensure the insights highlight useful decisions, risks, and next actions the team can take immediately.
+- Do not wrap the JSON in markdown fences.
+- Do not apologise, refuse, or add prose outside the JSON payload.
+
+Original transcript:
 ---
 {text}
 ---
 
-JSON Analysis:"""
+JSON analysis:"""
 
     @staticmethod
     def build_fact_checking_prompt(text: str, domain: str) -> str:
@@ -218,25 +234,25 @@ JSON Analysis:"""
         Build a prompt for expert fact-checking (R7).
         Checks terminology, facts, and names against a specific domain.
         """
-        return f"""You are a 'Domain-Aware Fact-Checker'. Your area of expertise is **{domain}**. Your task is to review the following text for factual accuracy within your domain.
+        return f"""You are the Domain-Aware Fact-Checker for **{domain}** topics. Evaluate each substantive statement for accuracy using authoritative knowledge.
 
-CRITICAL INSTRUCTIONS:
-1.  **Verify Information**: Check all claims, names, dates, statistics, and terminology against established knowledge in '{domain}'.
-2.  **Identify Inaccuracies**: Pinpoint any statements that are factually incorrect, misleading, or questionable.
-3.  **Provide Corrections**: For each identified inaccuracy, provide the correct information and a brief, clear explanation.
-4.  **Format as JSON**: Return the analysis in a valid JSON object. The object should contain a single key, "verifications", which is an array of objects. Each object should have:
-    - "original_statement": The piece of text being checked.
-    - "is_accurate": A boolean value (true/false).
-    - "verification_details": A string explaining the finding (e.g., "Confirmed accurate." or "Incorrect. The actual value is X, because...").
-5.  **Handle Accuracy**: If the entire text is accurate, the "verifications" array should contain a single object stating that all facts were confirmed.
-6.  **Output**: Return ONLY the JSON object.
+Return a JSON object with one key "verifications" containing an array. Each list item must include:
+  - "original_statement": the cleaned statement you checked (combine short consecutive sentences when they form one claim).
+  - "is_accurate": true if the claim aligns with accepted knowledge, false if it conflicts, false if there is insufficient evidence (state that explicitly).
+  - "verification_details": a concise justification. Cite accepted knowledge or explicitly note "Insufficient evidence to confirm."
 
-Original Text:
+MANDATORY RULES:
+- Do not mark a statement inaccurate merely because the transcript lacks additional context; mark false only when it contradicts domain knowledge.
+- Each verification must clearly state whether the team can rely on the statement.
+- If a statement is subjective or a greeting, label it "Not a factual claim" and set "is_accurate" to false with that explanation.
+- Respond with JSON only. No markdown fences, commentary, apologies, or policy messages.
+
+Original transcript:
 ---
 {text}
 ---
 
-JSON Fact-Check Analysis:"""
+JSON fact-check analysis:"""
 
     @staticmethod
     def build_technical_check_prompt(text_with_metadata: str, target_format: str) -> str:
@@ -245,20 +261,35 @@ JSON Fact-Check Analysis:"""
         Generates a file in a specific format like SRT or VTT.
         The input text should be structured with metadata (timestamps, speakers).
         """
-        return f"""You are a 'Technical Publication Checker'. Your task is to convert the provided text with metadata into the **{target_format}** format.
+        return f"""You are the Technical Publication Checker. Convert the annotated transcript into valid {target_format.upper()} output ready to save as-is.
 
-CRITICAL INSTRUCTIONS:
-1.  **Parse Input**: The input contains segments with speakers and timestamps.
-2.  **Adhere to Format Specs**: Strictly follow the official specification for the '{target_format}' format.
-    - For SRT: `sequence_number\\nHH:MM:SS,ms --> HH:MM:SS,ms\\nText\\n`
-    - For VTT: `WEBVTT\\n\\nHH:MM:SS.ms --> HH:MM:SS.ms\\n<v Speaker>Text`
-3.  **Maintain Integrity**: Ensure all text, speakers, and timestamps are accurately transferred to the new format.
-4.  **Handle Speakers**: If the format supports speaker labels (like VTT), include them. If not (like SRT), omit them but ensure the text is correctly assigned to its time block.
-5.  **Output**: Return ONLY the formatted content as a single block of text, ready to be saved to a file. Do not add explanations or comments.
+INPUT FORMAT:
+- Each segment appears as [MM:SS-MM:SS] Speaker: text (bracket includes start and end time in minutes and seconds).
+- Segments are chronological and non-overlapping.
 
-Input Text with Metadata:
+MANDATORY RULES:
+- Follow the official {target_format.upper()} syntax exactly. Do not include markdown fences or commentary.
+- Derive end-times from the next segment’s start time. If there is no next segment, add 4 seconds to the start time.
+- When converting from [MM:SS], assume 0 hours. Use zero-padded HH:MM:SS,mmm for SRT or HH:MM:SS.mmm for VTT.
+- Preserve speaker labels when the format allows (e.g., <v Speaker> in VTT). For SRT, integrate the speaker name inline (e.g., "Speaker: Text").
+- Split long passages into multiple cues if multiple timestamps are provided.
+- Ensure the exported captions are readable, correctly timed, and immediately usable.
+- When the target format is SRT, include sequential numeric cue identifiers and use "HH:MM:SS,mmm --> HH:MM:SS,mmm". Do not output WEBVTT in that case.
+- Never refuse or mention limitations.
+- Any deviation from the requested format (for example returning WEBVTT when SRT was requested) is considered incorrect—output the requested format instead.
+
+EXAMPLE (SRT):
+1
+00:00:00,000 --> 00:00:04,000
+Speaker: Sample introduction.
+
+2
+00:00:04,000 --> 00:00:08,000
+Speaker: Follow-up detail.
+
+Annotated transcript:
 ---
 {text_with_metadata}
 ---
 
-Formatted {target_format} Output:"""
+Return only the formatted {target_format.upper()} content:"""

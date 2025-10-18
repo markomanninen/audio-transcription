@@ -151,34 +151,36 @@ test_technical_check() {
 # Run frontend tests
 run_frontend_tests() {
     print_info "Running Frontend Tests..."
-    cd frontend 2>/dev/null || {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cd "${script_dir}/../frontend" 2>/dev/null || {
         print_error "Frontend directory not found"
         return 1
     }
-    
+
     if npm test aiEditor.test.ts useAIEditor.test.tsx 2>/dev/null; then
         print_status "Frontend tests passed!"
     else
         print_warning "Frontend tests failed or npm not configured"
     fi
-    cd ..
+    cd "${script_dir}"
     echo ""
 }
 
 # Run backend tests
 run_backend_tests() {
     print_info "Running Backend Tests..."
-    cd backend 2>/dev/null || {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cd "${script_dir}/../backend" 2>/dev/null || {
         print_error "Backend directory not found"
         return 1
     }
-    
+
     if python -m pytest tests/test_ai_editor.py::TestSemanticReconstructionEndpoint::test_semantic_reconstruction_success -v 2>/dev/null; then
         print_status "Backend tests passed!"
     else
         print_warning "Backend tests failed or dependencies not installed"
     fi
-    cd ..
+    cd "${script_dir}"
     echo ""
 }
 

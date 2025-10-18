@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
 
 interface CreateProjectDialogProps {
   isOpen: boolean
   onClose: () => void
   onCreate: (name: string, type: 'audio' | 'text', content?: string) => void
   isCreating?: boolean
+  allowedTypes?: Array<'audio' | 'text'>
+  defaultType?: 'audio' | 'text'
 }
 
 export default function CreateProjectDialog({
@@ -12,25 +14,35 @@ export default function CreateProjectDialog({
   onClose,
   onCreate,
   isCreating = false,
+  allowedTypes = ['audio', 'text'] as Array<'audio' | 'text'>,
+  defaultType,
 }: CreateProjectDialogProps) {
+  const fallbackTypes = ['audio', 'text'] as const
+  const availableTypes: Array<'audio' | 'text'> =
+    allowedTypes.length > 0 ? allowedTypes : [...fallbackTypes]
+  const resolvedDefaultType: 'audio' | 'text' =
+    defaultType ?? availableTypes[0] ?? fallbackTypes[0]
+
   const [projectName, setProjectName] = useState('')
-  const [projectType, setProjectType] = useState<'audio' | 'text'>('audio')
+  const [projectType, setProjectType] = useState<'audio' | 'text'>(resolvedDefaultType)
   const [textContent, setTextContent] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const resetForm = () => {
+    setProjectName('')
+    setProjectType(resolvedDefaultType)
+    setTextContent('')
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (projectName.trim()) {
       onCreate(projectName.trim(), projectType, textContent)
-      setProjectName('')
-      setProjectType('audio')
-      setTextContent('')
+      resetForm()
     }
   }
 
   const handleClose = () => {
-    setProjectName('')
-    setProjectType('audio')
-    setTextContent('')
+    resetForm()
     onClose()
   }
 
@@ -42,30 +54,41 @@ export default function CreateProjectDialog({
         <h2 className="text-xl font-semibold mb-4">Create New Project</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex gap-2 p-1 bg-muted rounded-lg">
-            <button
-              type="button"
-              onClick={() => setProjectType('audio')}
-              className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                projectType === 'audio'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-            >
-              Audio Project
-            </button>
-            <button
-              type="button"
-              onClick={() => setProjectType('text')}
-              className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                projectType === 'text'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-background/50'
-              }`}
-            >
-              Text Project
-            </button>
-          </div>
+          {availableTypes.length > 1 ? (
+            <div>
+              <label
+                htmlFor="projectType"
+                className="block text-sm font-medium mb-1"
+              >
+                Project Type
+              </label>
+              <select
+                id="projectType"
+                name="projectType"
+                value={projectType}
+                onChange={(event) =>
+                  setProjectType(event.target.value as 'audio' | 'text')
+                }
+                className="w-full px-3 py-2 border border-border rounded-lg focus-ring bg-input text-input-foreground"
+              >
+                {availableTypes.includes('audio') && (
+                  <option value="audio">Audio Project</option>
+                )}
+                {availableTypes.includes('text') && (
+                  <option value="text">Text Project</option>
+                )}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Project Type
+              </label>
+              <div className="px-3 py-2 border border-border rounded-lg bg-muted text-sm">
+                {availableTypes[0] === 'audio' ? 'Audio Project' : 'Text Project'}
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="projectName" className="block text-sm font-medium mb-1">

@@ -11,11 +11,12 @@ test.describe('Full Application Workflow', () => {
 
     console.log('=== FULL WORKFLOW TEST ===')
 
-    await page.goto('/')
+    await page.goto('/audio')
 
     // Setup
     await page.evaluate(() => {
       window.localStorage.setItem('hasSeenTutorial', 'true')
+      window.localStorage.setItem('hasSeenAudioTutorial', 'true')
     })
 
     const splash = page.getByTestId('loading-splash')
@@ -28,7 +29,7 @@ test.describe('Full Application Workflow', () => {
 
     // STEP 1: Create project
     console.log('\n[STEP 1] Creating project...')
-    const createButton = page.getByRole('button', { name: /create.*project|new project/i })
+    const createButton = page.getByRole('button', { name: /new project/i })
     await expect(createButton).toBeVisible({ timeout: 10_000 })
     await createButton.click()
 
@@ -171,10 +172,11 @@ test.describe('Full Application Workflow', () => {
 
     console.log('=== COMPLETE WORKFLOW STRESS TEST ===')
 
-    await page.goto('/')
+    await page.goto('/audio')
 
     await page.evaluate(() => {
       window.localStorage.setItem('hasSeenTutorial', 'true')
+      window.localStorage.setItem('hasSeenAudioTutorial', 'true')
       // Use tiny model for fast testing
       const stubSettings = JSON.stringify({ model_size: 'tiny', language: null, include_diarization: false })
       window.localStorage.setItem('lastUsedTranscriptionSettings', stubSettings)
@@ -193,7 +195,7 @@ test.describe('Full Application Workflow', () => {
 
     // Create project
     console.log('[CYCLE 1] Creating project')
-    const createButton = page.getByRole('button', { name: /create.*project|new project/i })
+    const createButton = page.getByRole('button', { name: /create audio project|new project/i }).first()
     await createButton.click()
 
     const projectName1 = `Full Test 1 - ${Date.now()}`
@@ -266,7 +268,7 @@ test.describe('Full Application Workflow', () => {
     await splash.waitFor({ state: 'detached', timeout: 30_000 })
 
     console.log('[CYCLE 2] Creating project')
-    const createButton2 = page.getByRole('button', { name: /create.*project|new project/i })
+    const createButton2 = page.getByRole('button', { name: /create.*project|new (audio )?project/i })
     await createButton2.click()
 
     const projectName2 = `Full Test 2 - ${Date.now()}`

@@ -1,4 +1,39 @@
 {
+  "scripts": {
+    "dev": "python3 dev_runner.py",
+    "dev:no-docker": "python3 dev_runner.py --skip-docker",
+    "dev:backend": "python3 dev_runner.py --backend-only",
+    "dev:frontend": "python3 dev_runner.py --frontend-only",
+    "dev:restart": "python3 dev_runner.py --restart",
+    "dev:stop": "python3 dev_runner.py --stop",
+    "dev:cleanup": "python3 dev_runner.py --cleanup",
+    "dev:check": "python3 dev_runner.py --check",
+    "dev:logs": "python3 dev_runner.py --logs",
+    "dev:flush": "rm -f backend/data/dev_transcriptions.db backend/data/dev_transcriptions.db-*",
+    "test:e2e": "USE_TRANSCRIPTION_STUB=0 ./scripts/run_local_e2e.sh",
+    "test:e2e:stub": "USE_TRANSCRIPTION_STUB=1 ./scripts/run_local_e2e.sh",
+    "test:e2e:local": "bash scripts/run_local_e2e.sh",
+    "docker-dev": "docker-compose up -d",
+    "docker-build": "docker-compose build",
+    "docker-restart": "docker-compose restart",
+    "docker-stop": "docker-compose down",
+    "docker-logs": "docker-compose logs -f",
+    "docker-backend": "docker-compose restart backend",
+    "docker-frontend": "docker-compose restart frontend",
+    "docker-deploy": "docker-compose down && docker-compose build && docker-compose up -d",
+    "logs:backend": "docker logs transcribe-backend-1 --tail 100",
+    "logs:frontend": "docker logs transcribe-frontend-1 --tail 100",
+    "logs:ollama": "docker logs transcribe-ollama-1 --tail 100",
+    "logs:redis": "docker logs transcribe-redis-1 --tail 100",
+    "logs:live": "docker logs transcribe-backend-1 --follow",
+    "logs:errors": "docker logs transcribe-backend-1 --tail 200 | grep -i \"error\\|failed\\|exception\"",
+    "logs:transcription": "docker logs transcribe-backend-1 --tail 200 | grep -i \"transcription\\|whisper\\|segments\\|resume\"",
+    "logs:recent": "docker logs transcribe-backend-1 --since=10m",
+    "logs:inspect": "python3 scripts/log_inspector.py"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  },
   "dependencies": {
     "@types/react-router-dom": "^5.3.3",
     "react-router-dom": "^7.9.4"
