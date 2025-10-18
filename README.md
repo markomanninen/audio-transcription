@@ -24,6 +24,23 @@ AI-powered audio transcription application with speaker recognition, multi-langu
 - **🎨 Customizable Speakers**: Rename speakers and assign custom colors
 - **📊 LLM Monitoring**: Track and debug all AI interactions
 
+#### A Note on AI Model Quality
+
+The default development stack relies on a compact local model (`llama3.2:1b`) so everything runs offline. This model is fast, but its answers can be terse, refuse nuanced requests, or ignore formatting rules. For richer rewrites and more reliable formatting, point the backend at a larger Ollama model (e.g. `llama3.1:8b`) or an external provider via OpenRouter.
+
+#### Capturing Real AI Responses
+
+When you tune prompts or swap models, run the capture helper to record what the backend actually returns:
+
+```bash
+python scripts/capture_ai_editor_responses.py \
+  --base-url http://localhost:8000 \
+  --project-id 20 \
+  --output ai_editor_responses.json
+```
+
+The script calls every AI-editor endpoint, logs a short summary to STDOUT, and saves the full payloads in `ai_editor_responses.json` so you can confirm the response format still matches the prompts.
+
 ### User Experience
 
 - **🎵 Built-in Audio Player**: Play, pause, and jump to specific segments

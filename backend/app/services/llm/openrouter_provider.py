@@ -77,6 +77,40 @@ class OpenRouterProvider(LLMProvider):
         except KeyError as e:
             raise RuntimeError(f"Unexpected OpenRouter response format: {str(e)}")
 
+    async def generate_text(
+        self,
+        prompt: str,
+        max_tokens: int = 2048,
+        temperature: float = 0.7
+    ) -> str:
+        """Generate text using OpenRouter with a generic prompt."""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    }
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                return result["choices"][0]["message"]["content"].strip()
+
+        except httpx.RequestError as e:
+            raise ConnectionError(f"Failed to connect to OpenRouter: {str(e)}")
+        except httpx.HTTPStatusError as e:
+            raise RuntimeError(f"OpenRouter request failed: {str(e)}")
+        except KeyError as e:
+            raise RuntimeError(f"Unexpected OpenRouter response format: {str(e)}")
+
     async def health_check(self) -> bool:
         """Check if OpenRouter API is available."""
         try:

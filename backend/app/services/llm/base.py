@@ -41,3 +41,23 @@ class LLMProvider(ABC):
             True if healthy, False otherwise
         """
         pass
+
+    @abstractmethod
+    async def generate_text(
+        self,
+        prompt: str,
+        max_tokens: int = 2048,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Generate text using a generic prompt.
+
+        Args:
+            prompt: The prompt to send to the LLM.
+            max_tokens: The maximum number of tokens to generate.
+            temperature: The creativity of the response.
+
+        Returns:
+            The generated text as a string.
+        """
+        pass

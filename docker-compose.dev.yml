@@ -18,3 +18,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
+
+  ollama:
+    ports:
+      - "11434:11434"  # Expose Ollama for local backend access

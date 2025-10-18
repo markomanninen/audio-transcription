@@ -13,5 +13,8 @@
     "@playwright/test": "^1.48.2",
     "@types/node": "^20.0.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
   }
 }

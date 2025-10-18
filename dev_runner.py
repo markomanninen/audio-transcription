@@ -59,6 +59,8 @@ class DevRunner:
         self.root_dir = Path(__file__).parent
         self.backend_dir = self.root_dir / "backend"
         self.frontend_dir = self.root_dir / "frontend"
+        self.is_shutting_down = False
+        self.skip_final_cleanup = False
         
         # Load port configuration from central config
         self.ports = self._load_port_config()
@@ -128,25 +130,8 @@ class DevRunner:
         """Print info message."""
         self.log(message, Colors.BLUE, service)
 
-    def find_available_port(self, start_port: int, service_name: str) -> int:
-        """Find the next available port starting from start_port."""
-        port = start_port
-        while port < start_port + 100:  # Try up to 100 ports
-            # Avoid e2e test port ranges
-            if service_name == "backend" and 18200 <= port <= 18299:
-                port = 18300
-                continue
-            if service_name == "frontend" and 18300 <= port <= 18399:
-                port = 18400
-                continue
-                
-            if self.is_port_free(port):
-                if port != start_port:
-                    self.warning(f"Port {start_port} busy, using {port} for {service_name}")
-                return port
-            port += 1
-        
-        raise RuntimeError(f"Could not find available port for {service_name} (tried {start_port}-{port-1})")
+    # REMOVED: find_available_port - NO FALLBACK PORTS ALLOWED
+    # System must use configured ports only
 
     def get_python_executable(self) -> str:
         """Get the correct Python executable (virtual environment if available)."""
@@ -166,14 +151,26 @@ class DevRunner:
         return sys.executable
 
     def is_port_free(self, port: int) -> bool:
-        """Check if a port is available."""
-        import socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(('localhost', port))
-                return True
-            except OSError:
-                return False
+        """Check if a port is available - using lsof to avoid TIME_WAIT issues."""
+        try:
+            # Use lsof to check if ANY process is using the port
+            result = subprocess.run(
+                ['lsof', '-ti', f':{port}'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            # If lsof returns any PIDs, port is busy
+            return result.returncode != 0 or not result.stdout.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            # Fallback to socket method if lsof not available
+            import socket
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(('localhost', port))
+                    return True
+                except OSError:
+                    return False
 
     def is_service_running(self, service: str) -> bool:
         """Check if a service is running."""
@@ -232,6 +229,48 @@ class DevRunner:
             pass
         return []
 
+    def stop_docker_services(self, services: List[str]) -> bool:
+        """Attempt to stop Docker Compose services automatically."""
+        if getattr(self, 'skip_docker', False):
+            return True
+        if not services:
+            return True
+
+        service_list = ', '.join(services)
+        self.warning(f"Attempting to stop Docker services: {service_list}")
+
+        # Try both docker compose and docker-compose for compatibility
+        commands = [
+            ["docker", "compose", "stop", *services],
+            ["docker-compose", "stop", *services]
+        ]
+
+        for cmd in commands:
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=self.root_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=40
+                )
+                if result.returncode == 0:
+                    self.success(f"Docker services stopped: {service_list}")
+                    return True
+
+                message = result.stderr.strip() or result.stdout.strip()
+                if message:
+                    self.warning(f"{' '.join(cmd)}: {message}")
+            except FileNotFoundError:
+                continue
+            except subprocess.TimeoutExpired:
+                self.error(f"{' '.join(cmd)} timed out while stopping Docker services")
+                return False
+
+        self.error(f"Failed to stop Docker services automatically: {service_list}")
+        self.info("Please stop them manually and run the script again")
+        return False
+
     def is_docker_backend_running(self) -> bool:
         """Check if backend is running in Docker."""
         docker_services = self.get_docker_services()
@@ -250,6 +289,35 @@ class DevRunner:
             return True  # No conflicts if no Docker services
 
         self.info(f"Docker Compose services detected: {', '.join(docker_services)}")
+
+        app_services = [s for s in docker_services if s in ['backend', 'frontend']]
+        auto_stopped: List[str] = []
+
+        if app_services:
+            self.warning(f"Docker app services running: {', '.join(app_services)}")
+            self.warning("Local dev cannot reuse the same ports while these containers are up")
+
+            stopped_targets = app_services.copy()
+            if not self.stop_docker_services(app_services):
+                return False
+
+            auto_stopped = stopped_targets
+            # Give Docker a moment to stop containers before re-checking
+            for _ in range(5):
+                time.sleep(1)
+                docker_services = self.get_docker_services()
+                if not any(service in docker_services for service in stopped_targets):
+                    break
+            else:
+                docker_services = self.get_docker_services()
+
+        if auto_stopped:
+            self.success(f"Automatically stopped Docker app services: {', '.join(auto_stopped)}")
+            if not docker_services:
+                self.info("No Docker services remaining after cleanup")
+                return True
+            else:
+                self.info(f"Remaining Docker services: {', '.join(docker_services)}")
 
         # Docker uses different external ports than local dev:
         # - Docker backend: 8080 (external) → 8000 (internal)
@@ -459,20 +527,30 @@ class DevRunner:
         return True
     
     def kill_port(self, port: int) -> bool:
-        """Kill any process running on the specified port."""
+        """Kill any process running on the specified port with FORCE."""
         killed = False
+        pids_to_kill = []
+
+        # Find all processes on this port
         for proc in psutil.process_iter(['pid', 'name']):
             try:
                 connections = proc.net_connections()
                 for conn in connections:
                     if hasattr(conn, 'laddr') and conn.laddr and conn.laddr.port == port:
-                        self.warning(f"Killing process {proc.info['name']} (PID {proc.info['pid']}) on port {port}")
-                        proc.terminate()
-                        proc.wait(timeout=5)
-                        killed = True
+                        pids_to_kill.append((proc.info['pid'], proc.info['name']))
                         break
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired, AttributeError):
                 continue
+
+        # FORCE KILL with kill -9
+        for pid, name in pids_to_kill:
+            try:
+                subprocess.run(['kill', '-9', str(pid)], check=False, capture_output=True)
+                self.warning(f"Force killed {name} (PID {pid}) on port {port}")
+                killed = True
+            except Exception:
+                pass
+
         return killed
 
     def check_dependencies(self) -> bool:
@@ -611,21 +689,17 @@ class DevRunner:
             self.error("Backend is running in Docker - cannot start local backend")
             self.info("Use 'docker-compose stop backend' to stop Docker backend first")
             return False
-        
+
         self.info("Starting backend service...", "BACKEND")
-        
-        # Check if port is already in use
+
+        # STRICT PORT CHECK - NO FALLBACKS
         if not self.is_port_free(self.backend_port):
-            self.warning(f"Port {self.backend_port} is already in use", "BACKEND")
-            # Try to kill the process using the port
-            self.kill_port(self.backend_port)
-            time.sleep(1)  # Give it a moment to release the port
-            if not self.is_port_free(self.backend_port):
-                self.error(f"Could not free port {self.backend_port}", "BACKEND")
-                return False
-        
-        # Use configured port (no dynamic allocation)
-        self.info(f"Using configured backend port: {self.backend_port}", "BACKEND")
+            self.error(f"Port {self.backend_port} is already in use", "BACKEND")
+            self.error("Cannot start backend - port is busy", "BACKEND")
+            self.info("Kill the process using the port or run: npm run dev:cleanup", "BACKEND")
+            return False
+
+        self.info(f"Using backend port: {self.backend_port}", "BACKEND")
         
         # Prepare environment
         env = os.environ.copy()
@@ -634,23 +708,27 @@ class DevRunner:
         env['DATABASE_URL'] = 'sqlite:///./data/dev_transcriptions.db'
         env['DEBUG'] = 'True'
         
-        # Start uvicorn
+        # Start uvicorn WITHOUT --reload (no auto-restart chaos)
         python_exe = self.get_python_executable()
         cmd = [
             python_exe, "-m", "uvicorn",
             "app.main:app",
-            "--reload",
             "--host", "0.0.0.0",
             "--port", str(self.backend_port)
         ]
         
+        # CREATE LOG FILE TO CAPTURE ALL BACKEND OUTPUT
+        backend_log_path = self.root_dir / "backend_output.log"
+        backend_log_file = open(backend_log_path, 'w')
+        self.info(f"Logging backend output to: {backend_log_path}", "BACKEND")
+
         try:
             process = subprocess.Popen(
                 cmd,
                 cwd=self.backend_dir,
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=backend_log_file,
+                stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 bufsize=1  # Line buffered
             )
@@ -703,10 +781,16 @@ class DevRunner:
             self.error("Frontend is running in Docker - cannot start local frontend")
             self.info("Use 'docker-compose stop frontend' to stop Docker frontend first")
             return False
-        
+
         self.info("Starting frontend service...", "FRONTEND")
-        
-        # Use configured port (no dynamic allocation)
+
+        # STRICT PORT CHECK - NO FALLBACKS
+        if not self.is_port_free(self.frontend_port):
+            self.error(f"Port {self.frontend_port} is already in use", "FRONTEND")
+            self.error("Cannot start frontend - port is busy", "FRONTEND")
+            self.info("Kill the process using the port or run: npm run dev:cleanup", "FRONTEND")
+            return False
+
         self.info(f"Using configured frontend port: {self.frontend_port}", "FRONTEND")
         
         # Prepare environment
@@ -717,13 +801,18 @@ class DevRunner:
         
         # Start Vite dev server
         cmd = ["npm", "run", "dev", "--", "--port", str(self.frontend_port), "--host"]
-        
+
+        # CREATE LOG FILE TO CAPTURE ALL FRONTEND OUTPUT
+        frontend_log_path = self.root_dir / "frontend_output.log"
+        frontend_log_file = open(frontend_log_path, 'w')
+        self.info(f"Logging frontend output to: {frontend_log_path}", "FRONTEND")
+
         try:
             process = subprocess.Popen(
                 cmd,
                 cwd=self.frontend_dir,
                 env=env,
-                stdout=subprocess.PIPE,
+                stdout=frontend_log_file,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True
             )
@@ -764,6 +853,39 @@ class DevRunner:
                 pass
         return {}
 
+    def terminate_process_tree(self, proc: psutil.Process, label: str, wait_timeout: float = 3.0):
+        """Terminate a process and all of its children."""
+        try:
+            children = proc.children(recursive=True)
+        except psutil.NoSuchProcess:
+            return
+
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                continue
+
+        _, alive = psutil.wait_procs(children, timeout=wait_timeout)
+        for child in alive:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                continue
+
+        try:
+            proc.terminate()
+        except psutil.NoSuchProcess:
+            return
+
+        try:
+            proc.wait(timeout=wait_timeout)
+        except (psutil.TimeoutExpired, psutil.NoSuchProcess):
+            try:
+                proc.kill()
+            except psutil.NoSuchProcess:
+                pass
+
     def stop_services(self):
         """Stop all running services."""
         self.info("Stopping services...")
@@ -772,12 +894,11 @@ class DevRunner:
         for service, process in self.processes.items():
             if process and process.poll() is None:
                 self.warning(f"Terminating {service}...")
-                process.terminate()
                 try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    self.warning(f"Force killing {service}...")
-                    process.kill()
+                    ps_proc = psutil.Process(process.pid)
+                    self.terminate_process_tree(ps_proc, service, wait_timeout=5)
+                except psutil.NoSuchProcess:
+                    continue
         
         # Stop any processes from previous runs
         saved_pids = self.load_pids()
@@ -785,12 +906,11 @@ class DevRunner:
             if service.endswith('_port'):
                 continue
             try:
-                proc = psutil.Process(pid)
-                if proc.is_running():
-                    self.warning(f"Killing saved {service} process (PID {pid})")
-                    proc.terminate()
-                    proc.wait(timeout=5)
-            except (psutil.NoSuchProcess, psutil.TimeoutExpired):
+                ps_proc = psutil.Process(pid)
+                if ps_proc.is_running():
+                    self.warning(f"Killing saved {service} process tree (PID {pid})")
+                    self.terminate_process_tree(ps_proc, service, wait_timeout=5)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
         
         # For Redis, only stop if we started it locally (not if it's running in Docker)
@@ -947,8 +1067,18 @@ class DevRunner:
 
     def signal_handler(self, signum, frame):
         """Handle shutdown signals."""
-        self.warning("\nReceived shutdown signal, cleaning up...")
-        self.stop_services()
+        if self.is_shutting_down:
+            # Prevent reentrant calls - just exit immediately
+            sys.exit(0)
+
+        self.is_shutting_down = True
+        self.skip_final_cleanup = True
+        # Use print directly to avoid reentrant call issues
+        print("\n[WARNING] Received shutdown signal, cleaning up...")
+        try:
+            self.stop_services()
+        except:
+            pass
         sys.exit(0)
 
     def run(self, backend_only=False, frontend_only=False, restart=False, check=False, stop=False, cleanup=False, logs=False, docker_status=False, skip_docker=False):
@@ -1039,7 +1169,45 @@ class DevRunner:
             if restart:
                 self.stop_services()
                 time.sleep(2)
-            
+
+            # ALWAYS clean up any existing dev processes before starting
+            # Check if PORTS are in use (not if services respond)
+            backend_port_busy = not self.is_port_free(self.backend_port)
+            frontend_port_busy = not self.is_port_free(self.frontend_port)
+
+            if backend_port_busy or frontend_port_busy:
+                self.warning("Found processes using dev ports - cleaning up...")
+                if backend_port_busy:
+                    self.warning(f"Killing process on backend port {self.backend_port}")
+                    self.kill_port(self.backend_port)
+                if frontend_port_busy:
+                    self.warning(f"Killing process on frontend port {self.frontend_port}")
+                    self.kill_port(self.frontend_port)
+
+                # Wait for ports to actually free up - OS needs time after kill -9
+                self.warning("Waiting for OS to free ports (this can take up to 15 seconds)...")
+                time.sleep(5)  # Initial longer wait
+
+                # Verify ports are actually free now
+                max_retries = 10  # More retries
+                for i in range(max_retries):
+                    backend_free = self.is_port_free(self.backend_port)
+                    frontend_free = self.is_port_free(self.frontend_port)
+
+                    if backend_free and frontend_free:
+                        break
+
+                    if i < max_retries - 1:
+                        self.warning(f"Ports still busy, waiting... ({i+1}/{max_retries})")
+                        time.sleep(1.5)
+                    else:
+                        self.error("Ports still busy after cleanup!")
+                        self.error("Manual cleanup needed - run: npm run dev:cleanup")
+                        self.error("Or wait 30 seconds and try again")
+                        return
+
+                self.success("Cleanup complete - ports are free")
+
             # Dependency checks
             if not self.check_dependencies():
                 return
@@ -1106,27 +1274,23 @@ class DevRunner:
             if logs:
                 self.show_logs()
             else:
-                # Keep the script running
+                # Keep the script running - NO AUTO-RESTART
+                # If a service dies, the user must manually restart
                 while True:
                     time.sleep(1)
-                    # Check if processes are still alive
+                    # Monitor but DO NOT auto-restart
                     for service, process in list(self.processes.items()):
                         if process.poll() is not None:
-                            self.error(f"{service} process died, restarting...")
-                            if service == 'backend':
-                                self.start_backend()
-                            elif service == 'frontend':
-                                self.start_frontend()
-                            elif service == 'redis':
-                                self.start_redis()
-                            elif service == 'ollama':
-                                self.start_ollama()
+                            self.error(f"{service} process died!")
+                            self.error(f"Please restart manually with: npm run dev:restart")
+                            # Exit immediately - don't continue running with dead services
+                            sys.exit(1)
         
         except KeyboardInterrupt:
             pass
         finally:
             # Only stop services if we're not just checking status
-            if not (check or stop or cleanup or docker_status):
+            if not self.skip_final_cleanup and not (check or stop or cleanup or docker_status):
                 self.stop_services()
 
 

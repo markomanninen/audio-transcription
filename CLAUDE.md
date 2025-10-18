@@ -2,6 +2,72 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: File Organization Rules
+
+**NEVER POLLUTE THE PROJECT ROOT DIRECTORY. Follow these strict rules:**
+
+### Where Files MUST Go
+
+1. **Documentation Files**
+   - Project docs → `/docs/` directory
+   - Test-specific docs → `/tests/e2e/docs/` or `/tests/docs/`
+   - API docs → `/docs/api/`
+   - NEVER create `.md` files in root except: `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `LICENSE.md`
+
+2. **Test Files**
+   - E2E tests → `/tests/e2e/tests/`
+   - Backend tests → `/backend/tests/`
+   - Frontend tests → `/frontend/src/__tests__/`
+   - Test helpers → `/tests/e2e/helpers/`
+   - NEVER create test files (`.spec.ts`, `.test.js`, etc.) in project root
+
+3. **Debug/Development Files**
+   - Debug data → `/backend/debug/` or `/frontend/debug/`
+   - Response captures → `/backend/debug/`
+   - Development PIDs → `/tmp/` or `.dev_runner_pids.json` (gitignored)
+   - NEVER commit debug `.json` files to root
+
+4. **Scripts**
+   - All executable scripts → `/scripts/` directory
+   - Test runner scripts → `/tests/e2e/` or `/scripts/test/`
+   - NEVER create `.sh` files in root except `docker-compose` helpers
+
+5. **Configuration Files** (ONLY these are allowed in root)
+   - `package.json`, `package-lock.json`
+   - `docker-compose.yml`, `docker-compose.*.yml`
+   - `.env.example`, `.gitignore`, `.dockerignore`
+   - `tsconfig.json`, `vite.config.ts`, `playwright.config.ts`
+
+### Cleanup Protocol
+
+**After creating any files, ALWAYS:**
+1. Verify file location follows above rules
+2. Move misplaced files to correct directories
+3. Update any references/imports to new paths
+4. Add temporary/debug files to `.gitignore`
+5. Remove files before completing task
+
+### Example Violations (FORBIDDEN)
+
+```text
+❌ /AI_EDITOR_TEST_RESULTS.md          → ✅ /tests/e2e/docs/AI_EDITOR_TEST_RESULTS.md
+❌ /ai_editor_responses.json           → ✅ /backend/debug/ai_editor_responses.json
+❌ /demo-ai-editor.sh                  → ✅ /scripts/demo-ai-editor.sh
+❌ /DOCKER_AI_SETUP.md                 → ✅ /docs/DOCKER_AI_SETUP.md
+❌ /test-something.spec.ts             → ✅ /tests/e2e/tests/test-something.spec.ts
+❌ /.coverage (running pytest in root) → ✅ /backend/.coverage (run tests in backend/)
+```
+
+### Critical: Running Tests in Correct Directory
+
+**NEVER run pytest or npm test from project root!**
+
+- Backend tests: `cd backend && pytest` (creates `backend/.coverage`)
+- Frontend tests: `cd frontend && npm test` (creates `frontend/coverage/`)
+- E2E tests: `cd tests/e2e && npm test` (creates `tests/e2e/test-results/`)
+
+**If you create files in wrong locations, the user will be justifiably angry. Follow these rules religiously.**
+
 ## Project Overview
 
 Docker-hosted audio interview transcription application with advanced editing capabilities. Users upload audio files, get automatic transcription with speaker recognition, edit text interactively, compare original vs edited versions, use AI for spell/grammar checking, and export to SRT, HTML, and PDF formats.

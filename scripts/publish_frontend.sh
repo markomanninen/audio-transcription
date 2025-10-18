@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script is in /scripts/, so repo root is parent directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.prod.yml"
-LOCAL_IMAGE_NAME="transcribe-backend:latest"
-REMOTE_IMAGE_NAME="markomann/audio-transcription-backend:latest"
+LOCAL_IMAGE_NAME="transcribe-frontend:latest"
+REMOTE_IMAGE_NAME="markomann/audio-transcription-frontend:latest"
 
 INFO="[INFO]"
 ERROR="[ERROR]"
@@ -26,8 +28,8 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   fail "Cannot find ${COMPOSE_FILE}. Run this script from the repository root."
 fi
 
-log "Building backend image via docker compose..."
-docker compose -f "${COMPOSE_FILE}" build backend
+log "Building frontend image via docker compose..."
+docker compose -f "${COMPOSE_FILE}" build frontend
 
 log "Tagging ${LOCAL_IMAGE_NAME} as ${REMOTE_IMAGE_NAME}..."
 docker tag "${LOCAL_IMAGE_NAME}" "${REMOTE_IMAGE_NAME}"

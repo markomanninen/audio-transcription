@@ -1,9 +1,13 @@
 """
-Application conf    # Whisper configuration
-    WHISPER_MODEL_SIZE: str = "base"  # tiny, base, small, medium, large
-    WHISPER_DEVICE: str = "auto"  # auto, cpu, cuda, mpsration using Pydantic settings.
+Application configuration using Pydantic settings.
 """
+from pathlib import Path
+from urllib.parse import urlsplit
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -88,6 +92,42 @@ class Settings(BaseSettings):
         env_prefix="",
         env_file_encoding="utf-8",
     )
+
+    def model_post_init(self, __context) -> None:  # type: ignore[override]
+        """
+        Normalize filesystem-backed SQLite URLs so they work regardless of the current working directory.
+        """
+        if not self.DATABASE_URL.startswith("sqlite:///"):
+            return
+
+        split = urlsplit(self.DATABASE_URL)
+        raw_path = split.path
+
+        if not raw_path:
+            return
+
+        is_network_path = raw_path.startswith("//")
+        path_candidate = raw_path
+
+        if not is_network_path and raw_path.startswith("/"):
+            path_candidate = raw_path[1:]
+
+        if path_candidate.startswith(("file:", ":memory:")):
+            return
+
+        db_path = Path(path_candidate)
+        if not is_network_path and not db_path.is_absolute():
+            db_path = (BACKEND_ROOT / db_path).resolve(strict=False)
+        else:
+            db_path = db_path.resolve(strict=False)
+
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        new_url = f"sqlite:///{db_path.as_posix()}"
+        if split.query:
+            new_url = f"{new_url}?{split.query}"
+
+        object.__setattr__(self, "DATABASE_URL", new_url)
 
 
 settings = Settings()

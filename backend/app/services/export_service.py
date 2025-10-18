@@ -5,14 +5,68 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from ..models.project import Project
 from ..models.audio_file import AudioFile
 from ..models.segment import Segment
 from ..models.speaker import Speaker
+from ..models.export_template import ExportTemplate
 
 
 class ExportService:
     """Service for exporting transcriptions to different formats."""
+
+    def __init__(self):
+        # In a real app, you might configure the template loader differently
+        self.jinja_env = Environment(
+            loader=FileSystemLoader("."),  # A dummy loader, we'll load from string
+            autoescape=select_autoescape(['html', 'xml'])
+        )
+
+    def generate_from_template(self, project_id: int, template_id: int, db: Session) -> str:
+        """
+        Generates an export file based on a user-defined template.
+        """
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise ValueError(f"Project {project_id} not found")
+
+        template = db.query(ExportTemplate).filter(ExportTemplate.id == template_id).first()
+        if not template:
+            raise ValueError(f"Template {template_id} not found")
+
+        context = {
+            "project_name": project.name,
+            "project_description": project.description,
+            "generation_date": datetime.now().strftime('%Y-%m-%d %H:%M'),
+        }
+
+        if project.project_type == 'audio' and project.audio_files:
+            # For simplicity, we'll use the first audio file of the project
+            audio_file = project.audio_files[0]
+            segments = db.query(Segment).filter(Segment.audio_file_id == audio_file.id).order_by(Segment.sequence).all()
+            speakers_map = {s.id: s.display_name for s in project.speakers}
+
+            segments_data = [
+                {
+                    "start_time": self._format_time(s.start_time),
+                    "end_time": self._format_time(s.end_time),
+                    "text": s.edited_text if s.edited_text is not None else s.original_text,
+                    "speaker": speakers_map.get(s.speaker_id) if s.speaker_id else "Unknown"
+                }
+                for s in segments
+            ]
+            context["segments"] = segments_data
+            context["text"] = "\n".join([s["text"] for s in segments_data])
+
+        elif project.project_type == 'text' and project.text_document:
+            context["text"] = project.text_document.content
+            context["history"] = project.text_document.history
+
+        jinja_template = self.jinja_env.from_string(template.content)
+        return jinja_template.render(context)
+
 
     def generate_srt(
         self,

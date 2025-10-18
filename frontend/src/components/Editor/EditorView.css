@@ -1,0 +1,97 @@
+.editor-side-resize-handle {
+  position: relative;
+  width: 12px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  z-index: 5;
+}
+
+.editor-side-resize-handle::before {
+  content: '';
+  width: 3px;
+  height: 60%;
+  border-radius: 9999px;
+  background-color: rgba(148, 163, 184, 0.7);
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.editor-side-resize-handle:hover::before,
+.editor-side-resize-handle:focus-visible::before,
+.editor-side-resize-handle.is-active::before {
+  background-color: rgba(59, 130, 246, 0.9);
+}
+
+.editor-side-resize-handle:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.7);
+  outline-offset: 2px;
+}
+
+.diff-viewer-wrapper {
+  position: relative;
+  --diff-viewer-left-width: 50%;
+  --diff-viewer-right-width: 50%;
+  --diff-viewer-divider-position: 50%;
+}
+
+.diff-viewer-wrapper .diff-container {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.diff-viewer-wrapper .diff-container.split-view tr.line td.content:first-of-type {
+  width: var(--diff-viewer-left-width) !important;
+  max-width: var(--diff-viewer-left-width);
+}
+
+.diff-viewer-wrapper .diff-container.split-view tr.line td.content:last-of-type {
+  width: var(--diff-viewer-right-width) !important;
+  max-width: var(--diff-viewer-right-width);
+}
+
+.diff-viewer-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.diff-viewer-resize-handle::before {
+  content: '';
+  width: 2px;
+  height: 70%;
+  border-radius: 9999px;
+  background-color: rgba(148, 163, 184, 0.7);
+  transition: background-color 0.2s ease;
+}
+
+.diff-viewer-resize-handle:hover::before,
+.diff-viewer-resize-handle:focus-visible::before,
+.diff-viewer-resize-handle.is-active::before {
+  background-color: rgba(59, 130, 246, 0.9);
+}
+
+.diff-viewer-resize-handle:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.7);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .editor-side-resize-handle::before,
+  .diff-viewer-resize-handle::before {
+    background-color: rgba(100, 116, 139, 0.8);
+  }
+}

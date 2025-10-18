@@ -1,21 +1,30 @@
 """
-Project model - represents a transcription project/session.
+Project model - represents a transcription or text project.
 """
 from sqlalchemy import String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List
+from typing import List, Optional
 
 from .base import Base, TimestampMixin
+from .text_document import TextDocument
 
 
 class Project(Base, TimestampMixin):
-    """A transcription project containing audio files and their transcriptions."""
+    """A project that can contain either audio files for transcription or a standalone text document."""
 
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    project_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="audio",
+        comment="Type of project: 'audio' or 'text'"
+    )
+
     content_type: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
@@ -30,6 +39,9 @@ class Project(Base, TimestampMixin):
     speakers: Mapped[List["Speaker"]] = relationship(
         "Speaker", back_populates="project", cascade="all, delete-orphan"
     )
+    text_document: Mapped[Optional["TextDocument"]] = relationship(
+        "TextDocument", back_populates="project", cascade="all, delete-orphan", uselist=False
+    )
 
     def __repr__(self) -> str:
-        return f"<Project(id={self.id}, name='{self.name}')>"
+        return f"<Project(id={self.id}, name='{self.name}', type='{self.project_type}')>"

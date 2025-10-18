@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Loading splash behaviour', () => {
   test('splash screen hides when backend is ready', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/audio')
 
     const splash = page.getByTestId('loading-splash')
 
@@ -13,6 +13,6 @@ test.describe('Loading splash behaviour', () => {
     await splash.waitFor({ state: 'detached', timeout: 180_000 })
 
     // The main dashboard heading should now be visible to the user.
-    await expect(page.getByRole('heading', { name: 'Audio Transcription', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /audio transcription studio/i }).first()).toBeVisible()
   })
 })
