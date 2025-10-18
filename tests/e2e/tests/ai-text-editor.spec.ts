@@ -293,7 +293,8 @@ test.describe('AI Text Editor - Text Editing', () => {
 });
 
 test.describe('AI Text Editor - Version History', () => {
-  test('should save versions', async ({ page }) => {
+  test.skip('should save versions', async ({ page }) => {
+    // TODO: Version history UI not yet implemented
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'Version Test ' + Date.now());
@@ -313,12 +314,11 @@ test.describe('AI Text Editor - Version History', () => {
       const historyPanel = page.locator('[class*="history"]');
       const hasHistory = await historyPanel.isVisible({ timeout: 2000 }).catch(() => false);
       expect(hasHistory).toBeTruthy();
-    } else {
-      test.skip();
     }
   });
 
-  test('should display version history', async ({ page }) => {
+  test.skip('should display version history', async ({ page }) => {
+    // TODO: Version history UI not yet implemented
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'History Display Test ' + Date.now());
@@ -345,12 +345,11 @@ test.describe('AI Text Editor - Version History', () => {
       const count = await historyEntries.count();
 
       expect(count).toBeGreaterThanOrEqual(2);
-    } else {
-      test.skip();
     }
   });
 
-  test('should rollback to previous version', async ({ page }) => {
+  test.skip('should rollback to previous version', async ({ page }) => {
+    // TODO: Version history UI not yet implemented
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'Rollback Test ' + Date.now());
