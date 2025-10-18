@@ -122,8 +122,12 @@ def client(test_db, monkeypatch):
     def do_nothing():
         pass
 
-    monkeypatch.setattr("app.main.init_db", do_nothing)
-    monkeypatch.setattr("app.main.run_migrations", do_nothing)
+    # Only patch if these functions exist in app.main
+    import app.main
+    if hasattr(app.main, "init_db"):
+        monkeypatch.setattr("app.main.init_db", do_nothing)
+    if hasattr(app.main, "run_migrations"):
+        monkeypatch.setattr("app.main.run_migrations", do_nothing)
 
     def override_get_db():
         try:
