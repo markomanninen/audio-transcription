@@ -94,7 +94,8 @@ log "Starting backend on port $BACKEND_PORT"
   AUDIO_STORAGE_PATH="./data/e2e_test_audio" \
   WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-tiny}" \
   E2E_TRANSCRIPTION_STUB="$USE_TRANSCRIPTION_STUB" \
-  python -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
+  SEED_E2E_DATA="1" \
+  "$ROOT_DIR/.venv/bin/python" -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
     > "$RESULTS_DIR/manual-workflow-backend-${BACKEND_PORT}.log" 2>&1
 ) &
 BACKEND_PID=$!
