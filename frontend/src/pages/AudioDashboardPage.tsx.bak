@@ -102,9 +102,7 @@ export default function AudioDashboardPage() {
     createAudioProject.mutate(
       { name },
       {
-        onSuccess: async (project) => {
-          // Wait for projects query to refetch
-          await new Promise(resolve => setTimeout(resolve, 100));
+        onSuccess: (project) => {
           setProjectId(project.id);
           setShowCreateDialog(false);
         },

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "./run-tests-with-test-db.sh",
+    "test": "../../scripts/run_local_e2e.sh && node record-test-run.js && node update-test-status.js",
     "results": "node show-test-summary.js",
     "status": "node show-test-status.js",
     "test:headed": "./run-tests-with-test-db.sh --headed",

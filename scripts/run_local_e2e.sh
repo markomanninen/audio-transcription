@@ -164,6 +164,7 @@ log "Starting backend on port $BACKEND_PORT (logs: $BACKEND_LOG)"
 (
   cd "$ROOT_DIR/backend"
   DATABASE_URL="sqlite:///./data/$DB_FILENAME" \
+  AUDIO_STORAGE_PATH="./data/e2e_test_audio" \
   WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-tiny}" \
   UVICORN_ACCESS_LOG="false" \
   E2E_TRANSCRIPTION_STUB="$USE_TRANSCRIPTION_STUB" \
