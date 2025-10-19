@@ -169,7 +169,7 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
 
     // Step 3: Create a text project
     console.log('Step 3: Creating text project...');
-    const createProjectBtn = page.getByRole('button', { name: /new text project|create text project/i });
+    const createProjectBtn = page.getByRole('button', { name: /new text project|create text project/i }).first();
     await createProjectBtn.click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '02-create-project-modal.png'), fullPage: true });
