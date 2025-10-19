@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useCreateAudioProject,
   useCreateTextProject,
@@ -31,11 +31,15 @@ import type { Segment } from '../types';
 
 export default function AudioDashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projectId, setProjectId] = useState<number | null>(() => {
     const saved = localStorage.getItem('selectedAudioProjectId');
     return saved ? parseInt(saved, 10) : null;
   });
-  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem('hasSeenAudioTutorial') !== 'true');
+  const [showTutorial, setShowTutorial] = useState(() => {
+    // Show tutorial if URL param is set OR if user hasn't seen it
+    return searchParams.get('tutorial') === 'true' || localStorage.getItem('hasSeenAudioTutorial') !== 'true';
+  });
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [shouldPlayAudio, setShouldPlayAudio] = useState(false);
@@ -131,6 +135,11 @@ export default function AudioDashboardPage() {
   const handleTutorialDismiss = () => {
     localStorage.setItem('hasSeenAudioTutorial', 'true');
     setShowTutorial(false);
+    // Remove tutorial parameter from URL if present
+    if (searchParams.get('tutorial') === 'true') {
+      searchParams.delete('tutorial');
+      setSearchParams(searchParams, { replace: true });
+    }
   };
 
   const handleDeleteProject = () => {

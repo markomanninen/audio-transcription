@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useProjects, useCreateTextProject, useDeleteProject } from '../hooks/useProjects';
 import CreateProjectDialog from '../components/Dashboard/CreateProjectDialog';
 import TextEditorTutorial from '../components/Tutorial/TextEditorTutorial';
@@ -7,13 +7,15 @@ import { Button } from '../components/ui/Button';
 
 export default function TextProjectsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: projects, isLoading } = useProjects();
   const createTextProject = useCreateTextProject();
   const deleteProject = useDeleteProject();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => {
-    return localStorage.getItem('hasSeenTextTutorial') !== 'true';
+    // Show tutorial if URL param is set OR if user hasn't seen it
+    return searchParams.get('tutorial') === 'true' || localStorage.getItem('hasSeenTextTutorial') !== 'true';
   });
 
   const textProjects = useMemo(
@@ -24,8 +26,13 @@ export default function TextProjectsPage() {
   useEffect(() => {
     if (!showTutorial) {
       localStorage.setItem('hasSeenTextTutorial', 'true');
+      // Remove tutorial parameter from URL if present
+      if (searchParams.get('tutorial') === 'true') {
+        searchParams.delete('tutorial');
+        setSearchParams(searchParams, { replace: true });
+      }
     }
-  }, [showTutorial]);
+  }, [showTutorial, searchParams, setSearchParams]);
 
   const handleCreateTextProject = (name: string, _type: 'audio' | 'text', content?: string) => {
     createTextProject.mutate(

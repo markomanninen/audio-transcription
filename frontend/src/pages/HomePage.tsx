@@ -26,7 +26,7 @@ export default function HomePage() {
               <Link to="/audio" className={buttonVariants({ variant: 'primary' })}>
                 Open Transcription Studio
               </Link>
-              <Link to="/audio" className="text-sm font-medium text-primary-600 hover:text-primary-500">
+              <Link to="/audio?tutorial=true" className="text-sm font-medium text-primary-600 hover:text-primary-500">
                 View tutorial →
               </Link>
             </div>
@@ -42,7 +42,7 @@ export default function HomePage() {
               <Link to="/text" className={buttonVariants({ variant: 'primary' })}>
                 Open Text Editor
               </Link>
-              <Link to="/text" className="text-sm font-medium text-primary-600 hover:text-primary-500">
+              <Link to="/text?tutorial=true" className="text-sm font-medium text-primary-600 hover:text-primary-500">
                 View tutorial →
               </Link>
             </div>
