@@ -3,6 +3,24 @@ const { execSync } = require('child_process');
 
 // Dynamic port detection
 function getPortConfig() {
+  // Check for explicit URL environment variables (from run script)
+  if (process.env.FRONTEND_URL && process.env.BACKEND_URL) {
+    console.log('📡 Using environment-specified URLs');
+    const frontendUrl = new URL(process.env.FRONTEND_URL);
+    const backendUrl = new URL(process.env.BACKEND_URL);
+    return {
+      environment: 'manual-test',
+      ports: {
+        backend: parseInt(backendUrl.port) || 8000,
+        frontend: parseInt(frontendUrl.port) || 5173
+      },
+      urls: {
+        backend: process.env.BACKEND_URL,
+        frontend: process.env.FRONTEND_URL
+      }
+    };
+  }
+
   // Check for Docker environment override
   if (process.env.USE_DOCKER === 'true' || process.env.TEST_DOCKER === 'true') {
     console.log('🐳 Using Docker environment configuration');
