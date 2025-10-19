@@ -219,13 +219,13 @@ export default function AudioDashboardPage() {
               onSelectProject={setProjectId}
               projectTypeFilter="audio"
             />
-            <Button onClick={() => setShowCreateDialog(true)} loading={isCreating}>
+            <Button onClick={() => setShowCreateDialog(true)} loading={isCreating} className="whitespace-nowrap">
               New Project
             </Button>
             <div ref={toolsMenuRef} className="relative">
               <button
                 onClick={() => setShowToolsMenu((prev) => !prev)}
-                className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"
+                className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted whitespace-nowrap"
               >
                 Tools {showToolsMenu ? '▲' : '▼'}
               </button>

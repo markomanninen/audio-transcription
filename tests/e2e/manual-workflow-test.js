@@ -241,15 +241,15 @@ function getPortConfig() {
       console.log('✅ Switched to first project\n');
       console.log('📸 Screenshot saved: 06-project-switched.png\n');
 
-      // Step 8: Open Project menu to access Edit option
-      console.log('Step 8: Opening Project menu...');
-      // Be specific - we want "Project ▼" button, not "New Project"
-      const projectMenuBtn = page.getByRole('button', { name: 'Project ▼' });
-      await projectMenuBtn.click();
+      // Step 8: Open Tools menu to access Edit option
+      console.log('Step 8: Opening Tools menu...');
+      // Look for "Tools ▼" or "Tools ▲" button (case-insensitive)
+      const toolsMenuBtn = page.getByRole('button', { name: /^tools [▼▲]$/i });
+      await toolsMenuBtn.click();
       await page.waitForTimeout(500);
-      await page.screenshot({ path: 'test-screenshots/08-project-menu-open.png', fullPage: true });
-      console.log('✅ Project menu opened\n');
-      console.log('📸 Screenshot saved: 08-project-menu-open.png\n');
+      await page.screenshot({ path: 'test-screenshots/08-tools-menu-open.png', fullPage: true });
+      console.log('✅ Tools menu opened\n');
+      console.log('📸 Screenshot saved: 08-tools-menu-open.png\n');
 
       // Step 9: Click Edit Project option
       console.log('Step 9: Clicking Edit Project...');
@@ -1063,12 +1063,12 @@ function getPortConfig() {
         await projectSelect.selectOption(projectIds[i]);
         await page.waitForTimeout(500);
 
-        // Open Project menu
+        // Open Tools menu
         await page.keyboard.press('Escape');  // Close any open menus
         await page.waitForTimeout(300);
 
-        const projMenuBtn = page.getByRole('button', { name: 'Project ▼' });
-        await projMenuBtn.click();
+        const toolsMenuBtn = page.getByRole('button', { name: /^tools [▼▲]$/i });
+        await toolsMenuBtn.click();
         await page.waitForTimeout(500);
 
         // Click Delete Project
