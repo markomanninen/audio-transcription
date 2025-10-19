@@ -6,11 +6,12 @@ test.describe('Consecutive Project Creation', () => {
 
     console.log('=== Testing Consecutive Project Creation ===')
 
-    await page.goto('/')
+    await page.goto('/audio')
 
     // Skip tutorial
     await page.evaluate(() => {
       window.localStorage.setItem('hasSeenTutorial', 'true')
+      window.localStorage.setItem('hasSeenAudioTutorial', 'true')
     })
 
     // Wait for loading splash
@@ -32,8 +33,8 @@ test.describe('Consecutive Project Creation', () => {
       const projectName = `Test Project ${i} - ${Date.now()}`
       projectNames.push(projectName)
 
-      // Click create button
-      const createButton = page.getByRole('button', { name: /create.*project|new project/i })
+      // Click create button (use first match since there may be multiple project type buttons)
+      const createButton = page.getByRole('button', { name: /new project/i })
       await expect(createButton).toBeVisible({ timeout: 10_000 })
       await createButton.click()
 
@@ -76,8 +77,8 @@ test.describe('Consecutive Project Creation', () => {
 
     // Final health check - ensure backend is still responsive
     const healthCheckStart = Date.now()
-    const createButton = page.getByRole('button', { name: /create.*project|new project/i })
-    await expect(createButton).toBeVisible({ timeout: 5_000 })
+    const healthCheckButton = page.getByRole('button', { name: /new project/i })
+    await expect(healthCheckButton).toBeVisible({ timeout: 5_000 })
     const healthCheckDuration = Date.now() - healthCheckStart
     console.log(`\n✅ Backend still responsive after ${projectCount} projects (${healthCheckDuration}ms)`)
 
@@ -89,10 +90,11 @@ test.describe('Consecutive Project Creation', () => {
 
     console.log('=== Testing Project Creation After Page Refresh ===')
 
-    await page.goto('/')
+    await page.goto('/audio')
 
     await page.evaluate(() => {
       window.localStorage.setItem('hasSeenTutorial', 'true')
+      window.localStorage.setItem('hasSeenAudioTutorial', 'true')
     })
 
     const splash = page.getByTestId('loading-splash')
@@ -105,7 +107,7 @@ test.describe('Consecutive Project Creation', () => {
 
     // Create first project
     console.log('\n[Step 1] Creating first project')
-    const createButton = page.getByRole('button', { name: /create.*project|new project/i })
+    const createButton = page.getByRole('button', { name: /new project/i })
     await createButton.click()
 
     const projectName1 = `Before Refresh ${Date.now()}`
@@ -124,7 +126,7 @@ test.describe('Consecutive Project Creation', () => {
 
     // Create second project after refresh
     console.log('\n[Step 3] Creating second project after refresh')
-    const createButton2 = page.getByRole('button', { name: /create.*project|new project/i })
+    const createButton2 = page.getByRole('button', { name: /new project/i })
     await expect(createButton2).toBeVisible({ timeout: 10_000 })
     await createButton2.click()
 

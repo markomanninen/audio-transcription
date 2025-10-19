@@ -3,6 +3,24 @@ const { execSync } = require('child_process');
 
 // Dynamic port detection
 function getPortConfig() {
+  // Check for explicit URL environment variables (from run script)
+  if (process.env.FRONTEND_URL && process.env.BACKEND_URL) {
+    console.log('📡 Using environment-specified URLs');
+    const frontendUrl = new URL(process.env.FRONTEND_URL);
+    const backendUrl = new URL(process.env.BACKEND_URL);
+    return {
+      environment: 'manual-test',
+      ports: {
+        backend: parseInt(backendUrl.port) || 8000,
+        frontend: parseInt(frontendUrl.port) || 5173
+      },
+      urls: {
+        backend: process.env.BACKEND_URL,
+        frontend: process.env.FRONTEND_URL
+      }
+    };
+  }
+
   // Check for Docker environment override
   if (process.env.USE_DOCKER === 'true' || process.env.TEST_DOCKER === 'true') {
     console.log('🐳 Using Docker environment configuration');
@@ -89,9 +107,51 @@ function getPortConfig() {
       console.log('⏭️  No tutorial found, continuing...\n');
     }
 
-    // Step 3: Create first project immediately 
-    console.log('Step 3: Creating first project (moved earlier to reduce wait)...');
-    const createProjectBtn = page.getByRole('button', { name: /new project|create project/i });
+    // Step 3: Navigate to Audio Transcription workspace
+    console.log('Step 3: Navigating to Audio Transcription workspace...');
+
+    // Try to find the link or button - check multiple selectors
+    const audioLink = page.locator('a[href="/audio"]').first();
+    const audioButton = page.getByRole('button', { name: /open transcription studio/i });
+
+    const linkVisible = await audioLink.isVisible({ timeout: 2000 }).catch(() => false);
+    const btnVisible = await audioButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (linkVisible) {
+      console.log('Found audio link, clicking...');
+      await audioLink.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000);
+    } else if (btnVisible) {
+      console.log('Found audio button, clicking...');
+      await audioButton.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000);
+    } else {
+      console.log('⚠️  No workspace button/link found, trying direct navigation...');
+      await page.goto(`${frontendUrl}/audio`);
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Verify we're on /audio page
+    const currentUrl = page.url();
+    console.log(`Current URL after navigation: ${currentUrl}`);
+
+    // Dismiss any audio tutorial that appears
+    const audioTutorialSkip = page.getByRole('button', { name: /skip|get started|close/i });
+    if (await audioTutorialSkip.isVisible({ timeout: 2000 }).catch(() => false)) {
+      console.log('Dismissing audio tutorial...');
+      await audioTutorialSkip.click();
+      await page.waitForTimeout(500);
+    }
+
+    await page.screenshot({ path: 'test-screenshots/03-audio-workspace.png', fullPage: true });
+    console.log('✅ Navigated to Audio Transcription workspace\n');
+    console.log('📸 Screenshot saved: 03-audio-workspace.png\n');
+
+    // Step 4: Create first project
+    console.log('Step 4: Creating first project...');
+    const createProjectBtn = page.getByRole('button', { name: /new project|create audio project/i }).first();
     const isVisible = await createProjectBtn.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (isVisible) {
@@ -111,10 +171,10 @@ function getPortConfig() {
       await page.waitForTimeout(300); // Reduced delay
       await page.screenshot({ path: 'test-screenshots/03-project-created.png', fullPage: true });
       console.log('✅ Project created\n');
-      console.log('📸 Screenshot saved: 03-project-created.png\n');
-      
-      // Step 4: Create a second project immediately
-      console.log('Step 4: Creating second project...');
+      console.log('📸 Screenshot saved: 04-project-created.png\n');
+
+      // Step 5: Create a second project immediately
+      console.log('Step 5: Creating second project...');
       const newProjectBtn = page.getByRole('button', { name: /new project/i });
       await newProjectBtn.click();
       await page.waitForTimeout(300); // Reduced delay
@@ -127,24 +187,24 @@ function getPortConfig() {
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/04-second-project-created.png', fullPage: true });
       console.log('✅ Second project created\n');
-      console.log('📸 Screenshot saved: 04-second-project-created.png\n');
+      console.log('📸 Screenshot saved: 05-second-project-created.png\n');
 
-      // Step 5: Refresh the window
-      console.log('Step 5: Refreshing the window...');
+      // Step 6: Refresh the window
+      console.log('Step 6: Refreshing the window...');
       await page.reload();
       await page.waitForLoadState('domcontentloaded'); // Faster than networkidle
       await page.waitForTimeout(300); // Reduced delay
       await page.screenshot({ path: 'test-screenshots/05-after-refresh.png', fullPage: true });
       console.log('✅ Window refreshed\n');
-      console.log('📸 Screenshot saved: 05-after-refresh.png\n');
+      console.log('📸 Screenshot saved: 06-after-refresh.png\n');
 
-      // Step 6: Close the Project menu first if it's open
-      console.log('Step 6: Closing any open menus...');
+      // Step 7: Close the Project menu first if it's open
+      console.log('Step 7: Closing any open menus...');
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
 
-      // Step 7: Use native select element to switch projects
-      console.log('Step 7: Switching to first project via select element...');
+      // Step 8: Use native select element to switch projects
+      console.log('Step 8: Switching to first project via select element...');
       // The project selector appears to be a native HTML select element
       const projectSelect = page.locator('select').first();  // Find the select dropdown
 
@@ -181,15 +241,15 @@ function getPortConfig() {
       console.log('✅ Switched to first project\n');
       console.log('📸 Screenshot saved: 06-project-switched.png\n');
 
-      // Step 8: Open Project menu to access Edit option
-      console.log('Step 8: Opening Project menu...');
-      // Be specific - we want "Project ▼" button, not "New Project"
-      const projectMenuBtn = page.getByRole('button', { name: 'Project ▼' });
-      await projectMenuBtn.click();
+      // Step 8: Open Tools menu to access Edit option
+      console.log('Step 8: Opening Tools menu...');
+      // Look for "Tools ▼" or "Tools ▲" button (case-insensitive)
+      const toolsMenuBtn = page.getByRole('button', { name: /^tools [▼▲]$/i });
+      await toolsMenuBtn.click();
       await page.waitForTimeout(500);
-      await page.screenshot({ path: 'test-screenshots/08-project-menu-open.png', fullPage: true });
-      console.log('✅ Project menu opened\n');
-      console.log('📸 Screenshot saved: 08-project-menu-open.png\n');
+      await page.screenshot({ path: 'test-screenshots/08-tools-menu-open.png', fullPage: true });
+      console.log('✅ Tools menu opened\n');
+      console.log('📸 Screenshot saved: 08-tools-menu-open.png\n');
 
       // Step 9: Click Edit Project option
       console.log('Step 9: Clicking Edit Project...');
@@ -1003,12 +1063,12 @@ function getPortConfig() {
         await projectSelect.selectOption(projectIds[i]);
         await page.waitForTimeout(500);
 
-        // Open Project menu
+        // Open Tools menu
         await page.keyboard.press('Escape');  // Close any open menus
         await page.waitForTimeout(300);
 
-        const projMenuBtn = page.getByRole('button', { name: 'Project ▼' });
-        await projMenuBtn.click();
+        const toolsMenuBtn = page.getByRole('button', { name: /^tools [▼▲]$/i });
+        await toolsMenuBtn.click();
         await page.waitForTimeout(500);
 
         // Click Delete Project

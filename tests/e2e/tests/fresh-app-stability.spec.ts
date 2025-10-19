@@ -6,12 +6,13 @@ test.describe('Fresh App Stability Test', () => {
 
     console.log('=== Starting Fresh App Stability Test ===')
 
-    await page.goto('/')
+    await page.goto('/audio')
     console.log('[00:00] Navigated to app')
 
     // Skip tutorial
     await page.evaluate(() => {
       window.localStorage.setItem('hasSeenTutorial', 'true')
+      window.localStorage.setItem('hasSeenAudioTutorial', 'true')
     })
 
     // Wait for loading splash to disappear
@@ -25,8 +26,8 @@ test.describe('Fresh App Stability Test', () => {
       await skipButton.click()
     }
 
-    // Create new project - look for either "Create Your First Project" or "New Project" button
-    const createButton = page.getByRole('button', { name: /create.*project|new project/i })
+    // Create new project - look for "New Project" button
+    const createButton = page.getByRole('button', { name: /new project/i })
     await expect(createButton).toBeVisible({ timeout: 10_000 })
     console.log('[00:10] Create button visible')
 

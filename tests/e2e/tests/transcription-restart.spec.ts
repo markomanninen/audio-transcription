@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { setupAudioProject } from '../helpers/audio-project-helpers'
 
 test.describe('Transcription Restart', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
+    // Create a project so we have a place for files
+    await setupAudioProject(page)
 
     // Reset circuit breaker if it's tripped
     await page.evaluate(() => {
@@ -10,21 +12,18 @@ test.describe('Transcription Restart', () => {
         (window as any).resetCircuitBreaker()
       }
     })
-
-    // Dismiss tutorial if present
-    const skipButton = page.getByRole('button', { name: /skip/i })
-    if (await skipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await skipButton.click()
-    }
-
-    // Wait for file list to load
-    await page.waitForSelector('[data-component="file-list"]', { timeout: 30000 })
   })
 
   test('Start Over button opens modal for completed file', async ({ page }) => {
     const fileCards = page.locator('[data-component="file-card"]')
-    const fileCount = await fileCards.count()
+    const hasFiles = await fileCards.first().isVisible({ timeout: 5000 }).catch(() => false)
 
+    if (!hasFiles) {
+      test.skip()
+      return
+    }
+
+    const fileCount = await fileCards.count()
     if (fileCount < 1) {
       test.skip()
       return

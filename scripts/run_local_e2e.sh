@@ -49,16 +49,16 @@ else
 fi
 
 if [[ "$USE_TRANSCRIPTION_STUB" != "1" ]]; then
-if ! python - <<'PY' >/dev/null 2>&1
+  if ! python - <<'PY' >/dev/null 2>&1
 import importlib
 importlib.import_module("whisper")
 PY
-then
-  log "openai-whisper not detected in current virtualenv; attempting installation"
-  if ! pip install --disable-pip-version-check --quiet openai-whisper; then
-    fail "Unable to install openai-whisper for this interpreter. Install it manually in .venv and re-run the script."
+  then
+    log "openai-whisper not detected in current virtualenv; attempting installation"
+    if ! pip install --disable-pip-version-check --quiet openai-whisper; then
+      log "WARNING: Unable to install openai-whisper automatically. Continuing without Whisper; transcription features may be limited."
+    fi
   fi
-fi
 else
   log "Using transcription stub; skipping openai-whisper installation"
 fi
@@ -91,6 +91,18 @@ for port in range(start, start + 500):
 PY
 }
 
+port_in_use() {
+  local port=$1
+  python - "$port" <<'PY'
+import socket, sys
+port = int(sys.argv[1])
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.settimeout(0.2)
+    sys.exit(0 if s.connect_ex(('127.0.0.1', port)) == 0 else 1)
+PY
+  return $?
+}
+
 ensure_port_free() {
   local port=$1
   local pids
@@ -120,11 +132,24 @@ wait_for_url() {
 # -------- Port selection --------
 BACKEND_PORT="${LOCAL_BACKEND_PORT:-$(find_free_port 18200)}"
 FRONTEND_PORT="${LOCAL_FRONTEND_PORT:-$(find_free_port 18300)}"
-WEB_URL="${LOCAL_WEB_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
-API_URL="http://127.0.0.1:${BACKEND_PORT}"
 
 ensure_port_free "$BACKEND_PORT"
 ensure_port_free "$FRONTEND_PORT"
+
+if port_in_use "$BACKEND_PORT"; then
+  new_backend_port=$(find_free_port $((BACKEND_PORT + 1)))
+  log "Port $BACKEND_PORT is still in use. Switching backend to $new_backend_port"
+  BACKEND_PORT="$new_backend_port"
+fi
+
+if port_in_use "$FRONTEND_PORT"; then
+  new_frontend_port=$(find_free_port $((FRONTEND_PORT + 1)))
+  log "Port $FRONTEND_PORT is still in use. Switching frontend to $new_frontend_port"
+  FRONTEND_PORT="$new_frontend_port"
+fi
+
+WEB_URL="${LOCAL_WEB_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
+API_URL="http://127.0.0.1:${BACKEND_PORT}"
 
 # -------- Database preparation --------
 DB_FILENAME="e2e_local_${BACKEND_PORT}.db"
@@ -139,7 +164,8 @@ log "Starting backend on port $BACKEND_PORT (logs: $BACKEND_LOG)"
 (
   cd "$ROOT_DIR/backend"
   DATABASE_URL="sqlite:///./data/$DB_FILENAME" \
-  WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-small}" \
+  AUDIO_STORAGE_PATH="./data/e2e_test_audio" \
+  WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-tiny}" \
   UVICORN_ACCESS_LOG="false" \
   E2E_TRANSCRIPTION_STUB="$USE_TRANSCRIPTION_STUB" \
   SEED_E2E_DATA="1" \

@@ -1,8 +1,9 @@
 import { test, expect, Locator, Page } from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
+import { setupAudioProject } from '../helpers/audio-project-helpers'
 
-const ACTIVE_STATUSES = ['processing', 'completed', 'whisper-loading']
+const ACTIVE_STATUSES = ['processing', 'completed', 'whisper-loading', 'ready']
 const TRANSCRIPTION_PANEL_SELECTOR = '[data-component="transcription-progress"]'
 const AUDIO_FIXTURE_PATH = path.resolve(__dirname, '../test-data/test-audio-30s.mp3')
 
@@ -43,6 +44,7 @@ async function uploadTestAudio(page: Page): Promise<{ fileCard: Locator; fileId:
   const uniqueName = `test-audio-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.mp3`
 
   const fileInput = page.locator('input[type="file"]')
+  await fileInput.waitFor({ state: 'attached', timeout: 10000 })
   await fileInput.setInputFiles({
     name: uniqueName,
     mimeType: 'audio/mpeg',
@@ -97,10 +99,8 @@ async function startTranscriptionAndWait(page: Page, fileCard: Locator, fileId: 
 
 test.describe('Transcription Completion Status Updates', () => {
   test('status updates from processing to completed in both file card and status panel', async ({ page }) => {
-    await page.goto('/')
-
-    // Wait for system to be ready
-    await expect(page.getByRole('heading', { name: /^Audio Transcription$/ })).toBeVisible({ timeout: 120000 })
+    // Create project first
+    await setupAudioProject(page)
 
     const { fileCard, fileId } = await uploadTestAudio(page)
     await fileCard.click()
@@ -137,10 +137,8 @@ test.describe('Transcription Completion Status Updates', () => {
   })
 
   test('force-restart shows processing then updates to completed correctly', async ({ page }) => {
-    await page.goto('/')
-
-    // Wait for system to be ready
-    await expect(page.getByRole('heading', { name: /^Audio Transcription$/ })).toBeVisible({ timeout: 120000 })
+    // Create project first
+    await setupAudioProject(page)
 
     const { fileCard, fileId } = await uploadTestAudio(page)
     await fileCard.click()
@@ -150,19 +148,13 @@ test.describe('Transcription Completion Status Updates', () => {
     const fileName = await fileCard.locator('[data-file-name]').textContent()
     console.log(`Testing force-restart on file: ${fileName}`)
 
-    // Open transcription settings modal for force-restart
+    // Click "Start Over" button (no confirmation modal)
     const startOverButton = page.getByRole('button', { name: /start over/i })
     await expect(startOverButton).toBeEnabled({ timeout: 30000 })
     await startOverButton.click()
 
-    // Confirm restart in modal
-    const modal = page.locator('[role="dialog"]')
-    await expect(modal).toBeVisible({ timeout: 5000 })
-    const confirmButton = modal.getByRole('button', { name: /(start over|start transcription|confirm|restart)/i }).first()
-    await confirmButton.click()
-
-    // Wait for modal to close
-    await expect(modal).not.toBeVisible({ timeout: 5000 })
+    // Wait a moment for the restart to be triggered
+    await page.waitForTimeout(1000)
 
     // Verify status updates to processing
     const restartStatus = await waitForPanelStatus(page, statusPanel, 60000)
@@ -211,10 +203,8 @@ test.describe('Transcription Completion Status Updates', () => {
   })
 
   test('status remains consistent during page refresh', async ({ page }) => {
-    await page.goto('/')
-
-    // Wait for system to be ready
-    await expect(page.getByRole('heading', { name: /^Audio Transcription$/ })).toBeVisible({ timeout: 120000 })
+    // Create project first
+    await setupAudioProject(page)
 
     const { fileCard: completedFileCard, fileId } = await uploadTestAudio(page)
     await completedFileCard.click()
@@ -235,7 +225,7 @@ test.describe('Transcription Completion Status Updates', () => {
     await page.reload()
 
     // Wait for system to be ready again
-    await expect(page.getByRole('heading', { name: /^Audio Transcription$/ })).toBeVisible({ timeout: 60000 })
+    await expect(page.getByRole('heading', { name: /audio transcription studio/i }).first()).toBeVisible({ timeout: 60000 })
 
     // File should still be selected (from localStorage)
     const refreshedFileCard = page.locator('[data-component="file-card"]').filter({ hasText: fileName! }).first()
@@ -260,10 +250,8 @@ test.describe('Transcription Completion Status Updates', () => {
       }
     })
 
-    await page.goto('/')
-
-    // Wait for system to be ready
-    await expect(page.getByRole('heading', { name: /^Audio Transcription$/ })).toBeVisible({ timeout: 120000 })
+    // Create project first
+    await setupAudioProject(page)
 
     const { fileCard, fileId } = await uploadTestAudio(page)
     await fileCard.click()

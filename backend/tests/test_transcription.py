@@ -64,6 +64,9 @@ def test_start_transcription(client, project_with_file, test_db):
         assert data["file_id"] == file_id
         assert data["include_diarization"] is True
 
+        # Verify the background task was called
+        mock_task.assert_called_once_with(file_id, True)
+
 
 def test_get_segments_empty(client, project_with_file):
     """Test getting segments before transcription."""

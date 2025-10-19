@@ -31,6 +31,32 @@ tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/e2e/.playwright/
 /tmp/
+test-results/
+
+# Debug files (should NEVER be in root)
+/*_responses.json
+/*_debug.json
+/*_test*.json
+/*.spec.ts
+/*.spec.js
+/*.test.ts
+/*.test.js
+
+# Documentation (should NEVER be in root except README, CLAUDE, etc)
+/*_GUIDE.md
+/*_RESULTS.md
+/*_SETUP.md
+/*_TEST*.md
+/*_DEBUG*.md
+/AI_*.md
+/DOCKER_*.md
+/TEST_*.md
+
+# Scripts (should be in /scripts/)
+/demo-*.sh
+/setup-*.sh
+/test-*.sh
+/run-*.sh
 
 # IDEs
 .vscode/
@@ -64,6 +90,7 @@ backend/storage/
 backend/.cache/
 
 *.venv*/
+*.venv*/*
 
 test-screenshots/
 
@@ -72,3 +99,9 @@ test-screenshots/
 .dev_runner_pids.json
 
 *.rdb
+
+# Coverage files (should be in backend/ only, but block root just in case)
+/.coverage
+/.coverage.*
+/htmlcov/
+*.coverage

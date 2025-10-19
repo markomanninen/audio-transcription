@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script is in /scripts/, so repo root is parent directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-BACKEND_SCRIPT="${REPO_ROOT}/publish_backend.sh"
-FRONTEND_SCRIPT="${REPO_ROOT}/publish_frontend.sh"
+BACKEND_SCRIPT="${SCRIPT_DIR}/publish_backend.sh"
+FRONTEND_SCRIPT="${SCRIPT_DIR}/publish_frontend.sh"
 
 if [[ ! -x "${BACKEND_SCRIPT}" ]]; then
   echo "[ERROR] Missing or non-executable ${BACKEND_SCRIPT}" >&2

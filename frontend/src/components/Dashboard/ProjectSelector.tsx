@@ -3,13 +3,18 @@ import { useProjects } from '../../hooks/useProjects'
 interface ProjectSelectorProps {
   selectedProjectId: number | null
   onSelectProject: (projectId: number) => void
+  projectTypeFilter?: 'audio' | 'text'
 }
 
 export default function ProjectSelector({
   selectedProjectId,
   onSelectProject,
+  projectTypeFilter,
 }: ProjectSelectorProps) {
   const { data: projects, isLoading } = useProjects()
+  const filteredProjects = projects?.filter((project) =>
+    projectTypeFilter ? project.project_type === projectTypeFilter : true
+  )
 
   if (isLoading) {
     return (
@@ -19,7 +24,7 @@ export default function ProjectSelector({
     )
   }
 
-  if (!projects || projects.length === 0) {
+  if (!filteredProjects || filteredProjects.length === 0) {
     return (
       <div className="text-sm text-muted-foreground"></div>
     )
@@ -35,9 +40,9 @@ export default function ProjectSelector({
       className="block w-full px-3 py-2 bg-input border border-border rounded-lg shadow-sm text-input-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
     >
       <option value="">Select a project...</option>
-      {projects.map((project) => (
+      {filteredProjects.map((project) => (
         <option key={project.id} value={project.id}>
-          {project.name}
+          {project.project_type === 'text' ? '✍️' : '🎙️'} {project.name}
         </option>
       ))}
     </select>

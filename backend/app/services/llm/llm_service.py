@@ -105,6 +105,53 @@ class LLMService:
             project_id=project_id
         )
 
+    async def generate_text(
+        self,
+        prompt: str,
+        provider: str = "ollama",
+        project_id: Optional[int] = None,
+        max_tokens: int = 2048,
+        temperature: float = 0.7,
+    ) -> str:
+        """
+        Generate text using the specified provider.
+
+        Args:
+            prompt: The prompt to use for generation.
+            provider: The provider to use.
+            project_id: Optional project ID for logging.
+            max_tokens: Maximum tokens for the response.
+            temperature: The creativity of the response.
+
+        Returns:
+            The generated text.
+        """
+        llm_provider = self.get_provider(provider)
+
+        if not llm_provider:
+            raise ValueError(f"Provider '{provider}' not available. Available: {self.list_providers()}")
+
+        is_healthy = await llm_provider.health_check()
+        if not is_healthy:
+            raise ConnectionError(f"Provider '{provider}' is not responding")
+
+        # The `generate_text` method in providers may have different signatures.
+        # We need to call it with the arguments it expects.
+        # A more robust solution might inspect the signature, but for now we can handle it like this.
+        if provider == "ollama":
+            return await llm_provider.generate_text(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                project_id=project_id
+            )
+        else: # For openrouter and potentially others
+             return await llm_provider.generate_text(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+
     async def health_check_all(self) -> Dict[str, bool]:
         """
         Check health of all providers.

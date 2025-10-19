@@ -29,10 +29,14 @@ export const test = base.extend<TestFixtures>({
 
     try {
       // Navigate to app
-      await page.goto('/')
+      await page.goto('/audio')
+      await page.evaluate(() => {
+        window.localStorage.setItem('hasSeenTutorial', 'true')
+        window.localStorage.setItem('hasSeenAudioTutorial', 'true')
+      })
 
       // Check if we can create a project
-      const newProjectButton = page.getByRole('button', { name: /New Project/i })
+      const newProjectButton = page.getByRole('button', { name: /New (Audio )?Project/i })
 
       if (await newProjectButton.isVisible()) {
         await newProjectButton.click()

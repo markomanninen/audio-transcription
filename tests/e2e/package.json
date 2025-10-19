@@ -3,15 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
+    "test": "../../scripts/run_local_e2e.sh && node record-test-run.js && node update-test-status.js",
+    "results": "node show-test-summary.js",
+    "status": "node show-test-status.js",
+    "test:headed": "./run-tests-with-test-db.sh --headed",
+    "test:debug": "./run-tests-with-test-db.sh --debug",
+    "test:basic": "playwright test",
     "report": "playwright show-report",
-    "type-check": "tsc --noEmit"
+    "history": "node show-test-history.js",
+    "type-check": "tsc --noEmit",
+    "test:dev-db": "playwright test && node record-test-run.js && node update-test-status.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
     "@types/node": "^20.0.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
   }
 }

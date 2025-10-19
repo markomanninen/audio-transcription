@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..services.export_service import ExportService
 from ..models.audio_file import AudioFile
+from ..models.project import Project
 
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -60,6 +61,37 @@ async def export_srt(
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
+
+
+@router.get("/project/{project_id}/template/{template_id}")
+async def export_with_template(
+    project_id: int,
+    template_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export a project's content using a custom template.
+    """
+    try:
+        export_service = ExportService()
+        content = export_service.generate_from_template(project_id, template_id, db)
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+             raise HTTPException(status_code=404, detail="Project not found")
+
+        base_name = project.name.replace(" ", "_")
+        filename = f"{base_name}_export.txt"
+
+        return Response(
+            content=content,
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/{file_id}/html")
