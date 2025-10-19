@@ -5,10 +5,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const resultsPath = path.join(__dirname, 'test-results/results.json');
+// Accept results path as argument, default to test-results/results.json
+const resultsPath = process.argv[2] || path.join(__dirname, 'test-results/results.json');
 
 if (!fs.existsSync(resultsPath)) {
-  console.error('❌ No results.json found. Run tests first with JSON reporter enabled.');
+  console.error(`❌ No results.json found at: ${resultsPath}`);
+  console.error('Run tests first with JSON reporter enabled.');
   process.exit(1);
 }
 
