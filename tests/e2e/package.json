@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test && node record-test-run.js && node update-test-status.js",
+    "results": "node show-test-summary.js",
+    "status": "node show-test-status.js",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
+    "test:basic": "playwright test",
     "report": "playwright show-report",
+    "history": "node show-test-history.js",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
