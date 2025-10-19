@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "playwright test && node record-test-run.js && node update-test-status.js",
+    "test": "./run-tests-with-test-db.sh",
     "results": "node show-test-summary.js",
     "status": "node show-test-status.js",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
+    "test:headed": "./run-tests-with-test-db.sh --headed",
+    "test:debug": "./run-tests-with-test-db.sh --debug",
     "test:basic": "playwright test",
     "report": "playwright show-report",
     "history": "node show-test-history.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:dev-db": "playwright test && node record-test-run.js && node update-test-status.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
