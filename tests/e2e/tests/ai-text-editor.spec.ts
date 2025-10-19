@@ -293,8 +293,7 @@ test.describe('AI Text Editor - Text Editing', () => {
 });
 
 test.describe('AI Text Editor - Version History', () => {
-  test.skip('should save versions', async ({ page }) => {
-    // TODO: Version history UI not yet implemented
+  test('should save versions', async ({ page }) => {
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'Version Test ' + Date.now());
@@ -303,53 +302,50 @@ test.describe('AI Text Editor - Version History', () => {
     const textArea = page.locator('textarea').first();
     await textArea.fill('Version 1 text');
 
-    const saveBtn = page.getByRole('button', { name: /save.*version/i });
-    const hasSaveBtn = await saveBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    // Find Save Version button (exact text)
+    const saveBtn = page.getByRole('button', { name: 'Save Version' });
+    await expect(saveBtn).toBeVisible({ timeout: 5000 });
 
-    if (hasSaveBtn) {
-      await saveBtn.click();
-      await page.waitForTimeout(500);
+    // Button should be enabled after text change
+    await expect(saveBtn).toBeEnabled();
+    await saveBtn.click();
+    await page.waitForTimeout(500);
 
-      // Verify version was saved (check for confirmation or history entry)
-      const historyPanel = page.locator('[class*="history"]');
-      const hasHistory = await historyPanel.isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasHistory).toBeTruthy();
-    }
+    // Verify version history panel exists and is visible
+    const historyPanel = page.getByTestId('version-history');
+    await expect(historyPanel).toBeVisible({ timeout: 2000 });
   });
 
-  test.skip('should display version history', async ({ page }) => {
-    // TODO: Version history UI not yet implemented
+  test('should display version history', async ({ page }) => {
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'History Display Test ' + Date.now());
     await navigateToEditor(page, projectId, openedEditor);
 
     const textArea = page.locator('textarea').first();
+    const saveBtn = page.getByRole('button', { name: 'Save Version' });
 
     // Create two versions
     await textArea.fill('Version 1');
-    const saveBtn = page.getByRole('button', { name: /save.*version/i });
-    const hasSaveBtn = await saveBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    await saveBtn.click();
+    await page.waitForTimeout(500);
 
-    if (hasSaveBtn) {
-      await saveBtn.click();
-      await page.waitForTimeout(500);
+    await textArea.fill('Version 2');
+    await saveBtn.click();
+    await page.waitForTimeout(500);
 
-      await textArea.fill('Version 2');
-      await saveBtn.click();
-      await page.waitForTimeout(500);
+    // Check history panel has entries
+    const historyPanel = page.getByTestId('version-history');
+    await expect(historyPanel).toBeVisible();
 
-      // Check history panel
-      const historyPanel = page.locator('[class*="history"]');
-      const historyEntries = historyPanel.locator('[class*="version"]');
-      const count = await historyEntries.count();
+    // Count version entries (buttons with "Rollback")
+    const rollbackButtons = historyPanel.getByRole('button', { name: 'Rollback' });
+    const count = await rollbackButtons.count();
 
-      expect(count).toBeGreaterThanOrEqual(2);
-    }
+    expect(count).toBeGreaterThanOrEqual(2);
   });
 
-  test.skip('should rollback to previous version', async ({ page }) => {
-    // TODO: Version history UI not yet implemented
+  test('should rollback to previous version', async ({ page }) => {
     await goToTextWorkspace(page);
 
     const { projectId, openedEditor } = await createTextProject(page, 'Rollback Test ' + Date.now());
@@ -359,29 +355,26 @@ test.describe('AI Text Editor - Version History', () => {
     const originalText = 'Original version text';
 
     await textArea.fill(originalText);
-    const saveBtn = page.getByRole('button', { name: /save.*version/i });
-    const hasSaveBtn = await saveBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    const saveBtn = page.getByRole('button', { name: 'Save Version' });
+    await saveBtn.click();
+    await page.waitForTimeout(500);
 
-    if (hasSaveBtn) {
-      await saveBtn.click();
-      await page.waitForTimeout(500);
+    // Make changes
+    await textArea.fill('Modified text that will be rolled back');
+    await saveBtn.click();
+    await page.waitForTimeout(500);
 
-      // Make changes
-      await textArea.fill('Modified text that will be rolled back');
-      await saveBtn.click();
-      await page.waitForTimeout(500);
+    // Rollback to first version
+    const historyPanel = page.getByTestId('version-history');
+    await expect(historyPanel).toBeVisible();
 
-      // Rollback
-      const rollbackBtn = page.getByRole('button', { name: /rollback|restore/i }).first();
-      await rollbackBtn.click();
-      await page.waitForTimeout(500);
+    const rollbackBtn = historyPanel.getByRole('button', { name: 'Rollback' }).first();
+    await rollbackBtn.click();
+    await page.waitForTimeout(500);
 
-      // Verify text is restored
-      const restoredValue = await textArea.inputValue();
-      expect(restoredValue).toContain('Original version');
-    } else {
-      test.skip();
-    }
+    // Verify text is restored
+    const restoredValue = await textArea.inputValue();
+    expect(restoredValue).toContain('Original version');
   });
 });
 
