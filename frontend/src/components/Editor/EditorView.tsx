@@ -448,27 +448,27 @@ export default function EditorView({ initialText, projectId }: EditorViewProps) 
 
   const handleSemanticReconstruction = async () => {
     try {
-      await semanticReconstruction.mutateAsync(text);
+      await semanticReconstruction.mutateAsync(draft);
     } catch (error) {
       console.warn('[AI Editor] Semantic reconstruction failed, using fallback.', error);
-      const fallback = `${text}\n\n[AI Suggestion Placeholder]\n• Clarify key statements for readability.`;
+      const fallback = `${draft}\n\n[AI Suggestion Placeholder]\n• Clarify key statements for readability.`;
       setAiSuggestion(fallback);
     }
   };
 
   const handleStyleGeneration = async () => {
     try {
-      await styleGeneration.mutateAsync({ text, target_style: targetStyle });
+      await styleGeneration.mutateAsync({ text: draft, target_style: targetStyle });
     } catch (error) {
       console.warn('[AI Editor] Style generation failed, using fallback.', error);
-      const fallback = `${text}\n\n[Style Suggestion Placeholder]\nThis rewrite would adjust tone toward “${targetStyle}.”`;
+      const fallback = `${draft}\n\n[Style Suggestion Placeholder]\nThis rewrite would adjust tone toward "${targetStyle}."`;
       setAiSuggestion(fallback);
     }
   };
 
   const handleNlpAnalysis = async () => {
     try {
-      await nlpAnalysis.mutateAsync(text);
+      await nlpAnalysis.mutateAsync(draft);
     } catch (error) {
       console.warn('[AI Editor] NLP analysis failed, using fallback.', error);
       const fallback = JSON.stringify(
@@ -495,7 +495,7 @@ export default function EditorView({ initialText, projectId }: EditorViewProps) 
       return;
     }
     try {
-      await factChecking.mutateAsync({ text, domain: factCheckDomain });
+      await factChecking.mutateAsync({ text: draft, domain: factCheckDomain });
     } catch (error) {
       console.warn('[AI Editor] Fact checking failed, using fallback.', error);
       const fallback = JSON.stringify(
