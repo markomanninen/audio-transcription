@@ -32,7 +32,7 @@ async function getWhisperProgress(): Promise<WhisperDownloadProgress | null> {
         }
       }
     }
-  } catch (error) {
+  } catch {
     // Network error or timeout - backend might be starting up
   }
   

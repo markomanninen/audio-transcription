@@ -64,6 +64,11 @@ async def correct_segment(
     segment = db.query(Segment).filter(Segment.id == request.segment_id).first()
     if not segment:
         raise HTTPException(status_code=404, detail=f"Segment {request.segment_id} not found")
+    if segment.is_passive:
+        raise HTTPException(
+            status_code=400,
+            detail="Passive segments are excluded from AI corrections. Reactivate the segment before requesting a correction."
+        )
 
     # Use edited text if available, otherwise original
     text_to_correct = segment.edited_text or segment.original_text
@@ -169,6 +174,15 @@ async def correct_batch(
             status_code=404,
             detail=f"Segments not found: {missing_ids}"
         )
+
+    passive_segments = [seg.id for seg in segments if seg.is_passive]
+    if passive_segments:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Passive segments cannot be corrected: {passive_segments}"
+        )
+
+    segments = [seg for seg in segments if not seg.is_passive]
 
     # Initialize LLM service with database session
     llm_service = LLMService(db=db)

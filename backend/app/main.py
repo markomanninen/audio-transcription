@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .core.database import init_db, engine, SessionLocal
+from .core import database
+from .core.logging_config import setup_logging
 from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor, projects, export_templates, test_helpers
 from .core.config import settings
@@ -17,12 +18,29 @@ from .models.audio_file import AudioFile, TranscriptionStatus
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    # Setup logging first
+    setup_logging(debug=settings.DEBUG, log_file_path="./data/app.log")
+    
+    # Suppress SQLAlchemy logging directly - NUCLEAR OPTION
+    import logging
+    
+    # Set all SQLAlchemy loggers to CRITICAL to completely suppress them
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.CRITICAL)
+    logging.getLogger('sqlalchemy.dialects').setLevel(logging.CRITICAL) 
+    logging.getLogger('sqlalchemy.pool').setLevel(logging.CRITICAL)
+    logging.getLogger('sqlalchemy').setLevel(logging.CRITICAL)
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.CRITICAL)
+    
+    # Disable SQLAlchemy echo entirely
+    logging.getLogger('sqlalchemy.engine').disabled = True
+    logging.getLogger('sqlalchemy.engine.Engine').disabled = True
+    
     print("[STARTUP] Starting application lifespan...")
     
     # Startup: Initialize database with complete schema
     print("[STARTUP] Initializing database...")
     try:
-        init_db()
+        database.init_db()
         print("[STARTUP] Database initialized")
     except Exception as e:
         print(f"[STARTUP] ❌ Database initialization failed: {e}")
@@ -31,7 +49,7 @@ async def lifespan(app: FastAPI):
     # Normalize legacy lowercase transcription statuses so they align with the current enum.
     print("[STARTUP] Normalizing transcription statuses...")
     try:
-        results = normalize_transcription_statuses(engine)
+        results = normalize_transcription_statuses(database.engine)
         normalized = results.get("normalized", 0)
         invalid_reset = results.get("invalid_reset", 0)
         print(f"[STARTUP] 🛠️ Normalized {normalized} transcription status value(s); reset {invalid_reset} invalid record(s).")
@@ -49,7 +67,7 @@ async def lifespan(app: FastAPI):
     
     # Clean up any orphaned transcriptions from previous server crashes/restarts
     print("[STARTUP] Cleaning up orphaned transcriptions...")
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         # Reset any PROCESSING transcriptions to PENDING
         # Because if we're starting up, any previous processes are dead
@@ -60,16 +78,17 @@ async def lifespan(app: FastAPI):
         print(f"[STARTUP] Found {len(orphaned_files)} orphaned files")
 
         for file in orphaned_files:
-            print(f"🧹 Cleaning up orphaned transcription for file {file.id}")
+            print(f"🧹 Found interrupted transcription for file {file.id} at {file.transcription_progress:.1%} progress")
+            # DON'T reset progress - preserve it for potential resumption
             file.transcription_status = TranscriptionStatus.PENDING
-            file.transcription_progress = 0.0
-            file.error_message = "Transcription was interrupted by server restart"
-            file.transcription_started_at = None
+            # Keep existing progress and started_at time
+            file.error_message = f"Transcription was interrupted by server restart (was at {file.transcription_progress:.1%})"
+            # Don't reset transcription_started_at or transcription_progress!
 
         if orphaned_files:
             print("[STARTUP] Committing orphaned file changes...")
             db.commit()
-            print(f"🧹 Cleaned up {len(orphaned_files)} orphaned transcription(s)")
+            print(f"🔄 Preserved interrupted transcription progress for {len(orphaned_files)} file(s)")
         else:
             print("✅ No orphaned transcriptions found")
             
@@ -212,56 +231,61 @@ async def health():
     # Check Whisper status (non-blocking, no model loading)
     try:
         from .services.transcription_singleton import (
-            is_transcription_service_ready, 
+            is_transcription_service_ready,
             is_initialization_in_progress,
             get_model_download_progress,
-            get_target_model_size
+            get_target_model_size,
+            update_model_loading_progress_in_db
         )
-        
-        if is_transcription_service_ready():
+
+        # IMPORTANT: Check for download progress FIRST, even if another model is ready
+        # This ensures we show download/loading progress for the NEW model being initialized
+        download_info = get_model_download_progress()
+
+        # Only show loading/downloading if actually in progress
+        if is_initialization_in_progress():
+            # A model is being initialized
+            model_size = get_target_model_size()
+            download_info = get_model_download_progress()
+
+            # Update database progress for files waiting on model download
+            # This maps download progress (0-100%) to main progress bar (0-10%)
+            update_model_loading_progress_in_db()
+
+            if download_info and download_info['progress'] < 100:
+                # Model is downloading
+                components["whisper"] = {
+                    "status": "downloading",
+                    "message": f"Downloading {model_size}: {download_info['progress']}%",
+                    "progress": download_info['progress'],
+                    "downloaded": download_info['downloaded'],
+                    "total": download_info['total'],
+                    "speed": download_info.get('speed', ''),
+                    "model_size": model_size
+                }
+            else:
+                # Model downloaded, now loading into memory
+                components["whisper"] = {
+                    "status": "loading",
+                    "message": f"Loading {model_size} model into memory...",
+                    "model_size": model_size
+                }
+        elif is_transcription_service_ready():
             # Service is ready - get model size without blocking
             try:
                 from .services.transcription_singleton import get_transcription_service
                 service = get_transcription_service()
                 components["whisper"] = {
-                    "status": "up", 
+                    "status": "up",
                     "message": f"Whisper model '{service.model_size}' ready",
                     "model_size": service.model_size
                 }
             except:
                 # Fallback if getting service fails
                 components["whisper"] = {
-                    "status": "up", 
+                    "status": "up",
                     "message": "Whisper service ready",
                     "model_size": get_target_model_size()
-                }
-        elif is_initialization_in_progress():
-            # Check for download progress (non-blocking)
-            download_info = get_model_download_progress()
-            model_size = get_target_model_size()
-            
-            if download_info:
-                if download_info['progress'] >= 100:
-                    components["whisper"] = {
-                        "status": "loading",
-                        "message": f"Loading {model_size} model into memory...",
-                        "model_size": model_size
-                    }
-                else:
-                    components["whisper"] = {
-                        "status": "downloading",
-                        "message": f"Downloading {model_size}: {download_info['progress']}%",
-                        "progress": download_info['progress'],
-                        "downloaded": download_info['downloaded'],
-                        "total": download_info['total'],
-                        "speed": download_info.get('speed', ''),
-                        "model_size": model_size
-                    }
-            else:
-                components["whisper"] = {
-                    "status": "loading",
-                    "message": f"Initializing {model_size} model...",
-                    "model_size": model_size
                 }
         else:
             # Not initialized yet
@@ -278,7 +302,7 @@ async def health():
     # Check for active transcriptions (quick database check)
     try:
         # Quick check for processing files without blocking
-        db = SessionLocal()
+        db = database.SessionLocal()
         try:
             processing_count = db.query(AudioFile).filter(
                 AudioFile.transcription_status == TranscriptionStatus.PROCESSING

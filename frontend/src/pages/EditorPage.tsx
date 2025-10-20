@@ -5,7 +5,8 @@ import { useProject } from '../hooks/useProjects';
 import TextEditorTutorial from '../components/Tutorial/TextEditorTutorial';
 import LLMLogsViewer from '../components/Debug/LLMLogsViewer';
 import ThemeToggle from '../components/ThemeToggle';
-import { Button, buttonVariants } from '../components/ui/Button';
+import { Button } from '../components/ui/Button';
+import { buttonVariants } from '../components/ui/button-variants';
 
 export default function EditorPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -17,10 +18,6 @@ export default function EditorPage() {
   // Fetch the project data which includes the text document for text projects
   const { data: project, isLoading } = useProject(numericProjectId);
 
-  if (!numericProjectId) {
-    return <div className="flex h-screen items-center justify-center text-muted-foreground">Invalid Project ID</div>;
-  }
-
   const initialText = useMemo(() => {
     if (isLoading) return 'Loading...';
     if (!project) return '';
@@ -29,6 +26,10 @@ export default function EditorPage() {
     }
     return '';
   }, [project, isLoading]);
+
+  if (!numericProjectId) {
+    return <div className="flex h-screen items-center justify-center text-muted-foreground">Invalid Project ID</div>;
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background text-foreground">

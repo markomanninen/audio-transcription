@@ -20,9 +20,17 @@ if "magic" not in sys.modules:
 
 if "pydub" not in sys.modules:
     class _DummyAudioSegment:
+        def __init__(self, duration_ms: int = 60000):
+            self._duration_ms = max(duration_ms, 0)
+
         @classmethod
         def from_file(cls, *_args, **_kwargs):
-            return cls()
+            # Simulate 1 minute duration audio by default
+            return cls(duration_ms=60000)
+
+        @staticmethod
+        def silent(duration: int = 1000):
+            return _DummyAudioSegment(duration_ms=duration)
 
         def set_channels(self, *_args, **_kwargs):
             return self
@@ -30,11 +38,20 @@ if "pydub" not in sys.modules:
         def set_frame_rate(self, *_args, **_kwargs):
             return self
 
-        def export(self, *_args, **_kwargs):
+        def export(self, buffer, *_args, **_kwargs):
+            if hasattr(buffer, "write"):
+                buffer.write(b"\x00" * 10)
             return None
 
         def __len__(self):
-            return 0
+            return self._duration_ms
+
+        def __getitem__(self, item):
+            if isinstance(item, slice):
+                start = item.start or 0
+                stop = item.stop if item.stop is not None else self._duration_ms
+                return _DummyAudioSegment(duration_ms=max(stop - start, 0))
+            raise TypeError("AudioSegment slices must be slice objects")
 
     sys.modules["pydub"] = SimpleNamespace(AudioSegment=_DummyAudioSegment)
 
@@ -50,7 +67,28 @@ if "pyannote.audio" not in sys.modules:
     sys.modules["pyannote"] = SimpleNamespace(audio=dummy_audio)
     sys.modules["pyannote.audio"] = dummy_audio
 
-from app.main import app
+if "torch" not in sys.modules:
+    dummy_cuda = SimpleNamespace(is_available=lambda: False)
+    dummy_mps = SimpleNamespace(
+        is_available=lambda: False,
+        is_built=lambda: False,
+    )
+    dummy_backends = SimpleNamespace(mps=dummy_mps)
+
+    def _device(name: str):
+        return name
+
+    def _set_num_threads(_value: int):
+        return None
+
+    sys.modules["torch"] = SimpleNamespace(
+        cuda=dummy_cuda,
+        backends=dummy_backends,
+        device=_device,
+        set_num_threads=_set_num_threads,
+    )
+
+from app.main import app as fastapi_app
 from app.core import database as app_database
 from app.core.database import get_db
 from app.models.base import Base
@@ -135,12 +173,11 @@ def client(test_db, monkeypatch):
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
+    fastapi_app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
+    with TestClient(fastapi_app) as test_client:
         yield test_client
-
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
@@ -222,7 +259,8 @@ def sample_segments(test_db, sample_audio_file):
             end_time=10.0,
             original_text="This is the first segment.",
             sequence=0,
-            speaker_id=None
+            speaker_id=None,
+            is_passive=False,
         ),
         Segment(
             audio_file_id=sample_audio_file.id,
@@ -230,7 +268,8 @@ def sample_segments(test_db, sample_audio_file):
             end_time=20.0,
             original_text="This is the second segment.",
             sequence=1,
-            speaker_id=None
+            speaker_id=None,
+            is_passive=False,
         ),
         Segment(
             audio_file_id=sample_audio_file.id,
@@ -238,7 +277,8 @@ def sample_segments(test_db, sample_audio_file):
             end_time=30.0,
             original_text="This is the third segment.",
             sequence=2,
-            speaker_id=None
+            speaker_id=None,
+            is_passive=False,
         )
     ]
     for seg in segments:
@@ -257,7 +297,8 @@ def sample_segments_with_edits(test_db, sample_audio_file):
             end_time=10.0,
             original_text="Original text segment one.",
             edited_text="Edited text segment one.",
-            sequence=0
+            sequence=0,
+            is_passive=False,
         ),
         Segment(
             audio_file_id=sample_audio_file.id,
@@ -265,7 +306,8 @@ def sample_segments_with_edits(test_db, sample_audio_file):
             end_time=20.0,
             original_text="Original text segment two.",
             edited_text="Edited text segment two.",
-            sequence=1
+            sequence=1,
+            is_passive=False,
         )
     ]
     for seg in segments:

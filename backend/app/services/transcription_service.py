@@ -1,24 +1,28 @@
 """
 Transcription service using Whisper.
 """
-# Lazy import whisper to avoid blocking startup
-# import whisper  # Will import when needed
+# Lazy import whisper to avoid blocking startup.
+# Export placeholder so tests can patch the module attribute.
+whisper = None  # Will be replaced with the actual module on first use
 import time
 import os
 import psutil
 import json
 import logging
+import threading
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from ..core.config import settings
-from ..core.database import SessionLocal
+from ..core.logging_config import get_transcription_logger
+from ..core import database
 from ..models.audio_file import AudioFile, TranscriptionStatus
 from ..models.segment import Segment
 from .audio_service import AudioService
 
 logger = logging.getLogger(__name__)
+transcription_logger = get_transcription_logger()
 
 
 MODEL_NAME_ALIASES = {
@@ -89,6 +93,7 @@ class TranscriptionService:
         self.device = self._detect_optimal_device(settings.WHISPER_DEVICE)
         self.model = None  # Default model matching settings.WHISPER_MODEL_SIZE
         self.loaded_models: Dict[str, Any] = {}  # Cache for additional models
+        self._inference_lock = threading.Lock()
 
     def _detect_optimal_device(self, device_setting: str) -> str:
         """Detect the optimal device for Whisper based on platform and availability."""
@@ -200,23 +205,31 @@ class TranscriptionService:
         Returns:
             Loaded Whisper model instance.
         """
-        # Lazy import whisper to avoid blocking during startup
-        import whisper
-        
+        global whisper
+        whisper_module = whisper
+        if whisper_module is None:
+            import whisper as imported_whisper
+            whisper_module = whisper = imported_whisper
+
         target_size = (model_size or self.model_size).lower()
 
         if target_size in self.loaded_models:
             return self.loaded_models[target_size]
 
         logger.info(f"Loading Whisper model: {target_size} (device: {self.device})")
-        model = whisper.load_model(
+        model = whisper_module.load_model(
             target_size,
             device=self.device
         )
         self.loaded_models[target_size] = model
 
-        # Preserve existing behaviour for default model to maintain readiness checks
+        # Always set self.model for the default/primary model size
+        # This ensures get_transcription_service() readiness check passes
         if target_size == self.model_size:
+            self.model = model
+        # CRITICAL FIX: If no model has been loaded yet (first load), set it regardless
+        # This prevents "Whisper model not loaded" error when service.model_size differs
+        elif self.model is None:
             self.model = model
 
         return model
@@ -230,10 +243,14 @@ class TranscriptionService:
             stage_with_time = f"{stage} ({elapsed_time:.1f}s elapsed)"
         else:
             stage_with_time = stage
-            
-        audio_file.error_message = f"Stage: {stage_with_time}"  # Temporarily use error_message for stage info
+
+        # CRITICAL FIX: Update transcription_stage instead of error_message
+        audio_file.transcription_stage = stage_with_time
+        # Clear error_message if it was being used for stage info
+        if audio_file.error_message and audio_file.error_message.startswith("Stage: "):
+            audio_file.error_message = None
         db.commit()
-        print(f"Transcription progress: {progress:.1%} - {stage_with_time}")
+        transcription_logger.info(f"Progress: {progress:.1%} - {stage_with_time}")
 
     def _get_process_info(self) -> Dict[str, Any]:
         """Get current process information for progress monitoring."""
@@ -634,7 +651,7 @@ class TranscriptionService:
         existing_segments = db.query(Segment).filter(Segment.audio_file_id == audio_file_id).all()
         
         if existing_segments and not force_restart:
-            print(f"🚀 RESUMING: Found {len(existing_segments)} existing segments - no re-processing needed!")
+            transcription_logger.info(f"🚀 RESUMING: Found {len(existing_segments)} existing segments - no re-processing needed!")
             audio_file.transcription_status = TranscriptionStatus.COMPLETED
             audio_file.transcription_progress = 1.0
             audio_file.error_message = None
@@ -644,7 +661,7 @@ class TranscriptionService:
             db.commit()
             return existing_segments
         elif existing_segments and force_restart:
-            print(f"🔄 RESTARTING: Will safely replace {len(existing_segments)} existing segments after new transcription succeeds")
+            transcription_logger.info(f"🔄 RESTARTING: Will safely replace {len(existing_segments)} existing segments after new transcription succeeds")
             # Don't delete segments here - let transcribe_audio_simple handle safe replacement
             # db.delete calls removed for safety
 
@@ -825,79 +842,103 @@ class TranscriptionService:
             # Use specified language or auto-detect (None)
             language = audio_file.language if audio_file.language else None
 
-            print(f"Starting Whisper transcription with {file_model_size} model...")
+            transcription_logger.info(f"Starting Whisper transcription with {file_model_size} model...")
 
-            # Start a progress monitor thread that updates during transcription
+            # CAPTURE REAL WHISPER PROGRESS via tqdm (NOT time-based estimates!)
             import threading
+            from contextlib import redirect_stderr
+            from io import StringIO
+            import re
 
             progress_active = threading.Event()
             progress_active.set()
 
-            def monitor_progress():
-                """Monitor progress during transcription."""
-                monitor_start = time.time()
+            # Monitor thread now reads from tqdm output
+            whisper_progress = {"percent": 0}
+
+            def monitor_tqdm_progress():
+                """Monitor actual Whisper tqdm progress."""
                 while progress_active.is_set():
                     try:
-                        elapsed_monitor = time.time() - start_time
-                        # Estimate progress based on time (rough estimation)
-                        # For 30-second file with tiny model, expect ~30-60 seconds processing
-                        estimated_total_time = max(estimated_duration * 2, 30)  # At least 30 seconds
-                        time_progress = min(elapsed_monitor / estimated_total_time, 0.95)
+                        if whisper_progress["percent"] > 0:
+                            elapsed = time.time() - start_time
+                            percent = whisper_progress["percent"] / 100.0
+                            stage = f"Transcribing audio - {whisper_progress['percent']:.0f}% complete ({elapsed:.0f}s)"
+                            actual_progress = 0.15 + (percent * 0.70)  # Map 0-100% to 15%-85%
 
-                        # Progressive stages during transcription
-                        if time_progress < 0.3:
-                            progress = 0.15 + (time_progress * 0.3)  # 15% to 45%
-                            stage = f"Transcribing audio - early stage ({elapsed_monitor:.0f}s)"
-                        elif time_progress < 0.7:
-                            progress = 0.45 + ((time_progress - 0.3) * 0.25)  # 45% to 70%
-                            stage = f"Transcribing audio - processing speech ({elapsed_monitor:.0f}s)"
-                        else:
-                            progress = 0.70 + ((time_progress - 0.7) * 0.15)  # 70% to 85%
-                            stage = f"Transcribing audio - finalizing ({elapsed_monitor:.0f}s)"
+                            monitor_db = database.SessionLocal()
+                            try:
+                                fresh_file = monitor_db.query(AudioFile).filter(AudioFile.id == audio_file.id).first()
+                                if fresh_file:
+                                    self._update_progress_with_stage(fresh_file, stage, actual_progress, monitor_db, elapsed)
+                            finally:
+                                monitor_db.close()
+                    except Exception as e:
+                        logger.debug(f"Progress monitor error: {e}")
 
-                        # Update database in a separate session
-                        monitor_elapsed = time.time() - monitor_start
-                        if monitor_elapsed > 300:
-                            stage += " (long running)"
+                    time.sleep(1)
 
-                        monitor_db = SessionLocal()
-                        try:
-                            fresh_file = monitor_db.query(AudioFile).filter(AudioFile.id == audio_file.id).first()
-                            if fresh_file:
-                                self._update_progress_with_stage(fresh_file, stage, progress, monitor_db, elapsed_monitor)
-                        finally:
-                            monitor_db.close()
-
-                    except Exception as monitor_error:
-                        logger.debug(f"Progress monitor error: {monitor_error}")
-                        break
-
-                    time.sleep(3)
-
-            progress_thread = threading.Thread(target=monitor_progress, daemon=True)
+            progress_thread = threading.Thread(target=monitor_tqdm_progress, daemon=True)
             progress_thread.start()
 
             try:
-                # Run Whisper transcription with progress reporting
-                result = model_to_use.transcribe(
-                    wav_path,
-                    temperature=0.0,
-                    word_timestamps=True,
-                    language=language,  # Auto-detect if None, or use specified language code
-                    task="transcribe",
-                    verbose=False  # Reduce console output
-                )
+                # Capture stderr to monitor tqdm progress bar
+                stderr_capture = StringIO()
+
+                # Run Whisper transcription with verbose=True to get tqdm progress
+                with redirect_stderr(stderr_capture):
+                    with self._inference_lock:
+                        # Monkey-patch tqdm to capture progress
+                        original_update_func = None
+                        try:
+                            import tqdm as tqdm_module
+                            if hasattr(tqdm_module, 'tqdm'):
+                                # Get the ACTUAL function object, not just a reference to the method
+                                original_update_func = tqdm_module.tqdm.update
+
+                                # Create a wrapper that calls the ORIGINAL function
+                                def make_patched_update(original_fn):
+                                    def patched_update(self, n=1):
+                                        # Call the ORIGINAL function (before patching)
+                                        result = original_fn(self, n)
+                                        # Capture progress
+                                        if hasattr(self, 'total') and hasattr(self, 'n') and self.total and self.total > 0:
+                                            whisper_progress["percent"] = (self.n / self.total) * 100
+                                        return result
+                                    return patched_update
+
+                                # Replace with our wrapper
+                                tqdm_module.tqdm.update = make_patched_update(original_update_func)
+                        except Exception as e:
+                            logger.warning(f"Failed to patch tqdm: {e}")
+
+                        result = model_to_use.transcribe(
+                            wav_path,
+                            temperature=0.0,
+                            word_timestamps=True,
+                            language=language,
+                            task="transcribe",
+                            verbose=False  # Keep false, we're monitoring via tqdm patch
+                        )
+
+                        # Restore original tqdm
+                        try:
+                            if original_update_func:
+                                tqdm_module.tqdm.update = original_update_func
+                        except:
+                            pass
+
             finally:
                 # Stop progress monitor
                 progress_active.clear()
                 progress_thread.join(timeout=2)
 
-            print(f"Whisper transcription completed! Found {len(result['segments'])} segments.")
+            transcription_logger.info(f"Whisper transcription completed! Found {len(result['segments'])} segments.")
 
             # Update progress for segment creation
             elapsed = time.time() - start_time
             self._update_progress_with_stage(audio_file, "Creating text segments", 0.85, db, elapsed)
-            print(f"Whisper transcription completed, creating {len(result['segments'])} segments...")
+            transcription_logger.info(f"Whisper transcription completed, creating {len(result['segments'])} segments...")
 
             # Create segments from transcription (SAFE REPLACEMENT STRATEGY)
             # First, get existing segments to preserve them in case of failure
@@ -979,7 +1020,17 @@ class TranscriptionService:
             audio_file.error_message = None  # Clear stage info
             db.commit()
 
-            print(f"Transcription completed: {total_segments} segments in {total_duration:.1f}s (speed: {total_duration/estimated_duration:.2f}x)")
+            # CRITICAL: Clean up converted WAV file after successful transcription
+            # to prevent disk space waste
+            if audio_file.audio_transformation_path and audio_file.audio_transformation_path != audio_file.file_path:
+                try:
+                    if os.path.exists(audio_file.audio_transformation_path):
+                        os.remove(audio_file.audio_transformation_path)
+                        transcription_logger.info(f"🗑️  Cleaned up converted file: {audio_file.audio_transformation_path}")
+                except Exception as cleanup_error:
+                    transcription_logger.warning(f"Failed to clean up converted file: {cleanup_error}")
+
+            transcription_logger.info(f"Transcription completed: {total_segments} segments in {total_duration:.1f}s (speed: {total_duration/estimated_duration:.2f}x)")
             return segments
 
         except Exception as e:
@@ -1008,7 +1059,16 @@ class TranscriptionService:
             
             # Increment error tracking
             self.increment_interruption_count(audio_file, db)
-            
+
+            # CRITICAL: Clean up converted WAV file on failure to prevent disk space waste
+            if audio_file.audio_transformation_path and audio_file.audio_transformation_path != audio_file.file_path:
+                try:
+                    if os.path.exists(audio_file.audio_transformation_path):
+                        os.remove(audio_file.audio_transformation_path)
+                        transcription_logger.info(f"🗑️  Cleaned up converted file after failure: {audio_file.audio_transformation_path}")
+                except Exception as cleanup_error:
+                    transcription_logger.warning(f"Failed to clean up converted file: {cleanup_error}")
+
             db.commit()
             raise
 
@@ -1043,14 +1103,20 @@ class TranscriptionService:
         # Try to get real-time segment count from processing stage if transcription is active
         realtime_segment_count = None
 
-        # Separate processing stage from actual error messages
+        # CRITICAL FIX: Read processing stage from transcription_stage field, not error_message
         processing_stage = None
         error_message = audio_file.error_message
-        
-        if audio_file.transcription_status == TranscriptionStatus.PROCESSING and audio_file.error_message:
-            if audio_file.error_message.startswith("Stage: "):
+
+        if audio_file.transcription_status == TranscriptionStatus.PROCESSING:
+            # First check transcription_stage field (new location)
+            stage_info = audio_file.transcription_stage
+
+            # Fallback to error_message for backward compatibility (old location)
+            if not stage_info and audio_file.error_message and audio_file.error_message.startswith("Stage: "):
                 stage_info = audio_file.error_message[7:]  # Remove "Stage: " prefix
-                
+                error_message = None  # Don't show as error if it's stage info
+
+            if stage_info:
                 # Extract real-time segment count from stage info if available
                 if "Creating segments:" in stage_info:
                     import re
@@ -1058,7 +1124,7 @@ class TranscriptionService:
                     if match:
                         # Remove commas and convert to int
                         realtime_segment_count = int(match.group(1).replace(',', ''))
-                
+
                 # Enhanced processing stage with intelligent progress
                 if "Finalizing" in stage_info or "Creating" in stage_info:
                     # Use real-time count if available, otherwise fall back to database count
@@ -1068,14 +1134,12 @@ class TranscriptionService:
                         # Rough estimate: 1 segment per 3 seconds of audio
                         estimated_total_segments = max(int(audio_file.duration / 3), 1)
                         segment_progress = min((current_segment_count / estimated_total_segments) * 100, 99)
-                        
+
                         processing_stage = f"Creating segments: {current_segment_count:,} created (~{segment_progress:.0f}% of text processing)"
                     else:
                         processing_stage = f"Creating segments: {current_segment_count:,} created"
                 else:
                     processing_stage = stage_info
-                    
-                error_message = None
         
         return {
             "file_id": audio_file.id,

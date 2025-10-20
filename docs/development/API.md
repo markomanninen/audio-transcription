@@ -162,7 +162,8 @@ Get all transcription segments for an audio file.
     "original_text": "Hello, welcome to the interview.",
     "edited_text": null,
     "speaker_id": 1,
-    "sequence": 0
+    "sequence": 0,
+    "is_passive": false
   },
   {
     "id": 2,
@@ -171,9 +172,70 @@ Get all transcription segments for an audio file.
     "original_text": "Thank you for having me.",
     "edited_text": "Thanks for having me!",
     "speaker_id": 2,
-    "sequence": 1
+    "sequence": 1,
+    "is_passive": false
   }
 ]
+```
+
+---
+
+### Bulk Passive Toggle
+**POST** `/api/transcription/segments/passive`
+
+Toggle the passive (export/AI exclusion) status for multiple segments at once.
+
+**Request Body:**
+```json
+{
+  "segment_ids": [21, 22, 23],
+  "is_passive": true
+}
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 21,
+    "is_passive": true,
+    "sequence": 10
+  },
+  {
+    "id": 22,
+    "is_passive": true,
+    "sequence": 11
+  }
+]
+```
+
+---
+
+### Join Nearby Segments
+**POST** `/api/transcription/segments/join`
+
+Merge two or more consecutive segments from the same file into a single segment.
+
+**Request Body:**
+```json
+{
+  "segment_ids": [31, 32],
+  "max_gap_seconds": 2.0
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 31,
+  "start_time": 12.5,
+  "end_time": 20.1,
+  "original_text": "Combined transcript text",
+  "edited_text": null,
+  "speaker_id": 4,
+  "sequence": 6,
+  "is_passive": false
+}
 ```
 
 ---
@@ -202,6 +264,53 @@ Get all speakers identified in the audio file.
     "color": "#EF4444"
   }
 ]
+```
+
+---
+
+### Split Audio & Batch Transcribe
+**POST** `/api/transcription/{file_id}/split-batch`
+
+Split a long recording into evenly sized chunks and optionally start transcription for each chunk.
+
+**Parameters:**
+- `file_id` (path): Source audio file ID
+
+**Request Body:**
+```json
+{
+  "chunk_duration_seconds": 600,
+  "overlap_seconds": 0,
+  "start_transcription": true,
+  "include_diarization": true,
+  "model_size": "small",
+  "language": "en"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "parent_file_id": 12,
+  "created_files": [
+    {
+      "file_id": 42,
+      "original_filename": "interview_part_01.mp3",
+      "duration": 599.5,
+      "order_index": 0,
+      "transcription_requested": true,
+      "started_immediately": true
+    },
+    {
+      "file_id": 43,
+      "original_filename": "interview_part_02.mp3",
+      "duration": 602.1,
+      "order_index": 1,
+      "transcription_requested": true,
+      "started_immediately": false
+    }
+  ]
+}
 ```
 
 ---

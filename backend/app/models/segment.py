@@ -1,7 +1,7 @@
 """
 Segment model - represents a transcribed text segment with timing and speaker.
 """
-from sqlalchemy import String, Integer, Float, ForeignKey, Text
+from sqlalchemy import String, Integer, Float, ForeignKey, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List
 
@@ -27,6 +27,9 @@ class Segment(Base, TimestampMixin):
 
     # Segment order
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)  # Order in the file
+    
+    # Segment export control
+    is_passive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     audio_file: Mapped["AudioFile"] = relationship("AudioFile", back_populates="segments")

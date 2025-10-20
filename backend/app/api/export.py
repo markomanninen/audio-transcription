@@ -196,3 +196,174 @@ async def export_txt(
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
+
+
+@router.get("/project/{project_id}/srt")
+async def export_project_srt(
+    project_id: int,
+    use_edited: bool = Query(True, description="Use edited text if available"),
+    include_speakers: bool = Query(True, description="Include speaker names"),
+    db: Session = Depends(get_db)
+):
+    """
+    Export all transcriptions in a project as SRT subtitle file.
+
+    Args:
+        project_id: ID of the project
+        use_edited: Use edited text if available
+        include_speakers: Include speaker names
+        db: Database session
+
+    Returns:
+        SRT file download combining all project files
+    """
+    # Verify project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {project_id} not found"
+        )
+
+    # Generate SRT
+    export_service = ExportService()
+    try:
+        srt_content = export_service.generate_project_srt(
+            project_id=project_id,
+            db=db,
+            use_edited=use_edited,
+            include_speakers=include_speakers
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # Create filename
+    safe_name = "".join(c for c in project.name if c.isalnum() or c in (' ', '-', '_')).strip()
+    filename = f"{safe_name}_project_transcription.srt"
+
+    return Response(
+        content=srt_content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@router.get("/project/{project_id}/html")
+async def export_project_html(
+    project_id: int,
+    use_edited: bool = Query(True, description="Use edited text if available"),
+    include_speakers: bool = Query(True, description="Include speaker names"),
+    include_timestamps: bool = Query(True, description="Include timestamps"),
+    db: Session = Depends(get_db)
+):
+    """
+    Export all transcriptions in a project as HTML file.
+
+    Args:
+        project_id: ID of the project
+        use_edited: Use edited text if available
+        include_speakers: Include speaker names
+        include_timestamps: Include timestamps
+        db: Database session
+
+    Returns:
+        HTML file download combining all project files
+    """
+    # Verify project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {project_id} not found"
+        )
+
+    # Generate HTML
+    export_service = ExportService()
+    try:
+        html_content = export_service.generate_project_html(
+            project_id=project_id,
+            db=db,
+            use_edited=use_edited,
+            include_speakers=include_speakers,
+            include_timestamps=include_timestamps
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # Create filename
+    safe_name = "".join(c for c in project.name if c.isalnum() or c in (' ', '-', '_')).strip()
+    filename = f"{safe_name}_project_transcription.html"
+
+    return Response(
+        content=html_content,
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@router.get("/project/{project_id}/txt")
+async def export_project_txt(
+    project_id: int,
+    use_edited: bool = Query(True, description="Use edited text if available"),
+    include_speakers: bool = Query(True, description="Include speaker names"),
+    include_timestamps: bool = Query(False, description="Include timestamps"),
+    db: Session = Depends(get_db)
+):
+    """
+    Export all transcriptions in a project as plain text file.
+
+    Args:
+        project_id: ID of the project
+        use_edited: Use edited text if available
+        include_speakers: Include speaker names
+        include_timestamps: Include timestamps
+        db: Database session
+
+    Returns:
+        Text file download combining all project files
+    """
+    # Verify project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project {project_id} not found"
+        )
+
+    # Generate text
+    export_service = ExportService()
+    try:
+        txt_content = export_service.generate_project_txt(
+            project_id=project_id,
+            db=db,
+            use_edited=use_edited,
+            include_speakers=include_speakers,
+            include_timestamps=include_timestamps
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # Create filename
+    safe_name = "".join(c for c in project.name if c.isalnum() or c in (' ', '-', '_')).strip()
+    filename = f"{safe_name}_project_transcription.txt"
+
+    return Response(
+        content=txt_content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )

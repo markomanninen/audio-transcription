@@ -117,6 +117,22 @@ def test_correct_segment_with_speaker_context(client, test_db, sample_project, s
     assert "Speaker" in call_args[1]["context"]
 
 
+def test_correct_segment_passive_rejected(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Passive segments should be rejected by AI correction endpoint."""
+    segment = sample_segments[0]
+    segment.is_passive = True
+    test_db.commit()
+
+    response = client.post(
+        "/api/ai/correct-segment",
+        json={"segment_id": segment.id, "provider": "ollama"}
+    )
+
+    assert response.status_code == 400
+    assert "Passive" in response.json()["detail"]
+    mock_llm_service.correct_text.assert_not_called()
+
+
 def test_correct_batch_success(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
     """Test batch correction of multiple segments."""
     segment_ids = [seg.id for seg in sample_segments[:3]]  # Use 3 segments
@@ -139,6 +155,22 @@ def test_correct_batch_success(client, test_db, sample_project, sample_audio_fil
         assert result["segment_id"] in segment_ids
         assert "corrected_text" in result
         assert "changes" in result
+
+
+def test_correct_batch_rejects_passive_segments(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):
+    """Batch correction should fail if any segment is passive."""
+    segment_ids = [seg.id for seg in sample_segments[:2]]
+    sample_segments[0].is_passive = True
+    test_db.commit()
+
+    response = client.post(
+        "/api/ai/correct-batch",
+        json={"segment_ids": segment_ids, "provider": "ollama"}
+    )
+
+    assert response.status_code == 400
+    assert str(sample_segments[0].id) in response.json()["detail"]
+    mock_llm_service.correct_text.assert_not_called()
 
 
 def test_correct_batch_partial_not_found(client, test_db, sample_project, sample_audio_file, sample_segments, mock_llm_service):

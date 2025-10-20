@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { useProviders, useProviderHealth } from '../../hooks/useAICorrections'
+import { ProviderInfo } from '../../api/aiCorrections'
 
 interface LLMSettingsProps {
   selectedProvider: string
@@ -36,7 +37,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
     )
   }
 
-  const currentProvider = providers.find((p: any) => p.name === selectedProvider)
+  const currentProvider = providers.find((p: ProviderInfo) => p.name === selectedProvider)
   const isHealthy = health?.[selectedProvider] ?? false
 
   return (
@@ -86,7 +87,7 @@ export const LLMSettings: React.FC<LLMSettingsProps> = ({
                 Select AI Provider
               </h3>
               <div className="space-y-2">
-                {providers.map((provider: any) => {
+                {providers.map((provider: ProviderInfo) => {
                   const providerHealth = health?.[provider.name] ?? false
                   const isSelected = provider.name === selectedProvider
 

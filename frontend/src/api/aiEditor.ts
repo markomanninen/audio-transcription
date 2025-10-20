@@ -12,7 +12,7 @@ interface BaseEditorRequest {
 }
 
 interface EditorResponse {
-  result: any;
+  result: string
 }
 
 // --- R4: Semantic Reconstruction ---

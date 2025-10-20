@@ -112,11 +112,11 @@ describe('useAIEditor Hook', () => {
   describe('nlpAnalysis', () => {
     it('should successfully call NLP analysis', async () => {
       const mockResponse = {
-        result: {
+        result: JSON.stringify({
           summary: 'Text summary',
           themes: ['theme1', 'theme2'],
           structure: 'Q&A format'
-        }
+        })
       };
       mockNlpAnalysis.mockResolvedValue(mockResponse);
 
@@ -141,7 +141,7 @@ describe('useAIEditor Hook', () => {
   describe('factChecking', () => {
     it('should successfully call fact checking', async () => {
       const mockResponse = {
-        result: {
+        result: JSON.stringify({
           verifications: [
             {
               original_statement: 'Test statement',
@@ -149,7 +149,7 @@ describe('useAIEditor Hook', () => {
               verification_details: 'Confirmed accurate.'
             }
           ]
-        }
+        })
       };
       mockFactChecking.mockResolvedValue(mockResponse);
 

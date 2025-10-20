@@ -96,11 +96,11 @@ export class FrontendRecovery {
  * Hook to provide recovery utilities
  */
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 export const useRecovery = () => {
   const queryClient = useQueryClient()
-  const recovery = new FrontendRecovery(queryClient)
+  const recovery = useMemo(() => new FrontendRecovery(queryClient), [queryClient])
 
   const clearErrorsAndRetry = useCallback(() => {
     return recovery.clearErrorStatesAndRetry()

@@ -1,19 +1,10 @@
 /**
- * A  onC  onClose: () => void
-  currentProvider: string
-  onProviderChange: (provider: string) => void
-}
-
-export default function AISettingsDialog({void
-  currentProvider: string
-  onProviderChange: (provider: string) => void
-}
-
-export default function AISettingsDialog({ialog Component
+ * AISettingsDialog Component
  * Comprehensive LLM provider, model, and API key configuration
  */
 import { useState } from 'react'
 import { useProviders, useProviderHealth, useModels, useModelAvailability } from '../../hooks/useAICorrections'
+import { ProviderInfo } from '../../api/aiCorrections'
 
 interface AISettingsDialogProps {
   isOpen: boolean
@@ -121,7 +112,7 @@ export const AISettingsDialog = ({
             Active Provider
           </label>
           <div className="flex gap-4">
-            {providers?.map((provider: any) => {
+            {providers?.map((provider: ProviderInfo) => {
               const isHealthy = health?.[provider.name] ?? false
               const isActive = provider.name === currentProvider
 

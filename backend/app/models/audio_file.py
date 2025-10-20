@@ -3,7 +3,7 @@ AudioFile model - represents an uploaded audio file.
 """
 from sqlalchemy import String, Integer, Float, ForeignKey, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
-from typing import List
+from typing import List, Optional
 import enum
 from datetime import datetime
 
@@ -34,6 +34,11 @@ class AudioFile(Base, TimestampMixin):
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # seconds
     format: Mapped[str] = mapped_column(String(10), nullable=False)  # mp3, wav, etc.
     language: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO 639-1 code (en, fi, sv, etc.) or None for auto-detect
+    parent_audio_file_id: Mapped[int | None] = mapped_column(ForeignKey("audio_files.id"), nullable=True)
+    split_start_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    split_end_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    split_depth: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    split_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Transcription status
     transcription_status: Mapped[TranscriptionStatus] = mapped_column(
@@ -68,6 +73,11 @@ class AudioFile(Base, TimestampMixin):
     project: Mapped["Project"] = relationship("Project", back_populates="audio_files")
     segments: Mapped[List["Segment"]] = relationship(
         "Segment", back_populates="audio_file", cascade="all, delete-orphan"
+    )
+    parent: Mapped[Optional["AudioFile"]] = relationship(
+        "AudioFile",
+        remote_side="AudioFile.id",
+        backref="child_files",
     )
 
     def __repr__(self) -> str:

@@ -25,6 +25,12 @@ export const analyzeProject = async (
   return response.data
 }
 
+export interface ApplyAnalysisResponse {
+  success: boolean
+  message?: string
+  updated_fields?: string[]
+}
+
 /**
  * Apply AI suggestions to project
  */
@@ -32,7 +38,7 @@ export const applyAnalysis = async (
   projectId: number,
   contentType: string,
   description?: string
-): Promise<any> => {
+): Promise<ApplyAnalysisResponse> => {
   const response = await apiClient.post(
     `/api/ai/analyze/project/${projectId}/apply`,
     null,

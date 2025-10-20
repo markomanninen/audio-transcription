@@ -1,7 +1,10 @@
-export { Button, buttonVariants } from './Button';
+export { Button } from './Button';
+export { buttonVariants } from './button-variants';
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './Card';
 export { Input } from './Input';
 export { Modal } from './Modal';
-export { Toast, toastVariants } from './Toast';
-export { Spinner, spinnerVariants } from './Spinner';
+export { Toast } from './Toast';
+export { toastVariants } from './toast-variants';
+export { Spinner } from './Spinner';
+export { spinnerVariants } from './spinner-variants';
 export { Skeleton } from './Skeleton';

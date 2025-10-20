@@ -3,7 +3,7 @@ API endpoints for managing export templates.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 from .. import models
@@ -23,10 +23,9 @@ class ExportTemplateUpdate(ExportTemplateBase):
     pass
 
 class ExportTemplateResponse(ExportTemplateBase):
-    id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: int
 
 @router.post("/", response_model=ExportTemplateResponse, status_code=status.HTTP_201_CREATED)
 def create_export_template(template_data: ExportTemplateCreate, db: Session = Depends(get_db)):

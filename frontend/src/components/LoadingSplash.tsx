@@ -18,13 +18,15 @@ export function LoadingSplash({ children }: LoadingSplashProps) {
   } = useBackendReadiness()
 
   const [showSplash, setShowSplash] = useState(true)
+  const [hasBeenReady, setHasBeenReady] = useState(false)
 
   useEffect(() => {
-    if (isUiReady) {
+    if (isUiReady && !hasBeenReady) {
+      setHasBeenReady(true)
       const timer = setTimeout(() => setShowSplash(false), 1000)
       return () => clearTimeout(timer)
     }
-  }, [isUiReady])
+  }, [isUiReady, hasBeenReady])
 
   const whisperUiState = useMemo(() => {
     if (!health?.components?.whisper) {
@@ -62,8 +64,9 @@ export function LoadingSplash({ children }: LoadingSplashProps) {
     }
   }, [health?.components?.whisper, whisperMessage])
 
+  // Once the UI has been ready once, never show splash again (prevents flickering during transcription)
   const shouldShowSplash =
-    showSplash && !isUiReady && (isLoading || isStarting || (isUnhealthy && !isUiReady) || (!!error && !isUiReady))
+    showSplash && !hasBeenReady && (isLoading || isStarting || (isUnhealthy && !isUiReady) || (!!error && !isUiReady))
 
   if (!shouldShowSplash) {
     return <>{children}</>

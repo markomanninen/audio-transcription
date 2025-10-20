@@ -27,6 +27,13 @@ export interface AudioFile {
   updated_at?: string
   transcription_started_at?: string
   transcription_completed_at?: string
+  parent_audio_file_id?: number | null
+  split_start_seconds?: number | null
+  split_end_seconds?: number | null
+  split_depth?: number | null
+  split_order?: number | null
+  processing_stage?: string | null
+  error_message?: string | null
 }
 
 export interface Segment {
@@ -37,6 +44,7 @@ export interface Segment {
   edited_text?: string
   speaker_id?: number
   sequence: number
+  is_passive: boolean
 }
 
 export interface Speaker {
@@ -56,11 +64,19 @@ export interface TranscriptionStatus {
   processing_stage?: string
   segment_count: number
   duration?: number
+  file_size?: number
   transcription_started_at?: string
   transcription_completed_at?: string
   created_at?: string
   updated_at?: string
   transcription_metadata?: string
+  parent_file_id?: number | null
+  split_start_seconds?: number | null
+  split_end_seconds?: number | null
+  split_label?: string | null
+  split_total_chunks?: number | null
+  split_origin_filename?: string | null
+  split_depth?: number | null
 }
 
 export interface ExportTemplate {

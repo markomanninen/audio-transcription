@@ -172,7 +172,7 @@ export default function EditorView({ initialText, projectId }: EditorViewProps) 
       '--diff-viewer-left-width': `${(diffColumnRatio * 100).toFixed(2)}%`,
       '--diff-viewer-right-width': `${((1 - diffColumnRatio) * 100).toFixed(2)}%`,
       '--diff-viewer-divider-position': `${(diffColumnRatio * 100).toFixed(2)}%`,
-    }),
+    } as CSSProperties),
     [diffColumnRatio]
   );
 

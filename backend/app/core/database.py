@@ -1,7 +1,7 @@
 """
 Database connection and session management.
 """
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 from typing import Generator
@@ -66,3 +66,38 @@ def init_db() -> None:
     Note: SQLite WAL mode and pragmas are set automatically via connection event listener.
     """
     Base.metadata.create_all(bind=engine)
+
+    # Ensure new columns exist on legacy databases (development convenience).
+    try:
+        inspector = inspect(engine)
+        with engine.begin() as conn:
+            segment_columns = {col["name"] for col in inspector.get_columns("segments")}
+            if "is_passive" not in segment_columns:
+                conn.execute(
+                    text("ALTER TABLE segments ADD COLUMN is_passive BOOLEAN NOT NULL DEFAULT 0")
+                )
+
+            audio_columns = {col["name"] for col in inspector.get_columns("audio_files")}
+            if "parent_audio_file_id" not in audio_columns:
+                conn.execute(
+                    text("ALTER TABLE audio_files ADD COLUMN parent_audio_file_id INTEGER")
+                )
+            if "split_start_seconds" not in audio_columns:
+                conn.execute(
+                    text("ALTER TABLE audio_files ADD COLUMN split_start_seconds FLOAT")
+                )
+            if "split_end_seconds" not in audio_columns:
+                conn.execute(
+                    text("ALTER TABLE audio_files ADD COLUMN split_end_seconds FLOAT")
+                )
+            if "split_depth" not in audio_columns:
+                conn.execute(
+                    text("ALTER TABLE audio_files ADD COLUMN split_depth INTEGER NOT NULL DEFAULT 0")
+                )
+            if "split_order" not in audio_columns:
+                conn.execute(
+                    text("ALTER TABLE audio_files ADD COLUMN split_order INTEGER NOT NULL DEFAULT 0")
+                )
+    except Exception:
+        # Do not block application startup if inspection fails (e.g., table missing)
+        pass

@@ -42,6 +42,15 @@ test-results/
 /*.test.ts
 /*.test.js
 
+# Debug directories and monitoring scripts
+/debug/
+backend/debug/
+frontend/debug/
+*debug*.py
+*debug*.js
+*debug*.sh
+*monitor*.sh
+
 # Documentation (should NEVER be in root except README, CLAUDE, etc)
 /*_GUIDE.md
 /*_RESULTS.md
@@ -105,3 +114,5 @@ test-screenshots/
 /.coverage.*
 /htmlcov/
 *.coverage
+*screenshots*
+*assets*
