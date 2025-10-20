@@ -1,0 +1,25 @@
+Batch split workflow enhancements:
+- Show floating batch progress overlay with chunk counter, live progress, and auto-selection of active files.
+- Highlight batch files in the project list and indent nested splits.
+- Persist batch metadata across frontend state so the UX reflects processing from start to completion.
+
+Split dialog updates:
+- Replace free-text overrides with select menus for model size and language.
+- Emit detailed chunk descriptors (id + display name) to drive the new batch overlay and highlighting.
+
+Transcription status context:
+- Surface split origin metadata (chunk label, time range, source file) inside the status panel for all lifecycle states.
+- Ensure backend responses include parent relationships and split timing for accurate display.
+
+Segment editing UX:
+- Keep the selection toolbar accessible as a floating control near the bottom of the viewport.
+- Allow joining segments only when the selection is consecutive.
+
+Testing coverage:
+- Extend backend split tests to cover naming, metadata, and hierarchical ordering.
+- Add frontend unit tests for the consecutive segment helper used by the new selection logic.
+
+Segment management enhancements:
+- Provide delete action to remove stale segments and resequence siblings.
+- Allow inserting blank segments above or below to draft new content.
+- Consolidate segment row controls into primary Play/Edit buttons with a contextual actions menu.

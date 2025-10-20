@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '../hooks/useTheme';
-import { ToastProvider } from '../hooks/useToast';
+import { ThemeProvider } from '../hooks/ThemeProvider';
+import { ToastProvider } from '../hooks/ToastProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,11 +14,11 @@ const queryClient = new QueryClient({
         }
         // Don't retry on 4xx errors (client errors)
         if (error instanceof Error && 'status' in error) {
-          const status = (error as any).status
-          if (status >= 400 && status < 500) return false
+          const status = (error as { status?: number }).status
+          if (status && status >= 400 && status < 500) return false
         }
         // Don't retry network errors more than once when backend might be down
-        if ((error as any).code === 'ERR_NETWORK' && failureCount >= 1) {
+        if ((error as { code?: string }).code === 'ERR_NETWORK' && failureCount >= 1) {
           return false
         }
         // Retry up to 2 times for other errors (reduced from 3)

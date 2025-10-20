@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { buttonVariants } from '../components/ui/Button';
+import { buttonVariants } from '../components/ui/button-variants';
 
 export default function HomePage() {
   return (

@@ -10,6 +10,12 @@ afterEach(() => {
 })
 
 // Mock HTMLMediaElement
-;(global as any).HTMLMediaElement.prototype.load = vi.fn()
-;(global as any).HTMLMediaElement.prototype.play = vi.fn()
-;(global as any).HTMLMediaElement.prototype.pause = vi.fn()
+interface MockHTMLMediaElement {
+  load: ReturnType<typeof vi.fn>
+  play: ReturnType<typeof vi.fn>
+  pause: ReturnType<typeof vi.fn>
+}
+
+;(global as typeof globalThis & { HTMLMediaElement: { prototype: MockHTMLMediaElement } }).HTMLMediaElement.prototype.load = vi.fn()
+;(global as typeof globalThis & { HTMLMediaElement: { prototype: MockHTMLMediaElement } }).HTMLMediaElement.prototype.play = vi.fn()
+;(global as typeof globalThis & { HTMLMediaElement: { prototype: MockHTMLMediaElement } }).HTMLMediaElement.prototype.pause = vi.fn()

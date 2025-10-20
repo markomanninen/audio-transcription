@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import apiClient from '../../api/client'
 
 interface LLMLog {
@@ -34,19 +34,7 @@ export default function LLMLogsViewer({ onClose }: LLMLogsViewerProps) {
   })
   const [limit, setLimit] = useState(50)
 
-  useEffect(() => {
-    fetchLogs()
-  }, [filters, limit])
-
-  // Prevent background scrolling
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [])
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -62,7 +50,19 @@ export default function LLMLogsViewer({ onClose }: LLMLogsViewerProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters.provider, filters.status, filters.operation, limit])
+
+  useEffect(() => {
+    fetchLogs()
+  }, [fetchLogs])
+
+  // Prevent background scrolling
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [])
 
   const formatDuration = (ms: number | null) => {
     if (!ms) return 'N/A'

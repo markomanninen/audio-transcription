@@ -2,7 +2,7 @@
 LLM request/response logging API endpoints.
 """
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -15,6 +15,8 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 class LLMLogResponse(BaseModel):
     """Response model for LLM log entries."""
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     provider: str
     model: str
@@ -30,9 +32,6 @@ class LLMLogResponse(BaseModel):
     segment_id: Optional[int]
     project_id: Optional[int]
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("/logs", response_model=List[LLMLogResponse])

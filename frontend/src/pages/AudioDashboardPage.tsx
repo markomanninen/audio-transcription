@@ -19,6 +19,7 @@ import ProjectEditor from '../components/Dashboard/ProjectEditor';
 import CreateProjectDialog from '../components/Dashboard/CreateProjectDialog';
 import DeleteProjectDialog from '../components/Dashboard/DeleteProjectDialog';
 import ExportDialog from '../components/Export/ExportDialog';
+import ProjectExportDialog from '../components/Export/ProjectExportDialog';
 import { AISettingsDialog } from '../components/Settings/AISettingsDialog';
 import { AnalysisDialog } from '../components/AI/AnalysisDialog';
 import ThemeToggle from '../components/ThemeToggle';
@@ -49,6 +50,7 @@ export default function AudioDashboardPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showProjectExportDialog, setShowProjectExportDialog] = useState(false);
   const [showAISettings, setShowAISettings] = useState(false);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const [showLLMLogs, setShowLLMLogs] = useState(false);
@@ -81,6 +83,18 @@ export default function AudioDashboardPage() {
 
   useEffect(() => {
     if (projectId && projectFiles && projectFiles.length > 0) {
+      // CRITICAL FIX: Only auto-select if no file is currently selected
+      // This prevents the selection from jumping when projectFiles updates
+      if (selectedFileId !== null) {
+        // Check if currently selected file still exists in the list
+        const currentFileExists = projectFiles.find((file) => file.file_id === selectedFileId);
+        if (currentFileExists) {
+          // Current selection is valid, keep it
+          return;
+        }
+      }
+
+      // No valid selection - try to restore from localStorage or select first file
       const lastSelectedKey = `selectedFileId_${projectId}`;
       const lastSelectedId = localStorage.getItem(lastSelectedKey);
       if (lastSelectedId) {
@@ -94,7 +108,7 @@ export default function AudioDashboardPage() {
     } else {
       setSelectedFileId(null);
     }
-  }, [projectId, projectFiles]);
+  }, [projectId, projectFiles, selectedFileId]);
 
   useEffect(() => {
     if (projectId && selectedFileId) {
@@ -279,6 +293,16 @@ export default function AudioDashboardPage() {
                   </button>
                   <button
                     onClick={() => {
+                      setShowProjectExportDialog(true);
+                      setShowToolsMenu(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-muted"
+                    disabled={!currentProject || !projectFiles?.length}
+                  >
+                    Export Project
+                  </button>
+                  <button
+                    onClick={() => {
                       setShowDeleteDialog(true);
                       setShowToolsMenu(false);
                     }}
@@ -352,13 +376,8 @@ export default function AudioDashboardPage() {
                     <SpeakerManager fileId={selectedFileId} />
                   </div>
                   <div className="rounded-lg border border-border bg-card p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h2 className="text-lg font-semibold">Transcription</h2>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
-                          Export
-                        </Button>
-                      </div>
+                    <div className="mb-4">
+                      <h2 className="text-lg font-semibold mb-4">Transcription</h2>
                     </div>
                     <SegmentList
                       fileId={selectedFileId}
@@ -369,6 +388,11 @@ export default function AudioDashboardPage() {
                       onPauseRequest={handlePauseRequest}
                       llmProvider={llmProvider}
                       onOpenEditor={handleOpenEditor}
+                      exportButton={
+                        <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                          Export
+                        </Button>
+                      }
                     />
                   </div>
                   {showExportDialog && selectedFile && (
@@ -425,6 +449,14 @@ export default function AudioDashboardPage() {
         onConfirm={handleDeleteProject}
         isDeleting={deleteProject.isPending}
       />
+
+      {showProjectExportDialog && (
+        <ProjectExportDialog
+          projectId={projectId}
+          projectName={currentProject?.name || ''}
+          onClose={() => setShowProjectExportDialog(false)}
+        />
+      )}
     </div>
     </LoadingSplash>
   );

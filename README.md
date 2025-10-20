@@ -41,6 +41,12 @@ python scripts/capture_ai_editor_responses.py \
 
 The script calls every AI-editor endpoint, logs a short summary to STDOUT, and saves the full payloads in `ai_editor_responses.json` so you can confirm the response format still matches the prompts.
 
+### Segment Workflow
+
+- **✂️ Batch Splitting**: Break long recordings into evenly sized chunks and queue transcriptions automatically
+- **🚫 Passive Segments**: Temporarily exclude selected segments from exports and AI transfers without deleting them
+- **🔗 Join Nearby Segments**: Merge consecutive clips to clean up pauses or mis-splits in the transcript
+
 ### User Experience
 
 - **🎵 Built-in Audio Player**: Play, pause, and jump to specific segments
@@ -76,8 +82,26 @@ The script calls every AI-editor endpoint, logs a short summary to STDOUT, and s
 
 3. **Start the application**
 
+   **Option A: Full setup with fresh dependencies (recommended for first time or after dependency changes)**
+
    ```bash
+   ./scripts/docker-dev-setup.sh
+   ```
+
+   **Option B: Quick start for daily development**
+
+   ```bash
+   ./scripts/docker-dev-start.sh
+   # or manually:
    docker-compose up -d
+   ```
+
+   **Option C: Stop all services**
+
+   ```bash
+   ./scripts/docker-dev-stop.sh
+   # or manually:
+   docker-compose down
    ```
 
 4. **Access the application**
@@ -86,6 +110,16 @@ The script calls every AI-editor endpoint, logs a short summary to STDOUT, and s
    - API Docs: <http://localhost:8080/docs>
 
 The first startup will download the Whisper model (~1-2GB), which may take a few minutes.
+
+### Docker Development Scripts
+
+The project includes convenient scripts for Docker development:
+
+- **`./scripts/docker-dev-setup.sh`**: Complete environment setup with fresh dependency installation
+- **`./scripts/docker-dev-start.sh`**: Quick start for daily development
+- **`./scripts/docker-dev-stop.sh`**: Stop all services
+
+These scripts ensure all dependencies are properly installed and containers are built with all required libraries and modules.
 
 ## 🛠️ Local Development (Non-Docker)
 
@@ -138,6 +172,16 @@ npm run dev:logs         # Show live logs
 ./dev                    # Start both services
 python dev_runner.py     # Same as above
 ```
+
+### Upgrading Existing Databases
+
+If you're upgrading from an earlier version, add the new `is_passive` column to the `segments` table so passive segments work correctly:
+
+```sql
+ALTER TABLE segments ADD COLUMN is_passive BOOLEAN NOT NULL DEFAULT 0;
+```
+
+For SQLite development databases it may be simpler to delete the file under `backend/data/` and let the app recreate it on startup.
 
 ### Smart Features
 

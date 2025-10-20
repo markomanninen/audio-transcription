@@ -111,7 +111,7 @@ export const resetCircuitBreaker = () => {
 
 // Expose reset function globally for debugging
 if (typeof window !== 'undefined') {
-  (window as any).resetCircuitBreaker = resetCircuitBreaker
+  (window as { resetCircuitBreaker?: () => void }).resetCircuitBreaker = resetCircuitBreaker
 }
 
 export default apiClient

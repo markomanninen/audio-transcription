@@ -2,15 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Clear npm cache and install dependencies
+RUN npm cache clean --force && \
+    npm ci && \
+    npm install
 
 # Copy source code
 COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host"]
+# Start the development server with host binding
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

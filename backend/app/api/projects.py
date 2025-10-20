@@ -3,7 +3,7 @@ API endpoints for managing projects, including text-based projects.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 
 from .. import models
@@ -17,22 +17,20 @@ class TextProjectCreate(BaseModel):
     content: Optional[str] = ""
 
 class ProjectResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: Optional[str] = None
     project_type: str
 
-    class Config:
-        from_attributes = True
-
 class TextDocumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     project_id: int
     content: str
     history: str
-
-    class Config:
-        from_attributes = True
 
 class FullProjectResponse(ProjectResponse):
     text_document: Optional[TextDocumentResponse] = None

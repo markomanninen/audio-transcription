@@ -70,7 +70,7 @@ def get_transcription_service() -> TranscriptionService:
         # Verify model is actually loaded
         if _global_transcription_service.model is None:
             raise RuntimeError("❌ Whisper model not loaded. Service initialization may have failed.")
-        
+
         return _global_transcription_service
 
 
@@ -112,6 +112,32 @@ def _mark_model_ready(is_ready: bool) -> None:
     """Update internal readiness flag."""
     global _model_ready
     _model_ready = is_ready
+
+
+def is_model_cached_on_disk(model_size: str = None) -> bool:
+    """Check if any Whisper model is already downloaded and cached on disk."""
+    import os
+    
+    cache_dir = os.path.expanduser("~/.cache/whisper")
+    if not os.path.exists(cache_dir):
+        return False
+    
+    if model_size is None:
+        # If no specific model requested, check if ANY model is cached
+        try:
+            files = os.listdir(cache_dir)
+            model_files = [f for f in files if f.endswith('.pt')]
+            return len(model_files) > 0
+        except OSError:
+            return False
+    else:
+        # Check for specific model
+        cache_candidates = _model_cache_candidates(model_size)
+        for candidate in cache_candidates:
+            model_path = os.path.join(cache_dir, candidate)
+            if os.path.exists(model_path):
+                return True
+        return False
 
 
 def is_model_ready() -> bool:
@@ -250,14 +276,14 @@ def get_model_download_progress() -> Optional[Dict[str, Any]]:
     model_size = get_target_model_size()
     cache_dir = os.path.expanduser("~/.cache/whisper")
     
-    # Model sizes in MB (approximate)
+    # Model sizes in MB (actual file sizes from disk)
     model_sizes = {
-        "tiny": 39,
-        "tiny.en": 39,
+        "tiny": 72,      # Actual: 72MB
+        "tiny.en": 72,
         "base": 142,
         "base.en": 142,
-        "small": 488,
-        "small.en": 488,
+        "small": 461,    # Actual: 461MB
+        "small.en": 461,
         "medium": 1460,
         "medium.en": 1460,
         "turbo": 1540,
@@ -274,14 +300,32 @@ def get_model_download_progress() -> Optional[Dict[str, Any]]:
     for candidate in cache_candidates:
         model_path = os.path.join(cache_dir, candidate)
         if os.path.exists(model_path):
-            file_size = os.path.getsize(model_path) / (1024 * 1024)
-            downloaded_display = f"{int(file_size)}MB" if file_size < 1000 else f"{file_size/1000:.1f}GB"
-            return {
-                'progress': 100,
-                'downloaded': downloaded_display,
-                'total': model_size_display,
-                'speed': "Complete - ready to load into memory"
-            }
+            file_size_mb = os.path.getsize(model_path) / (1024 * 1024)
+            downloaded_display = f"{int(file_size_mb)}MB" if file_size_mb < 1000 else f"{file_size_mb/1000:.1f}GB"
+
+            # Check if file is still being downloaded (file size < expected size)
+            # Allow 5% tolerance for size variations between model versions
+            expected_min_size = model_size_mb * 0.95
+
+            if file_size_mb < expected_min_size:
+                # File exists but is incomplete - still downloading
+                progress = min(int((file_size_mb / model_size_mb) * 100), 99)
+                return {
+                    'progress': progress,
+                    'downloaded': downloaded_display,
+                    'total': model_size_display,
+                    'speed': "Downloading...",
+                    'model_size': model_size
+                }
+            else:
+                # File is complete
+                return {
+                    'progress': 100,
+                    'downloaded': downloaded_display,
+                    'total': model_size_display,
+                    'speed': "Complete - ready to load into memory",
+                    'model_size': model_size
+                }
     
     # Check if we're in the process of loading/downloading
     if not is_transcription_service_ready():
@@ -330,8 +374,49 @@ def get_model_download_progress() -> Optional[Dict[str, Any]]:
             }
     
     return None  # No download in progress
-    
+
     return None
+
+
+def update_model_loading_progress_in_db() -> None:
+    """
+    Update transcription_progress in database for all files waiting on model download.
+    Maps download progress (0-100%) to main progress (0-10% range).
+    """
+    download_info = get_model_download_progress()
+
+    # If no download in progress or model is ready, nothing to update
+    if not download_info or download_info.get('progress') is None:
+        return
+
+    # Map download progress (0-100%) to main progress (0-10%)
+    download_percent = download_info['progress']  # 0-100
+    main_progress = download_percent * 0.10  # Convert to 0.0-10.0
+    main_progress_fraction = main_progress / 100.0  # Convert to 0.0-0.10 for database
+
+    # Find all files waiting for model loading
+    from ..core.database import get_db
+    from ..models.audio_file import AudioFile
+
+    db = next(get_db())
+    try:
+        # Find files with status=PROCESSING and stage containing "Loading Whisper model"
+        files_waiting = db.query(AudioFile).filter(
+            AudioFile.transcription_stage.ilike("%Loading Whisper model%")
+        ).all()
+
+        if files_waiting:
+            for audio_file in files_waiting:
+                # Update progress (0.0 to 0.10)
+                audio_file.transcription_progress = main_progress_fraction
+
+            db.commit()
+            print(f"📊 Updated model loading progress to {main_progress:.1f}% ({download_percent}% download) for {len(files_waiting)} file(s)")
+    except Exception as e:
+        print(f"⚠️ Failed to update model loading progress in DB: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 # Global progress tracking

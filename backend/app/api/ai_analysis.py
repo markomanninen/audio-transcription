@@ -48,9 +48,15 @@ async def analyze_project(
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
     # Get sample of segments (first 10 for analysis)
-    segments = db.query(Segment).join(Segment.audio_file).filter(
-        Segment.audio_file.has(project_id=project_id)
-    ).order_by(Segment.sequence).limit(10).all()
+    segments = (
+        db.query(Segment)
+        .join(Segment.audio_file)
+        .filter(Segment.audio_file.has(project_id=project_id))
+        .filter(Segment.is_passive.is_(False))
+        .order_by(Segment.sequence)
+        .limit(10)
+        .all()
+    )
 
     if not segments:
         raise HTTPException(

@@ -1,11 +1,14 @@
 import React from 'react'
-import { useStartTranscription } from '../../hooks/useTranscription'
+import { useStartTranscription, useTranscriptionStatus } from '../../hooks/useTranscription'
 import { useProjectFiles } from '../../hooks/useUpload'
 import { useForceRestart } from '../../hooks/useEnhancedTranscription'
+import { useSystemHealth } from '../../hooks/useSystemHealth'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, API_BASE_URL } from '../../api/client'
 import { TranscriptionSettingsModal, TranscriptionSettings } from './TranscriptionSettingsModal'
+import SplitBatchDialog from './SplitBatchDialog'
 import { getStatusBadgeColors } from '../../utils/statusColors'
+import { useToast } from '../../hooks/useToast'
 import type { TranscriptionStatus as TranscriptionStatusResult, AudioFile } from '../../types'
 
 interface FileListProps {
@@ -19,27 +22,352 @@ interface ActionInProgress {
   action: string
 }
 
+interface BatchChunk {
+  fileId: number
+  originalFilename: string
+}
+
+interface BatchState {
+  parentId: number
+  chunks: BatchChunk[]
+  startedAt: string
+  completedAt?: string
+}
+
 export function FileList({ projectId, onSelectFile, selectedFileId }: FileListProps) {
   const { data: files, isLoading, error } = useProjectFiles(projectId)
+  
+  // Debug logging for file data
+  if (import.meta.env.DEV) {
+    console.log('[FileList] Received', files?.length || 0, 'files:', files?.map(f => f.file_id) || [])
+    console.log('[FileList] File statuses:', files?.map(f => ({ file_id: f.file_id, status: f.status, filename: f.original_filename || f.filename })) || [])
+  }
+  React.useEffect(() => {
+    if (files && files.length > 0) {
+      if (import.meta.env.DEV) {
+        console.log(`[FileList] Received ${files.length} files:`, files.map(f => f.file_id))
+        console.log(`[FileList] File statuses:`, files.map(f => ({ id: f.file_id, status: f.status, filename: f.original_filename })))
+      }
+    }
+  }, [files])
+  
   const startTranscription = useStartTranscription()
   const forceRestart = useForceRestart()
   const queryClient = useQueryClient()
+  const { success } = useToast()
+  const { data: systemHealth } = useSystemHealth()
   const [actionInProgress, setActionInProgress] = React.useState<ActionInProgress | null>(null)
   const [showTranscriptionModal, setShowTranscriptionModal] = React.useState<{
     fileId: number
     fileName: string
   } | null>(null)
+  const [splitTarget, setSplitTarget] = React.useState<{
+    fileId: number
+    fileName: string
+  } | null>(null)
+  const [activeBatch, setActiveBatch] = React.useState<BatchState | null>(null)
+  const lastAutoSelected = React.useRef<number | null>(null)
+  const completionToastShown = React.useRef<number | null>(null)
+
+  const handleBatchBegin = React.useCallback(
+    ({ parentId, chunks }: { parentId: number; chunks: BatchChunk[] }) => {
+      setActiveBatch({ parentId, chunks, startedAt: new Date().toISOString() })
+      if (chunks.length > 0) {
+        onSelectFile?.(chunks[0].fileId)
+      }
+    },
+    [onSelectFile]
+  )
+
+  // Auto-detect batch from processing split files
+  React.useEffect(() => {
+    if (activeBatch || !files) return
+    
+    console.log('Auto-detection check:', {
+      hasActiveBatch: !!activeBatch,
+      fileCount: files.length,
+      files: files.map(f => ({
+        id: f.file_id,
+        status: f.status,
+        parent_id: f.parent_audio_file_id,
+        transcription_started: f.transcription_started_at
+      }))
+    })
+    
+    // Find all split files (processing or pending ONLY) that could form a batch
+    // Don't include completed files - we only want active batches
+    const splitFiles = files.filter(file =>
+      file.parent_audio_file_id &&
+      (file.status === 'processing' || file.status === 'pending')
+    )
+    
+    console.log('Split files found for batch detection:', splitFiles.length, splitFiles.map(f => ({
+      id: f.file_id,
+      status: f.status,
+      parent_id: f.parent_audio_file_id
+    })))
+    
+    if (splitFiles.length >= 2) {
+      // Group by parent file
+      const parentGroups = splitFiles.reduce((groups, file) => {
+        const parentId = file.parent_audio_file_id!
+        if (!groups[parentId]) groups[parentId] = []
+        groups[parentId].push(file)
+        return groups
+      }, {} as Record<number, typeof splitFiles>)
+      
+      // Find the largest group of split files processing together
+      const largestGroup = Object.values(parentGroups).reduce((largest, current) => 
+        current.length > largest.length ? current : largest, [])
+      
+      if (largestGroup.length >= 2) {
+        // Create auto-detected batch
+        const chunks: BatchChunk[] = largestGroup.map((file: AudioFile) => ({
+          fileId: file.file_id,
+          originalFilename: file.original_filename
+        }))
+        
+        console.log('Auto-detected batch of', chunks.length, 'split files')
+        setActiveBatch({
+          parentId: largestGroup[0].parent_audio_file_id!,
+          chunks,
+          startedAt: largestGroup[0].transcription_started_at!
+        })
+        
+        // Select the first file in the batch
+        if (chunks.length > 0) {
+          onSelectFile?.(chunks[0].fileId)
+        }
+      }
+    }
+  }, [files, activeBatch, onSelectFile])
+
+  const batchFileIdSet = React.useMemo(() => {
+    if (!activeBatch) {
+      return new Set<number>()
+    }
+    return new Set(activeBatch.chunks.map((chunk) => chunk.fileId))
+  }, [activeBatch])
+
+  const batchProgress = React.useMemo(() => {
+    if (!activeBatch) return null
+    const total = activeBatch.chunks.length
+    if (total === 0) return null
+
+    const fileMap = new Map((files || []).map((file) => [file.file_id, file]))
+    let completedCount = 0
+    let failedCount = 0
+    let currentIndex = 0
+    let currentChunk: { file?: AudioFile; chunk: BatchChunk } | null = null
+
+    // First, count completed and failed
+    activeBatch.chunks.forEach((chunk, _index) => {
+      const file = fileMap.get(chunk.fileId)
+      const status = file?.status
+      if (status === 'completed') {
+        completedCount += 1
+      } else if (status === 'failed') {
+        failedCount += 1
+      }
+    })
+
+    // CRITICAL FIX: Find the ACTUAL current processing file by looking at
+    // most recent transcription_started_at timestamp
+    let processingFiles: Array<{ file: AudioFile; chunk: BatchChunk; index: number }> = []
+
+    activeBatch.chunks.forEach((chunk, index) => {
+      const file = fileMap.get(chunk.fileId)
+      const status = file?.status
+      if (status === 'processing' || status === 'pending') {
+        processingFiles.push({ file: file!, chunk, index })
+      }
+    })
+
+    if (processingFiles.length > 0) {
+      // Sort by transcription_started_at (most recent first)
+      processingFiles.sort((a, b) => {
+        const aStarted = a.file?.transcription_started_at
+        const bStarted = b.file?.transcription_started_at
+
+        // Files with start time come before files without
+        if (aStarted && !bStarted) return -1
+        if (!aStarted && bStarted) return 1
+        if (!aStarted && !bStarted) return 0
+
+        // Most recent start time first
+        return new Date(bStarted!).getTime() - new Date(aStarted!).getTime()
+      })
+
+      // The first in sorted list is the actual current file
+      const current = processingFiles[0]
+      currentChunk = { file: current.file, chunk: current.chunk }
+      currentIndex = current.index
+    }
+
+    if (!currentChunk) {
+      const fallback = activeBatch.chunks[total - 1]
+      currentChunk = { file: fileMap.get(fallback.fileId), chunk: fallback }
+      currentIndex = total - 1
+    }
+
+    const isComplete = completedCount + failedCount === total
+
+    return {
+      parentId: activeBatch.parentId,
+      total,
+      completed: completedCount,
+      failed: failedCount,
+      currentChunk,
+      currentIndex,
+      isComplete,
+    }
+  }, [activeBatch, files])
+
+  const currentBatchFileId = batchProgress?.currentChunk?.chunk.fileId ?? null
+
+  // CRITICAL FIX: Stop polling when batch is complete to prevent flickering
+  const shouldPollBatch = currentBatchFileId && !batchProgress?.isComplete
+
+  // Reduce polling frequency during batch processing to prevent excessive requests
+  const batchPollInterval = React.useMemo(() => {
+    if (!shouldPollBatch) return undefined
+    
+    // Count how many files are actively processing
+    const processingCount = files?.filter(f => f.status === 'processing').length || 0
+    
+    // Increase interval based on number of processing files to reduce server load
+    if (processingCount > 3) return 5000 // 5 second interval for heavy batch loads
+    if (processingCount > 1) return 3000 // 3 second interval for moderate loads
+    return 2000 // Standard 2 second interval for single file
+  }, [shouldPollBatch, files])
+
+  const { data: currentBatchStatus } = useTranscriptionStatus(
+    currentBatchFileId,
+    batchPollInterval
+  )
+
+  React.useEffect(() => {
+    const targetId = batchProgress?.currentChunk?.chunk.fileId
+    if (!targetId) return
+    if (lastAutoSelected.current === targetId) return
+
+    // Debounce auto-selection to prevent rapid flickering during batch processing
+    const timer = setTimeout(() => {
+      lastAutoSelected.current = targetId
+      onSelectFile?.(targetId)
+      console.log(`[FileList] Auto-selected file ${targetId} during batch processing`)
+    }, 300) // 300ms delay to stabilize selection
+
+    return () => clearTimeout(timer)
+  }, [batchProgress?.currentChunk?.chunk.fileId, onSelectFile])
+
+  React.useEffect(() => {
+    if (!batchProgress?.isComplete) return
+    if (!activeBatch) return
+
+    // Add stabilization delay for completion handling to prevent flickering
+    const timer = setTimeout(() => {
+      // Show completion toast (only once per batch)
+      if (activeBatch.parentId !== completionToastShown.current) {
+        completionToastShown.current = activeBatch.parentId
+
+        const completed = batchProgress.completed
+        const failed = batchProgress.failed
+        const total = batchProgress.total
+
+        if (failed > 0) {
+          success(
+            'Batch transcription completed',
+            `${completed} of ${total} chunks transcribed successfully. ${failed} failed.`
+          )
+        } else {
+          success(
+            'Batch transcription completed!',
+            `All ${total} chunks have been transcribed successfully.`
+          )
+        }
+      }
+
+      // CRITICAL FIX: Only set completedAt if not already set
+      if (!activeBatch.completedAt) {
+        setActiveBatch((previous) => {
+          if (!previous || previous.completedAt) return previous
+          return { ...previous, completedAt: new Date().toISOString() }
+        })
+      }
+    }, 500) // 500ms stabilization delay
+
+    return () => clearTimeout(timer)
+  }, [batchProgress?.isComplete, batchProgress?.completed, batchProgress?.failed, batchProgress?.total, activeBatch?.parentId, activeBatch?.completedAt, activeBatch, success])
+
+  React.useEffect(() => {
+    if (!activeBatch?.completedAt) return
+
+    // CRITICAL FIX: Clear overlay after 5 seconds (give user time to see completion message)
+    const timeout = window.setTimeout(() => {
+      setActiveBatch(null)
+      lastAutoSelected.current = null
+      completionToastShown.current = null // Reset for next batch
+    }, 5000) // 5 seconds instead of 3
+
+    return () => window.clearTimeout(timeout)
+  }, [activeBatch?.completedAt])
+
+  const showBatchOverlay = Boolean(activeBatch && batchProgress)
+  const batchOverlayProgress = batchProgress
+    ? batchProgress.isComplete
+      ? 100
+      : Math.min(Math.max(Math.round((currentBatchStatus?.progress ?? 0) * 100), 0), 99)
+    : 0
+  const batchOverlayFileName = batchProgress
+    ? batchProgress.currentChunk?.file?.original_filename ?? batchProgress.currentChunk?.chunk.originalFilename
+    : undefined
+  const batchOverlayStage = batchProgress?.isComplete
+    ? 'Batch completed'
+    : currentBatchStatus?.processing_stage ?? 'Preparing next chunk...'
+  const batchOverlayPosition = batchProgress ? Math.min(batchProgress.currentIndex + 1, batchProgress.total) : 0
+  const batchOverlayRemaining = batchProgress
+    ? Math.max(batchProgress.total - batchProgress.completed - batchProgress.failed, 0)
+    : 0
+
+  const batchOverlayElement = showBatchOverlay && batchProgress && (
+    <div className="fixed bottom-6 inset-x-0 flex justify-center pointer-events-none z-50">
+      <div className="pointer-events-auto bg-white dark:bg-gray-900 border border-border shadow-xl rounded-2xl px-6 py-4 w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+          <span>Batch transcription</span>
+          <span>{batchProgress.isComplete ? 'Done' : `File ${batchOverlayPosition} of ${batchProgress.total}`}</span>
+        </div>
+        {batchOverlayFileName && (
+          <div className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+            {batchOverlayFileName}
+          </div>
+        )}
+        <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-2 bg-indigo-500 transition-all duration-300"
+            style={{ width: `${batchOverlayProgress}%` }}
+          />
+        </div>
+        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+          <span>
+            {batchProgress.completed} completed{batchProgress.failed ? ` • ${batchProgress.failed} failed` : ''}
+          </span>
+          {!batchProgress.isComplete && <span>{batchOverlayRemaining} remaining</span>}
+        </div>
+        {batchOverlayStage && (
+          <div className="mt-2 text-xs text-muted-foreground">{batchOverlayStage}</div>
+        )}
+      </div>
+    </div>
+  )
 
   // Delete file mutation
   const deleteFile = useMutation({
     mutationFn: async (fileId: number) => {
-      console.log('Attempting to delete file:', fileId)
       const response = await apiClient.delete(`/api/upload/files/${fileId}`)
-      console.log('Delete response:', response)
       return response.data
     },
     onSuccess: () => {
-      console.log('Delete successful, invalidating queries')
       queryClient.invalidateQueries({ queryKey: ['files'], exact: false })
     },
     onError: (error) => {
@@ -64,6 +392,16 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const formatSplitRange = (start?: number | null, end?: number | null): string => {
+    if (start == null || end == null) return ''
+    const format = (value: number) => {
+      const mins = Math.floor(value / 60)
+      const secs = Math.floor(value % 60)
+      return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${format(start)} → ${format(end)}`
+  }
+
   const handleTranscribe = async (fileId: number, fileName: string) => {
     console.log('handleTranscribe called with:', fileId, fileName)
     setShowTranscriptionModal({ fileId, fileName })
@@ -74,6 +412,13 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
     console.log('handleStartTranscription called with:', settings, 'modal state:', showTranscriptionModal)
     if (!showTranscriptionModal) {
       console.log('No modal state, exiting early')
+      return
+    }
+
+    // Check if Whisper model is currently loading or downloading to prevent concurrent downloads
+    if (systemHealth?.components?.whisper?.status === 'loading' || 
+        systemHealth?.components?.whisper?.status === 'downloading') {
+      console.log('Whisper model is loading/downloading, preventing concurrent transcription start')
       return
     }
 
@@ -164,18 +509,7 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       queryClient.invalidateQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['segments', showTranscriptionModal.fileId, 'v3'] })
       queryClient.invalidateQueries({ queryKey: ['speakers', showTranscriptionModal.fileId, 'v3'] })
-      
-      // Force additional refetch after short delay to catch status change with v3 keys
-      setTimeout(() => {
-        console.log('Force refetching after transcription start from FileList...')
-        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
-      }, 1000)
 
-      setTimeout(() => {
-        console.log('Second force refetch after transcription start from FileList...')
-        queryClient.refetchQueries({ queryKey: ['transcription-status', showTranscriptionModal.fileId, 'v3'] })
-      }, 3000)
-      
       console.log('Transcription start completed successfully')
     } catch (error) {
       console.error('Failed to start transcription:', error)
@@ -227,9 +561,11 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       if (selectedFileId === fileId) {
         onSelectFile?.(null)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting file:', error)
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Unknown error occurred'
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unknown error occurred'
       alert(`Failed to delete file: ${errorMessage}`)
     } finally {
       setActionInProgress(null)
@@ -238,43 +574,53 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
 
   if (isLoading) {
     return (
-      <div className="text-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-        <p className="text-gray-600 dark:text-gray-400">Loading files...</p>
-      </div>
+      <>
+        {batchOverlayElement}
+        <div className="text-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading files...</p>
+        </div>
+      </>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center p-8">
-        <div className="text-red-600 dark:text-red-400 mb-4">⚠️</div>
-        <p className="text-red-600 dark:text-red-400 font-medium">Unable to load files</p>
-        <p className="text-gray-600 dark:text-gray-400 text-sm mt-2">
-          {error instanceof Error ? error.message : String(error)}
-        </p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
+      <>
+        {batchOverlayElement}
+        <div className="text-center p-8">
+          <div className="text-red-600 dark:text-red-400 mb-4">⚠️</div>
+          <p className="text-red-600 dark:text-red-400 font-medium">Unable to load files</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-2">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </>
     )
   }
 
   if (!files || files.length === 0) {
     return (
-      <div className="text-center p-8 text-gray-600 dark:text-gray-400">
-        <div className="text-4xl mb-4">📄</div>
-        <p className="text-lg font-medium">No audio files uploaded yet</p>
-        <p className="text-sm mt-2">Upload your first file to get started with transcription.</p>
-      </div>
+      <>
+        {batchOverlayElement}
+        <div className="text-center p-8 text-gray-600 dark:text-gray-400">
+          <div className="text-4xl mb-4">📄</div>
+          <p className="text-lg font-medium">No audio files uploaded yet</p>
+          <p className="text-sm mt-2">Upload your first file to get started with transcription.</p>
+        </div>
+      </>
     )
   }
 
   return (
     <>
+      {batchOverlayElement}
       <div className="space-y-4" data-component="file-list">
         {files.map((file) => {
           const cachedStatus = queryClient.getQueryData<TranscriptionStatusResult>([
@@ -282,25 +628,80 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
             file.file_id,
             'v3',
           ])
-          const effectiveStatus = cachedStatus?.status ?? file.status
+          // Prioritize fresh file data over potentially stale cache for status
+          const baseStatus = file.status ?? cachedStatus?.status ?? 'pending'
+          // Use processing_stage and error_message from file data (now included in file list API)
+          const errorMessage = file.error_message ?? cachedStatus?.error_message
+          const processingStage = file.processing_stage ?? cachedStatus?.processing_stage
+          
+
+          
+          // Enhanced status determination based on error messages and whisper state
+          const getEnhancedStatus = (status: string, errorMsg?: string, processingStage?: string) => {
+            // Normalize status to lowercase for consistent comparison
+            const normalizedStatus = status?.toLowerCase()
+
+            // PHASE 3 FIX: Backend now returns status='processing' even during model loading
+            // If status is 'processing' and stage mentions "loading", we're in model loading phase
+            if (normalizedStatus === 'processing' && processingStage) {
+              const stageLC = processingStage.toLowerCase()
+              // Check for model loading indicators (old and new formats)
+              if (stageLC.includes('loading') && (stageLC.includes('whisper') || stageLC.includes('model'))) {
+                // This is model loading, not actual transcription
+                // Keep status as 'processing' to show unified progress bar
+                return normalizedStatus
+              }
+            }
+
+            // OLD CODE: For backwards compatibility with files that haven't been updated yet
+            if (normalizedStatus === 'pending' && processingStage) {
+              // Handle old specific processing stages
+              if (processingStage === 'model_ready_to_load' || processingStage === 'queued_ready') {
+                return 'ready-to-start'
+              }
+              if (processingStage === 'model_download_needed' || processingStage === 'queued_download') {
+                return 'model-download-needed'
+              }
+              if (processingStage === 'model_loading') {
+                return 'model-loading'
+              }
+              // Only consider it processing if actually transcribing (not loading)
+              if (errorMsg && errorMsg.includes('Stage:') && processingStage !== 'model_loading') {
+                return 'processing'
+              }
+            }
+            return normalizedStatus || 'pending'
+          }
+          
+          const effectiveStatus = getEnhancedStatus(baseStatus, errorMessage, processingStage)
+          const isSelected = selectedFileId === file.file_id
+          const isBatchMember = batchFileIdSet.has(file.file_id)
+          const isBatchCurrent = batchProgress?.currentChunk?.chunk.fileId === file.file_id
+          const depthIndent = Math.min((file.split_depth ?? 0) * 16, 64)
 
           return (
-            <div
-              key={file.file_id}
-              className={`
-                bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
-                rounded-xl p-6 transition-all duration-200 hover:shadow-md cursor-pointer
-                ${
-                  selectedFileId === file.file_id
-                    ? 'ring-2 ring-blue-500 border-blue-500'
-                    : 'hover:border-gray-300 dark:hover:border-gray-600'
-                }
-              `}
-              data-component="file-card"
-              data-file-id={file.file_id}
-              data-status={effectiveStatus}
-              onClick={() => onSelectFile?.(file.file_id)}
-            >
+            <div key={file.file_id} style={{ marginLeft: depthIndent }}>
+              <div
+                className={`
+                  bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
+                  rounded-xl p-6 transition-all duration-200 hover:shadow-md cursor-pointer
+                  ${
+                    isBatchCurrent
+                      ? 'ring-2 ring-indigo-500 border-indigo-500'
+                      : isSelected
+                        ? 'ring-2 ring-blue-500 border-blue-500'
+                        : 'hover:border-gray-300 dark:hover:border-gray-600'
+                  }
+                  ${!isBatchCurrent && !isSelected && isBatchMember ? 'border-indigo-200 dark:border-indigo-400/40' : ''}
+                `}
+                data-component="file-card"
+                data-file-id={file.file_id}
+                data-status={effectiveStatus}
+                data-selected={isSelected ? 'true' : 'false'}
+                data-batch-member={isBatchMember ? 'true' : 'false'}
+                data-batch-current={isBatchCurrent ? 'true' : 'false'}
+                onClick={() => onSelectFile?.(file.file_id)}
+              >
           {/* Header Row */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 min-w-0">
@@ -315,10 +716,26 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                   ⏱️ {formatDuration(file.duration || 0)}
                 </span>
               </div>
+              {file.parent_audio_file_id && (
+                <div className="mt-1 text-xs text-indigo-600 dark:text-indigo-300">
+                  ↳ {formatSplitRange(file.split_start_seconds, file.split_end_seconds)}
+                </div>
+              )}
             </div>
             
             {/* Delete Button */}
             <div className="flex items-center gap-3">
+              {isBatchMember && (
+                <span
+                  className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full ${
+                    file.status === 'processing'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200'
+                  }`}
+                >
+                  {file.status === 'processing' ? 'Processing' : 'Batch'}
+                </span>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -341,20 +758,37 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {/* Primary Action Button */}
-              {effectiveStatus === 'pending' && (
+              {(effectiveStatus === 'pending' || effectiveStatus === 'model-loading' || effectiveStatus === 'ready-to-start' || effectiveStatus === 'model-download-needed') && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleTranscribe(file.file_id, file.original_filename)
                   }}
-                  disabled={startTranscription.isPending || actionInProgress?.fileId === file.file_id}
+                  disabled={
+                    startTranscription.isPending || 
+                    actionInProgress?.fileId === file.file_id ||
+                    systemHealth?.components?.whisper?.status === 'loading' ||
+                    systemHealth?.components?.whisper?.status === 'downloading'
+                  }
                   className="
                     px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg
                     hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
                     transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
                   "
                 >
-                  {actionInProgress?.fileId === file.file_id ? 'Starting...' : '▶️ Start Transcription'}
+                  {actionInProgress?.fileId === file.file_id 
+                    ? 'Starting...' 
+                    : systemHealth?.components?.whisper?.status === 'downloading'
+                    ? `📥 Downloading... ${systemHealth.components.whisper.progress || 0}%`
+                    : systemHealth?.components?.whisper?.status === 'loading'
+                    ? '⏳ Model Loading...'
+                    : effectiveStatus === 'model-loading' 
+                    ? '⏳ Model Loading...'
+                    : effectiveStatus === 'model-download-needed'
+                    ? '📥 Download & Start'
+                    : effectiveStatus === 'ready-to-start'
+                    ? '🚀 Start (Model Cached)'
+                    : '▶️ Start Transcription'}
                 </button>
               )}
 
@@ -365,11 +799,12 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                     onSelectFile?.(file.file_id)
                   }}
                   className="
-                    px-6 py-2 bg-green-600 text-white text-sm font-medium rounded-lg
-                    hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500
+                    px-3 py-2 border border-border text-sm rounded-lg transition-colors
+                    hover:bg-muted
                   "
+                  title="View Transcription"
                 >
-                  📋 View Transcription
+                  📋
                 </button>
               )}
 
@@ -380,13 +815,29 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                     onSelectFile?.(file.file_id)
                   }}
                   className="
-                    px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg
-                    hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500
+                    px-3 py-2 border border-border text-sm rounded-lg transition-colors
+                    hover:bg-muted
                   "
+                  title="View Details"
                 >
-                  📋 View Details
+                  📋
                 </button>
               )}
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSplitTarget({ fileId: file.file_id, fileName: file.original_filename })
+                }}
+                disabled={actionInProgress?.fileId === file.file_id}
+                className="
+                  px-3 py-2 border border-border text-sm rounded-lg transition-colors
+                  hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed
+                "
+                title="Split & Batch"
+              >
+                ✂️
+              </button>
             </div>
 
             {/* Secondary Actions */}
@@ -398,7 +849,13 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
                   ${getStatusBadgeColors(effectiveStatus)}
                 `}
               >
-                {effectiveStatus}
+                {effectiveStatus === 'model-loading' 
+                  ? 'MODEL LOADING' 
+                  : effectiveStatus === 'ready-to-start'
+                  ? 'READY TO START'
+                  : effectiveStatus === 'model-download-needed'
+                  ? 'MODEL DOWNLOAD NEEDED'
+                  : effectiveStatus}
               </span>
 
               {/* No secondary actions for failed files - use details panel instead */}
@@ -433,10 +890,20 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
               </div>
             </div>
           )}
-            </div>
-          )
+        </div>
+      </div>
+        )
         })}
       </div>
+
+      <SplitBatchDialog
+        open={!!splitTarget}
+        fileId={splitTarget?.fileId ?? 0}
+        fileName={splitTarget?.fileName ?? ''}
+        projectId={projectId}
+        onClose={() => setSplitTarget(null)}
+        onBatchBegin={handleBatchBegin}
+      />
 
       {/* Transcription Settings Modal */}
       <TranscriptionSettingsModal

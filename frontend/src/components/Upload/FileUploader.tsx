@@ -13,6 +13,24 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadMutation = useUploadFile(projectId)
 
+  const handleFileUpload = useCallback((file: File) => {
+    uploadMutation.mutate(
+      {
+        file,
+        language: selectedLanguage || undefined,
+      },
+      {
+        onSuccess: (data) => {
+          // Reset the file input so the same file can be uploaded again
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+          }
+          onUploadComplete?.(data.file_id)
+        },
+      }
+    )
+  }, [uploadMutation, selectedLanguage, onUploadComplete])
+
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -41,7 +59,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
         handleFileUpload(files[0])
       }
     },
-    [projectId]
+    [handleFileUpload]
   )
 
   const handleFileSelect = useCallback(
@@ -51,26 +69,8 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
         handleFileUpload(files[0])
       }
     },
-    [projectId]
+    [handleFileUpload]
   )
-
-  const handleFileUpload = (file: File) => {
-    uploadMutation.mutate(
-      {
-        file,
-        language: selectedLanguage || undefined,
-      },
-      {
-        onSuccess: (data) => {
-          // Reset the file input so the same file can be uploaded again
-          if (fileInputRef.current) {
-            fileInputRef.current.value = ''
-          }
-          onUploadComplete?.(data.file_id)
-        },
-      }
-    )
-  }
 
   return (
     <div className="w-full space-y-4">
@@ -149,7 +149,7 @@ export default function FileUploader({ projectId, onUploadComplete }: FileUpload
       {uploadMutation.isError && (
         <div className="mt-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-sm text-red-800 dark:text-red-200">
-            Upload failed: {uploadMutation.error?.message || 'Unknown error'}
+            Upload failed: {(uploadMutation.error as Error)?.message || 'Unknown error'}
           </p>
         </div>
       )}

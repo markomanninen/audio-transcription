@@ -24,7 +24,7 @@ export interface EnhancedTranscriptionStatus {
   checkpoint: {
     stage: string
     segment_index: number
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
   }
   transcription_metadata?: string
 }

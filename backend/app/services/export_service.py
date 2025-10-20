@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from ..models.project import Project
-from ..models.audio_file import AudioFile
+from ..models.audio_file import AudioFile, TranscriptionStatus
 from ..models.segment import Segment
 from ..models.speaker import Speaker
 from ..models.export_template import ExportTemplate
@@ -90,6 +90,7 @@ class ExportService:
         segments = (
             db.query(Segment)
             .filter(Segment.audio_file_id == file_id)
+            .filter(Segment.is_passive.is_(False))
             .order_by(Segment.sequence)
             .all()
         )
@@ -157,6 +158,7 @@ class ExportService:
         segments = (
             db.query(Segment)
             .filter(Segment.audio_file_id == file_id)
+            .filter(Segment.is_passive.is_(False))
             .order_by(Segment.sequence)
             .all()
         )
@@ -254,6 +256,7 @@ class ExportService:
         segments = (
             db.query(Segment)
             .filter(Segment.audio_file_id == file_id)
+            .filter(Segment.is_passive.is_(False))
             .order_by(Segment.sequence)
             .all()
         )
@@ -313,6 +316,373 @@ class ExportService:
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{minutes:02d}:{secs:02d}"
+
+    def generate_project_srt(
+        self,
+        project_id: int,
+        db: Session,
+        use_edited: bool = True,
+        include_speakers: bool = True
+    ) -> str:
+        """
+        Generate SRT subtitle format for all files in a project.
+
+        Args:
+            project_id: ID of the project
+            db: Database session
+            use_edited: Use edited text if available
+            include_speakers: Include speaker names in output
+
+        Returns:
+            SRT formatted string combining all project files
+        """
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise ValueError(f"Project {project_id} not found")
+
+        # Get all audio files in the project, ordered by creation date
+        audio_files = (
+            db.query(AudioFile)
+            .filter(AudioFile.project_id == project_id)
+            .order_by(AudioFile.created_at)
+            .all()
+        )
+
+        if not audio_files:
+            raise ValueError(f"No audio files found in project {project_id}")
+
+        # Get all segments from all files, maintaining time continuity
+        all_segments = []
+        cumulative_offset = 0.0
+
+        # Get speakers if needed
+        speakers_map = {}
+        if include_speakers:
+            speakers = (
+                db.query(Speaker)
+                .filter(Speaker.project_id == project_id)
+                .all()
+            )
+            speakers_map = {s.id: s.display_name for s in speakers}
+
+        for audio_file in audio_files:
+            segments = (
+                db.query(Segment)
+                .filter(Segment.audio_file_id == audio_file.id)
+                .filter(Segment.is_passive.is_(False))
+                .order_by(Segment.sequence)
+                .all()
+            )
+
+            # Add segments with adjusted timestamps for project continuity
+            for segment in segments:
+                adjusted_segment = type('AdjustedSegment', (), {
+                    'start_time': segment.start_time + cumulative_offset,
+                    'end_time': segment.end_time + cumulative_offset,
+                    'original_text': segment.original_text,
+                    'edited_text': segment.edited_text,
+                    'speaker_id': segment.speaker_id,
+                    'audio_file': audio_file
+                })()
+                all_segments.append(adjusted_segment)
+
+            # Update cumulative offset for next file
+            if audio_file.duration:
+                cumulative_offset += audio_file.duration
+
+        # Generate SRT content
+        srt_lines = []
+        for idx, segment in enumerate(all_segments, 1):
+            # Sequence number
+            srt_lines.append(str(idx))
+
+            # Timestamp
+            start_time = self._format_srt_time(segment.start_time)
+            end_time = self._format_srt_time(segment.end_time)
+            srt_lines.append(f"{start_time} --> {end_time}")
+
+            # Text content
+            text = segment.edited_text if (use_edited and segment.edited_text) else segment.original_text
+
+            # Add speaker if available
+            if include_speakers and segment.speaker_id and segment.speaker_id in speakers_map:
+                speaker_name = speakers_map[segment.speaker_id]
+                text = f"[{speaker_name}] {text}"
+
+            # Add file context if multiple files
+            if len(audio_files) > 1:
+                text = f"[{segment.audio_file.original_filename}] {text}"
+
+            srt_lines.append(text)
+            srt_lines.append("")  # Empty line between entries
+
+        return "\n".join(srt_lines)
+
+    def generate_project_html(
+        self,
+        project_id: int,
+        db: Session,
+        use_edited: bool = True,
+        include_speakers: bool = True,
+        include_timestamps: bool = True
+    ) -> str:
+        """
+        Generate HTML formatted transcription for all files in a project.
+
+        Args:
+            project_id: ID of the project
+            db: Database session
+            use_edited: Use edited text if available
+            include_speakers: Include speaker names
+            include_timestamps: Include timestamps
+
+        Returns:
+            HTML formatted string combining all project files
+        """
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise ValueError(f"Project {project_id} not found")
+
+        # Get all audio files in the project, ordered by creation date
+        audio_files = (
+            db.query(AudioFile)
+            .filter(AudioFile.project_id == project_id)
+            .order_by(AudioFile.created_at)
+            .all()
+        )
+
+        if not audio_files:
+            raise ValueError(f"No audio files found in project {project_id}")
+
+        # Get speakers if needed
+        speakers_map = {}
+        if include_speakers:
+            speakers = (
+                db.query(Speaker)
+                .filter(Speaker.project_id == project_id)
+                .all()
+            )
+            speakers_map = {s.id: s.display_name for s in speakers}
+
+        # Calculate total duration for only transcribed files
+        transcribed_files = [f for f in audio_files if f.transcription_status == TranscriptionStatus.COMPLETED]
+        total_duration = sum(f.duration or 0 for f in transcribed_files)
+
+        # Build HTML
+        html_parts = [
+            "<!DOCTYPE html>",
+            "<html>",
+            "<head>",
+            "    <meta charset='UTF-8'>",
+            f"    <title>Project Transcription - {project.name}</title>",
+            "    <style>",
+            "        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 40px auto; padding: 20px; line-height: 1.6; }",
+            "        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }",
+            "        h2 { color: #444; margin-top: 40px; margin-bottom: 20px; border-left: 4px solid #28a745; padding-left: 15px; }",
+            "        .metadata { color: #666; font-size: 0.9em; margin-bottom: 30px; }",
+            "        .file-section { margin-bottom: 40px; }",
+            "        .segment { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; }",
+            "        .speaker { font-weight: bold; color: #007bff; }",
+            "        .timestamp { color: #666; font-size: 0.85em; }",
+            "        .text { margin-top: 5px; }",
+            "        .file-metadata { color: #888; font-size: 0.85em; margin-bottom: 15px; }",
+            "    </style>",
+            "</head>",
+            "<body>",
+            f"    <h1>Project: {project.name}</h1>",
+            "    <div class='metadata'>",
+            f"        <p><strong>Description:</strong> {project.description or 'No description'}</p>",
+        ]
+        
+        # Add content type if available
+        if project.content_type:
+            html_parts.append(f"        <p><strong>Content Type:</strong> {project.content_type}</p>")
+            
+        html_parts.extend([
+            f"        <p><strong>Files:</strong> {len(audio_files)}</p>",
+            f"        <p><strong>Total Duration:</strong> {self._format_duration(total_duration)}</p>",
+            f"        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>",
+            "    </div>",
+        ])
+
+        # Process each file
+        cumulative_offset = 0.0
+        for file_idx, audio_file in enumerate(audio_files):
+            segments = (
+                db.query(Segment)
+                .filter(Segment.audio_file_id == audio_file.id)
+                .filter(Segment.is_passive.is_(False))
+                .order_by(Segment.sequence)
+                .all()
+            )
+
+            if not segments:
+                continue
+
+            # File header
+            html_parts.append(f"    <div class='file-section'>")
+            html_parts.append(f"        <h2>File {file_idx + 1}: {audio_file.original_filename}</h2>")
+            html_parts.append(f"        <div class='file-metadata'>")
+            html_parts.append(f"            Duration: {self._format_duration(audio_file.duration)} | ")
+            html_parts.append(f"            Segments: {len(segments)}")
+            html_parts.append(f"        </div>")
+
+            # Add segments
+            for segment in segments:
+                text = segment.edited_text if (use_edited and segment.edited_text) else segment.original_text
+
+                html_parts.append("        <div class='segment'>")
+
+                # Speaker and timestamp header
+                header_parts = []
+                if include_speakers and segment.speaker_id and segment.speaker_id in speakers_map:
+                    speaker_name = speakers_map[segment.speaker_id]
+                    header_parts.append(f"<span class='speaker'>{speaker_name}</span>")
+
+                if include_timestamps:
+                    # Adjust timestamps for project continuity
+                    adj_start = segment.start_time + cumulative_offset
+                    adj_end = segment.end_time + cumulative_offset
+                    timestamp = f"{self._format_time(adj_start)} - {self._format_time(adj_end)}"
+                    header_parts.append(f"<span class='timestamp'>{timestamp}</span>")
+
+                if header_parts:
+                    html_parts.append(f"            <div>{' | '.join(header_parts)}</div>")
+
+                html_parts.append(f"            <div class='text'>{text}</div>")
+                html_parts.append("        </div>")
+
+            html_parts.append(f"    </div>")
+
+            # Update cumulative offset for next file
+            if audio_file.duration:
+                cumulative_offset += audio_file.duration
+
+        html_parts.extend([
+            "</body>",
+            "</html>"
+        ])
+
+        return "\n".join(html_parts)
+
+    def generate_project_txt(
+        self,
+        project_id: int,
+        db: Session,
+        use_edited: bool = True,
+        include_speakers: bool = True,
+        include_timestamps: bool = False
+    ) -> str:
+        """
+        Generate plain text transcription for all files in a project.
+
+        Args:
+            project_id: ID of the project
+            db: Database session
+            use_edited: Use edited text if available
+            include_speakers: Include speaker names
+            include_timestamps: Include timestamps
+
+        Returns:
+            Plain text string combining all project files
+        """
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise ValueError(f"Project {project_id} not found")
+
+        # Get all audio files in the project, ordered by creation date
+        audio_files = (
+            db.query(AudioFile)
+            .filter(AudioFile.project_id == project_id)
+            .order_by(AudioFile.created_at)
+            .all()
+        )
+
+        if not audio_files:
+            raise ValueError(f"No audio files found in project {project_id}")
+
+        # Get speakers if needed
+        speakers_map = {}
+        if include_speakers:
+            speakers = (
+                db.query(Speaker)
+                .filter(Speaker.project_id == project_id)
+                .all()
+            )
+            speakers_map = {s.id: s.display_name for s in speakers}
+
+        # Calculate total duration for only transcribed files
+        transcribed_files = [f for f in audio_files if f.transcription_status == TranscriptionStatus.COMPLETED]
+        total_duration = sum(f.duration or 0 for f in transcribed_files)
+
+        # Build text
+        lines = [
+            f"Project: {project.name}",
+            f"Description: {project.description or 'No description'}",
+        ]
+        
+        # Add content type if available
+        if project.content_type:
+            lines.append(f"Content Type: {project.content_type}")
+            
+        lines.extend([
+            f"Files: {len(audio_files)}",
+            f"Total Duration: {self._format_duration(total_duration)}",
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "",
+            "=" * 80,
+            ""
+        ])
+
+        # Process each file
+        cumulative_offset = 0.0
+        for file_idx, audio_file in enumerate(audio_files):
+            segments = (
+                db.query(Segment)
+                .filter(Segment.audio_file_id == audio_file.id)
+                .filter(Segment.is_passive.is_(False))
+                .order_by(Segment.sequence)
+                .all()
+            )
+
+            if not segments:
+                continue
+
+            # File header
+            lines.extend([
+                f"FILE {file_idx + 1}: {audio_file.original_filename}",
+                f"Duration: {self._format_duration(audio_file.duration)} | Segments: {len(segments)}",
+                "-" * 60,
+                ""
+            ])
+
+            # Add segments
+            for segment in segments:
+                text = segment.edited_text if (use_edited and segment.edited_text) else segment.original_text
+
+                parts = []
+                if include_timestamps:
+                    # Adjust timestamps for project continuity
+                    adj_start = segment.start_time + cumulative_offset
+                    adj_end = segment.end_time + cumulative_offset
+                    timestamp = f"[{self._format_time(adj_start)} - {self._format_time(adj_end)}]"
+                    parts.append(timestamp)
+
+                if include_speakers and segment.speaker_id and segment.speaker_id in speakers_map:
+                    speaker_name = speakers_map[segment.speaker_id]
+                    parts.append(f"{speaker_name}:")
+
+                parts.append(text)
+                lines.append(" ".join(parts))
+                lines.append("")
+
+            lines.append("")  # Extra space between files
+
+            # Update cumulative offset for next file
+            if audio_file.duration:
+                cumulative_offset += audio_file.duration
+
+        return "\n".join(lines)
 
     @staticmethod
     def _format_duration(seconds: Optional[float]) -> str:

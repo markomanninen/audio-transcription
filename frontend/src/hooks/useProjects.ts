@@ -42,9 +42,10 @@ export const useCreateAudioProject = () => {
       try {
         const response = await apiClient.post<Project>('/api/upload/project', data)
         return response.data
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string }
         // Enhanced error handling
-        if (error.code === 'ECONNABORTED') {
+        if (err.code === 'ECONNABORTED') {
           throw new Error('Create operation timed out. The server may be restarting. Please try again.')
         }
         throw error
@@ -53,13 +54,15 @@ export const useCreateAudioProject = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
     },
-    onError: (error: Error) => {
-      console.error('Project creation failed:', error.message)
+    onError: (error: unknown) => {
+      const err = error as Error
+      console.error('Project creation failed:', err.message)
     },
     // Add retry configuration
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: unknown) => {
+      const err = error as { code?: string }
       // Retry network errors and timeouts up to 2 times
-      if ((error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') && failureCount < 2) {
+      if ((err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') && failureCount < 2) {
         return true
       }
       return false
@@ -96,25 +99,28 @@ export const useUpdateProject = () => {
       try {
         const response = await apiClient.put<Project>(`/api/upload/project/${projectId}`, data)
         return response.data
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { code?: string }
         // Enhanced error handling
-        if (error.code === 'ECONNABORTED') {
+        if (err.code === 'ECONNABORTED') {
           throw new Error('Save operation timed out. The server may be restarting. Please try again.')
         }
         throw error
       }
     },
-    onSuccess: (_: any, variables: any) => {
+    onSuccess: (_: Project, variables: { projectId: number; data: CreateProjectRequest }) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       queryClient.invalidateQueries({ queryKey: ['project', variables.projectId] })
     },
-    onError: (error: Error) => {
-      console.error('Project update failed:', error.message)
+    onError: (error: unknown) => {
+      const err = error as Error
+      console.error('Project update failed:', err.message)
     },
     // Add retry configuration
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: unknown) => {
+      const err = error as { code?: string }
       // Retry network errors and timeouts up to 2 times
-      if ((error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') && failureCount < 2) {
+      if ((err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') && failureCount < 2) {
         return true
       }
       return false

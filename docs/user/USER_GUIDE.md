@@ -54,6 +54,15 @@ The interface consists of:
 - Maximum file size: 500MB
 - For larger files, consider splitting them first
 
+### Splitting Long Recordings
+
+1. In the file list, click **"✂️ Split & Batch"** on the audio you want to divide
+2. Choose chunk length, optional overlap, and whether to start transcription automatically
+3. Submit to create new audio files (e.g., Part 01, Part 02) in the same project
+4. Each chunk can be transcribed independently with the selected settings
+
+New chunks appear alongside the original file so you can decide which version to keep.
+
 ## Transcription
 
 ### Starting Transcription
@@ -123,9 +132,19 @@ Fix spelling, grammar, and punctuation errors:
 3. Check the diff to see what changed
 4. Click **"Apply"** to accept or **"Cancel"** to reject
 
-**Batch Correction:**
-1. Select multiple segments (future feature)
-2. Apply corrections to all at once
+> 🛑 Passive segments cannot be sent to AI until you reactivate them.
+
+### Segment Selection Tools
+
+Manage multiple segments in bulk:
+
+1. Use the checkbox next to each segment to build a selection
+2. A toolbar appears above the list with actions:
+   - **Mark Passive/Active** – exclude or include segments in exports and AI tools
+   - **Join Selected** – merge nearby segments into a single entry
+3. Click **Clear** to reset the selection at any time
+
+Batch AI corrections will reuse the same selection workflow in a future update.
 
 ### Correction Types
 
