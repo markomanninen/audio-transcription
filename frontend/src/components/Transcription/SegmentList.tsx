@@ -50,7 +50,7 @@ export default function SegmentList({
   const joinSegments = useJoinSegments()
   const deleteSegmentMutation = useDeleteSegment()
   const insertSegmentMutation = useInsertSegment()
-  const { success: toastSuccess, error: toastError } = useToast()
+  const { success: toastSuccess, error: toastError, toast } = useToast()
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null)
   const [correctingSegmentId, setCorrectingSegmentId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
@@ -186,7 +186,18 @@ export default function SegmentList({
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }; message?: string }
       const description = error?.response?.data?.detail ?? error?.message ?? 'Unable to join selected segments.'
-      toastError('Join failed', description)
+      
+      // Use longer duration for detailed error messages (like gap validation errors)
+      if (description.includes('gap of') && description.includes('exceeds')) {
+        toast({ 
+          variant: 'error', 
+          title: 'Join failed', 
+          description,
+          duration: 10000 // 10 seconds for detailed gap error messages
+        })
+      } else {
+        toastError('Join failed', description)
+      }
     }
   }
 
@@ -831,8 +842,14 @@ export default function SegmentList({
 
       <CorrectionDialog
         correction={correction}
-        onClose={() => setCorrection(null)}
-        onAccept={() => setCorrection(null)}
+        onClose={() => {
+          setCorrection(null)
+          setOpenMenuId(null) // Close the dropdown menu when modal is closed
+        }}
+        onAccept={() => {
+          setCorrection(null)
+          setOpenMenuId(null) // Close the dropdown menu when correction is accepted
+        }}
       />
     </>
   )

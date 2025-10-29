@@ -1180,11 +1180,22 @@ async def join_segments(
         for prev, curr in zip(segments, segments[1:]):
             gap = curr.start_time - prev.end_time
             if gap > request.max_gap_seconds:
+                def format_time(seconds: float) -> str:
+                    """Format time for display (MM:SS)."""
+                    minutes = int(seconds // 60)
+                    secs = int(seconds % 60)
+                    return f"{minutes:02d}:{secs:02d}"
+                
+                prev_text = (prev.original_text or "")[:50] + ("..." if len(prev.original_text or "") > 50 else "")
+                curr_text = (curr.original_text or "")[:50] + ("..." if len(curr.original_text or "") > 50 else "")
+                
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=(
-                        f"Segments {prev.id} and {curr.id} are {gap:.2f}s apart, "
-                        f"exceeding the allowed gap of {request.max_gap_seconds:.2f}s."
+                        f"Cannot join segments: gap of {gap:.2f}s exceeds the allowed {request.max_gap_seconds:.2f}s limit. "
+                        f"Segment '{prev_text}' ({format_time(prev.start_time)}-{format_time(prev.end_time)}) "
+                        f"and '{curr_text}' ({format_time(curr.start_time)}-{format_time(curr.end_time)}) "
+                        f"are too far apart."
                     ),
                 )
 
