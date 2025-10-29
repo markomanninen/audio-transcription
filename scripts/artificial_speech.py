@@ -200,7 +200,7 @@ def create_two_voice_conversation_improved(filename: str = "sample_conversation_
         wav_file.writeframes(audio_data.tobytes())
     
     file_size = os.path.getsize(filename)
-    print(f"✅ Created high-quality audio file: {filename}")
+    print(f"[OK] Created high-quality audio file: {filename}")
     print(f"   Duration: {total_duration:.1f}s")
     print(f"   Size: {file_size:,} bytes")
     print(f"   Sample rate: {sample_rate} Hz")
@@ -216,14 +216,14 @@ def main():
     
     try:
         create_two_voice_conversation_improved(filename)
-        print(f"\n🎵 High-quality sample audio created successfully!")
+        print(f"\n[AUDIO] High-quality sample audio created successfully!")
         print(f"You can now upload '{filename}' to test speaker diarization and transcription.")
         print(f"\nExpected results:")
         print(f"- Two speakers should be detected (Alice and Bob)")
         print(f"- Clear transcription of the conversation")
         print(f"- Proper speaker attribution for each segment")
     except Exception as e:
-        print(f"❌ Error creating audio: {e}")
+        print(f"[ERROR] Error creating audio: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

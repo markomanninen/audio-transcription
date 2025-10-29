@@ -218,7 +218,14 @@ def test_transcription_service(mock_whisper, test_db, temp_audio_dir):
 
     # Run transcription
     service = TranscriptionService()
-    with patch('app.services.audio_service.AudioService.convert_to_wav', return_value=temp_path):
+    with patch('app.services.audio_service.AudioService.convert_to_wav', return_value=temp_path), \
+         patch('app.services.audio_service.AudioSegment.from_file') as mock_audio_segment:
+        
+        # Mock audio segment with duration
+        mock_audio = Mock()
+        mock_audio.duration_seconds = 10.0
+        mock_audio_segment.return_value = mock_audio
+        
         segments = service.transcribe_audio(audio_file.id, test_db)
 
     # Verify results

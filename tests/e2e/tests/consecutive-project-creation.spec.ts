@@ -51,7 +51,7 @@ test.describe('Consecutive Project Creation', () => {
 
       // Wait for modal to close - this proves the backend responded
       await expect(modalHeading).toBeHidden({ timeout: 15_000 })
-      console.log(`[Project ${i}/${projectCount}] ✅ Created successfully`)
+      console.log(`[Project ${i}/${projectCount}] [PASS] Created successfully`)
 
       // Verify project appears in dropdown
       const projectSelect = page.getByRole('banner').getByRole('combobox')
@@ -72,7 +72,7 @@ test.describe('Consecutive Project Creation', () => {
     for (const projectName of projectNames) {
       const found = allOptions.some(option => option.includes(projectName))
       expect(found).toBeTruthy()
-      console.log(`✅ Found: ${projectName}`)
+      console.log(`[PASS] Found: ${projectName}`)
     }
 
     // Final health check - ensure backend is still responsive
@@ -80,7 +80,7 @@ test.describe('Consecutive Project Creation', () => {
     const healthCheckButton = page.getByRole('button', { name: /new project/i })
     await expect(healthCheckButton).toBeVisible({ timeout: 5_000 })
     const healthCheckDuration = Date.now() - healthCheckStart
-    console.log(`\n✅ Backend still responsive after ${projectCount} projects (${healthCheckDuration}ms)`)
+    console.log(`\n[PASS] Backend still responsive after ${projectCount} projects (${healthCheckDuration}ms)`)
 
     console.log('=== SUCCESS: All consecutive project creations completed ===')
   })
@@ -116,13 +116,13 @@ test.describe('Consecutive Project Creation', () => {
 
     const modalHeading = page.getByRole('heading', { name: /create new project/i })
     await expect(modalHeading).toBeHidden({ timeout: 15_000 })
-    console.log('[Step 1] ✅ First project created')
+    console.log('[Step 1] [PASS] First project created')
 
     // Refresh page
     console.log('\n[Step 2] Refreshing page')
     await page.reload()
     await splash.waitFor({ state: 'detached', timeout: 30_000 })
-    console.log('[Step 2] ✅ Page reloaded')
+    console.log('[Step 2] [PASS] Page reloaded')
 
     // Create second project after refresh
     console.log('\n[Step 3] Creating second project after refresh')
@@ -136,7 +136,7 @@ test.describe('Consecutive Project Creation', () => {
 
     const modalHeading2 = page.getByRole('heading', { name: /create new project/i })
     await expect(modalHeading2).toBeHidden({ timeout: 15_000 })
-    console.log('[Step 3] ✅ Second project created after refresh')
+    console.log('[Step 3] [PASS] Second project created after refresh')
 
     console.log('=== SUCCESS: Project creation works after page refresh ===')
   })

@@ -96,7 +96,7 @@ async function checkBrowserErrors() {
 }
 
 async function main() {
-  console.log('🔍 Testing frontend at', FRONTEND_URL);
+  console.log('[SEARCH] Testing frontend at', FRONTEND_URL);
   console.log('');
 
   try {
@@ -116,14 +116,14 @@ async function main() {
       console.log('Root element empty:', browserResult.rootIsEmpty ? '✗ YES (WHITE PAGE!)' : '✓ No');
 
       if (browserResult.hasErrors) {
-        console.log('\n❌ BROWSER ERRORS DETECTED:');
+        console.log('\n[ERROR] BROWSER ERRORS DETECTED:');
         browserResult.errors.forEach((err, i) => {
           console.log(`  ${i + 1}. ${err}`);
         });
       }
 
       if (browserResult.rootIsEmpty) {
-        console.log('\n❌ WHITE PAGE DETECTED!');
+        console.log('\n[ERROR] WHITE PAGE DETECTED!');
         console.log('The page loads but #root is empty.');
         console.log('This usually means:');
         console.log('  - JavaScript error preventing React from rendering');
@@ -140,16 +140,16 @@ async function main() {
     }
 
     if (result.hasError) {
-      console.log('\n❌ FRONTEND TEST FAILED:');
+      console.log('\n[ERROR] FRONTEND TEST FAILED:');
       console.log('  ', result.error);
       process.exit(1);
     }
 
-    console.log('\n✅ Frontend appears to be working');
+    console.log('\n[OK] Frontend appears to be working');
     process.exit(0);
 
   } catch (err) {
-    console.error('\n❌ TEST FAILED:');
+    console.error('\n[ERROR] TEST FAILED:');
     console.error('  ', err.error || err.message);
     process.exit(1);
   }

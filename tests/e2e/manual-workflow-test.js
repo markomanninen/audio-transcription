@@ -45,7 +45,7 @@ function getPortConfig() {
 }
 
 (async () => {
-  console.log('🚀 Starting manual workflow test...\n');
+  console.log('Starting manual workflow test...\n');
 
   const portConfig = getPortConfig();
   console.log('📡 Using configuration:', JSON.stringify(portConfig, null, 2));
@@ -62,7 +62,7 @@ function getPortConfig() {
     console.log(`Step 1: Navigating to ${frontendUrl}`);
     await page.goto(frontendUrl);
     await page.waitForLoadState('networkidle');
-    console.log('✅ App loaded\n');
+    console.log('[PASS] App loaded\n');
 
     // Step 2: Wait for app to be ready
     console.log('Step 2: Waiting for app to initialize...');
@@ -79,7 +79,7 @@ function getPortConfig() {
     const isTutorialVisible = await nextTutorialBtn.isVisible({ timeout: 3000 }).catch(() => false);
     
     if (isTutorialVisible) {
-      console.log('✅ Tutorial found, clicking through all steps...');
+      console.log('[PASS] Tutorial found, clicking through all steps...');
       let stepCount = 1;
       
       // Click Next until we reach the last step
@@ -104,7 +104,7 @@ function getPortConfig() {
       await page.screenshot({ path: 'test-screenshots/01b-tutorial-completed.png', fullPage: true });
       console.log('📸 Screenshot saved: 01b-tutorial-completed.png\n');
     } else {
-      console.log('⏭️  No tutorial found, continuing...\n');
+      console.log('[SKIP] No tutorial found, continuing...\n');
     }
 
     // Step 3: Navigate to Audio Transcription workspace
@@ -128,7 +128,7 @@ function getPortConfig() {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1000);
     } else {
-      console.log('⚠️  No workspace button/link found, trying direct navigation...');
+      console.log('[WARN] No workspace button/link found, trying direct navigation...');
       await page.goto(`${frontendUrl}/audio`);
       await page.waitForLoadState('networkidle');
     }
@@ -146,7 +146,7 @@ function getPortConfig() {
     }
 
     await page.screenshot({ path: 'test-screenshots/03-audio-workspace.png', fullPage: true });
-    console.log('✅ Navigated to Audio Transcription workspace\n');
+    console.log('[PASS] Navigated to Audio Transcription workspace\n');
     console.log('📸 Screenshot saved: 03-audio-workspace.png\n');
 
     // Step 4: Create first project
@@ -155,7 +155,7 @@ function getPortConfig() {
     const isVisible = await createProjectBtn.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (isVisible) {
-      console.log('✅ Create project button found');
+      console.log('[PASS] Create project button found');
       await createProjectBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/02-create-project-modal.png', fullPage: true });
@@ -170,7 +170,7 @@ function getPortConfig() {
       await submitBtn.click();
       await page.waitForTimeout(300); // Reduced delay
       await page.screenshot({ path: 'test-screenshots/03-project-created.png', fullPage: true });
-      console.log('✅ Project created\n');
+      console.log('[PASS] Project created\n');
       console.log('📸 Screenshot saved: 04-project-created.png\n');
 
       // Step 5: Create a second project immediately
@@ -186,7 +186,7 @@ function getPortConfig() {
       await submitBtn2.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/04-second-project-created.png', fullPage: true });
-      console.log('✅ Second project created\n');
+      console.log('[PASS] Second project created\n');
       console.log('📸 Screenshot saved: 05-second-project-created.png\n');
 
       // Step 6: Refresh the window
@@ -195,7 +195,7 @@ function getPortConfig() {
       await page.waitForLoadState('domcontentloaded'); // Faster than networkidle
       await page.waitForTimeout(300); // Reduced delay
       await page.screenshot({ path: 'test-screenshots/05-after-refresh.png', fullPage: true });
-      console.log('✅ Window refreshed\n');
+      console.log('[PASS] Window refreshed\n');
       console.log('📸 Screenshot saved: 06-after-refresh.png\n');
 
       // Step 7: Close the Project menu first if it's open
@@ -232,13 +232,13 @@ function getPortConfig() {
       if (firstProjectIndex > 0) {
         await projectSelect.selectOption({ index: firstProjectIndex });
       } else {
-        console.log('⚠️  Could not find first project, selecting index 2 as fallback');
+        console.log('[WARN] Could not find first project, selecting index 2 as fallback');
         await projectSelect.selectOption({ index: 2 });  // Fallback to second option
       }
 
       await page.waitForTimeout(400);
       await page.screenshot({ path: 'test-screenshots/06-project-switched.png', fullPage: true });
-      console.log('✅ Switched to first project\n');
+      console.log('[PASS] Switched to first project\n');
       console.log('📸 Screenshot saved: 06-project-switched.png\n');
 
       // Step 8: Open Tools menu to access Edit option
@@ -248,7 +248,7 @@ function getPortConfig() {
       await toolsMenuBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/08-tools-menu-open.png', fullPage: true });
-      console.log('✅ Tools menu opened\n');
+      console.log('[PASS] Tools menu opened\n');
       console.log('📸 Screenshot saved: 08-tools-menu-open.png\n');
 
       // Step 9: Click Edit Project option
@@ -257,7 +257,7 @@ function getPortConfig() {
       await editProjectOption.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/09-edit-modal-opened.png', fullPage: true });
-      console.log('✅ Edit modal opened\n');
+      console.log('[PASS] Edit modal opened\n');
       console.log('📸 Screenshot saved: 09-edit-modal-opened.png\n');
 
       // Step 10: Edit the project name
@@ -270,7 +270,7 @@ function getPortConfig() {
       await saveBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/10-project-edited.png', fullPage: true });
-      console.log('✅ Project edited successfully\n');
+      console.log('[PASS] Project edited successfully\n');
       console.log('📸 Screenshot saved: 10-project-edited.png\n');
 
       // Step 11: Upload first audio file
@@ -279,7 +279,7 @@ function getPortConfig() {
       await fileInput.setInputFiles('./tests/fixtures/test-audio-30s.mp3');
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/11-file-uploaded.png', fullPage: true });
-      console.log('✅ File appears in file list\n');
+      console.log('[PASS] File appears in file list\n');
       console.log('📸 Screenshot saved: 11-file-uploaded.png\n');
 
       // Step 12: Start transcription
@@ -296,7 +296,7 @@ function getPortConfig() {
       await confirmTranscribeBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/12-transcription-started.png', fullPage: true });
-      console.log('✅ Transcription started\n');
+      console.log('[PASS] Transcription started\n');
       console.log('📸 Screenshot saved: 12-transcription-started.png\n');
 
       // Step 13: Wait for transcription to complete and segments to appear
@@ -308,11 +308,11 @@ function getPortConfig() {
         await segmentContainer.waitFor({ state: 'visible', timeout: 60000 });
         await page.waitForTimeout(500);
         await page.screenshot({ path: 'test-screenshots/13-transcription-complete.png', fullPage: true });
-        console.log('✅ Transcription completed, segments visible\n');
+        console.log('[PASS] Transcription completed, segments visible\n');
         console.log('📸 Screenshot saved: 13-transcription-complete.png\n');
       } catch (error) {
-        console.log('❌ SEGMENTS NOT VISIBLE IN UI - TEST FAILED!');
-        console.log('❌ Error:', error.message);
+        console.log('[ERROR] SEGMENTS NOT VISIBLE IN UI - TEST FAILED!');
+        console.log('[ERROR] Error:', error.message);
         await page.screenshot({ path: 'test-screenshots/13-segments-failed.png', fullPage: true });
         console.log('📸 Screenshot saved: 13-segments-failed.png\n');
         throw new Error('CRITICAL FAILURE: Segments not visible in UI after transcription completed');
@@ -340,7 +340,7 @@ function getPortConfig() {
       console.log(`   Audio playing: ${isPlaying}`);
       
       if (isPlaying) {
-        console.log('   ✅ Audio started playing');
+        console.log('   [PASS] Audio started playing');
         
         // Let audio play for exactly 5 seconds
         console.log('   Letting audio play for 5 seconds...');
@@ -361,9 +361,9 @@ function getPortConfig() {
         
         // Verify we actually progressed
         if (pausedTime > initialTime + 3) {
-          console.log('   ✅ Audio position advanced correctly (played for ~5 seconds)');
+          console.log('   [PASS] Audio position advanced correctly (played for ~5 seconds)');
         } else {
-          console.log('   ⚠️  Audio may not have played long enough');
+          console.log('   [WARN] Audio may not have played long enough');
         }
         
         // Store the position for later verification
@@ -372,7 +372,7 @@ function getPortConfig() {
         }, pausedTime);
         
       } else {
-        console.log('   ⚠️  Audio did not start playing');
+        console.log('   [WARN] Audio did not start playing');
       }
       
       await page.screenshot({ path: 'test-screenshots/14-audio-played.png', fullPage: true });
@@ -384,7 +384,7 @@ function getPortConfig() {
       await fileInput2.setInputFiles('./tests/fixtures/test-audio-30s.mp3');
       await page.waitForTimeout(500);
       await page.screenshot({ path: 'test-screenshots/15-second-file-uploaded.png', fullPage: true });
-      console.log('✅ Second file uploaded\n');
+      console.log('[PASS] Second file uploaded\n');
       console.log('📸 Screenshot saved: 15-second-file-uploaded.png\n');
 
       // Step 16: Verify file switching stops audio and resets UI
@@ -396,9 +396,9 @@ function getPortConfig() {
       console.log(`   Audio playing after uploading second file: ${isPlayingAfterUpload}`);
       
       if (!isPlayingAfterUpload) {
-        console.log('   ✅ Audio stopped when second file was uploaded');
+        console.log('   [PASS] Audio stopped when second file was uploaded');
       } else {
-        console.log('   ⚠️  Audio is still playing - should have stopped');
+        console.log('   [WARN] Audio is still playing - should have stopped');
       }
       
       // Verify no segments shown for second file
@@ -406,9 +406,9 @@ function getPortConfig() {
       const noSegmentsMessage = page.getByText(/no segments|select a file|no transcription/i);
       const hasNoSegments = await noSegmentsMessage.isVisible({ timeout: 3000 }).catch(() => false);
       if (hasNoSegments) {
-        console.log('   ✅ No segments shown for new file (expected)');
+        console.log('   [PASS] No segments shown for new file (expected)');
       } else {
-        console.log('   ⚠️  Segments might be visible - this could be unexpected');
+        console.log('   [WARN] Segments might be visible - this could be unexpected');
       }
       
       await page.screenshot({ path: 'test-screenshots/16-second-file-no-segments.png', fullPage: true });
@@ -421,14 +421,14 @@ function getPortConfig() {
       const completedFileButton = page.locator('button:has-text("View Transcription")').first();
       if (await completedFileButton.isVisible({ timeout: 5000 })) {
         await completedFileButton.click();
-        console.log('✅ Clicked completed file');
+        console.log('[PASS] Clicked completed file');
       } else {
-        console.log('❌ Could not find completed file button');
+        console.log('[ERROR] Could not find completed file button');
         throw new Error('Completed file not found');
       }
       await page.waitForTimeout(400);
       await page.screenshot({ path: 'test-screenshots/17-switched-to-first-file.png', fullPage: true });
-      console.log('✅ Switched back to first file\n');
+      console.log('[PASS] Switched back to first file\n');
       console.log('📸 Screenshot saved: 17-switched-to-first-file.png\n');
 
       // Step 18: Verify segments are loaded and audio position preserved
@@ -438,9 +438,9 @@ function getPortConfig() {
       const segmentContainer = page.locator('[data-testid^="segment-list-"], [data-component="segment-list"]').first();
       const segmentsVisible = await segmentContainer.isVisible({ timeout: 5000 }).catch(() => false);
       if (segmentsVisible) {
-        console.log('   ✅ Segments are loaded for first file');
+        console.log('   [PASS] Segments are loaded for first file');
       } else {
-        console.log('   ⚠️  Segments not visible - potential issue');
+        console.log('   [WARN] Segments not visible - potential issue');
       }
       
       // Check audio position persistence
@@ -460,9 +460,9 @@ function getPortConfig() {
       console.log(`   Position difference: ${positionDiff.toFixed(2)}s`);
       
       if (positionDiff < 1.0) {
-        console.log('   ✅ Audio position preserved correctly (within 1s tolerance)');
+        console.log('   [PASS] Audio position preserved correctly (within 1s tolerance)');
       } else {
-        console.log('   ⚠️  Audio position may not be preserved correctly');
+        console.log('   [WARN] Audio position may not be preserved correctly');
         console.log(`      Expected: ~${storedPosition.toFixed(2)}s, Got: ${currentTime.toFixed(2)}s`);
       }
       
@@ -481,13 +481,13 @@ function getPortConfig() {
       
       // Verify it advanced from the stored position
       if (playingTime > storedPosition) {
-        console.log('   ✅ Play button correctly resumed from stored position');
+        console.log('   [PASS] Play button correctly resumed from stored position');
       } else {
-        console.log('   ⚠️  Play button may not have resumed from correct position');
+        console.log('   [WARN] Play button may not have resumed from correct position');
       }
 
       // ADDITIONAL AUDIO CONTROL TESTS
-      console.log('   🎵 Running comprehensive audio control tests...');
+      console.log('   [AUDIO] Running comprehensive audio control tests...');
       
       // Test 1: Verify replay button resets to beginning
       console.log('   Test 1: Testing replay button functionality...');
@@ -508,18 +508,18 @@ function getPortConfig() {
         console.log(`      Playing after replay: ${isPlayingAfterReplay}`);
         
         if (timeAfterReplay < 1.0) {
-          console.log('      ✅ Replay reset position to beginning');
+          console.log('      [PASS] Replay reset position to beginning');
         } else {
-          console.log('      ❌ Replay did not reset position to beginning');
+          console.log('      [ERROR] Replay did not reset position to beginning');
         }
         
         if (!isPlayingAfterReplay) {
-          console.log('      ✅ Replay did not auto-start playing');
+          console.log('      [PASS] Replay did not auto-start playing');
         } else {
-          console.log('      ❌ Replay auto-started playing (should not)');
+          console.log('      [ERROR] Replay auto-started playing (should not)');
         }
       } else {
-        console.log('      ⚠️  Replay button not found');
+        console.log('      [WARN] Replay button not found');
       }
       
       // Test 2: Manual play after replay should start from beginning
@@ -531,9 +531,9 @@ function getPortConfig() {
       console.log(`      Time after manual play from replay: ${timeAfterReplayPlay.toFixed(2)}s`);
       
       if (timeAfterReplayPlay > 0.5 && timeAfterReplayPlay < 5.0) {
-        console.log('      ✅ Manual play after replay started from beginning and progressed');
+        console.log('      [PASS] Manual play after replay started from beginning and progressed');
       } else {
-        console.log('      ⚠️  Manual play after replay behavior unexpected');
+        console.log('      [WARN] Manual play after replay behavior unexpected');
       }
       
       // Test 3: Pause and verify audio stops
@@ -545,9 +545,9 @@ function getPortConfig() {
       console.log(`      Playing after pause: ${isPlayingAfterPause}`);
       
       if (!isPlayingAfterPause) {
-        console.log('      ✅ Pause button stopped audio correctly');
+        console.log('      [PASS] Pause button stopped audio correctly');
       } else {
-        console.log('      ❌ Pause button did not stop audio');
+        console.log('      [ERROR] Pause button did not stop audio');
       }
       
       // Test 4: Test play/pause toggle behavior
@@ -562,9 +562,9 @@ function getPortConfig() {
       console.log(`      Playing after toggle: ${isPlayingAfterToggle}`);
       
       if (isPlayingAfterToggle) {
-        console.log('      ✅ Play button started audio after pause');
+        console.log('      [PASS] Play button started audio after pause');
       } else {
-        console.log('      ❌ Play button did not start audio after pause');
+        console.log('      [ERROR] Play button did not start audio after pause');
       }
       
       // Pause again to prepare for file switch test
@@ -593,9 +593,9 @@ function getPortConfig() {
         console.log(`      Playing after manual file switch: ${isPlayingAfterManualSwitch}`);
         
         if (!isPlayingAfterManualSwitch) {
-          console.log('      ✅ Audio stopped when manually switching files');
+          console.log('      [PASS] Audio stopped when manually switching files');
         } else {
-          console.log('      ❌ Audio continued playing after manual file switch');
+          console.log('      [ERROR] Audio continued playing after manual file switch');
         }
         
         // Switch back to first file for remaining tests
@@ -604,7 +604,7 @@ function getPortConfig() {
         await page.waitForTimeout(1000);
         
       } else {
-        console.log('      ⚠️  Second file not found for manual switch test');
+        console.log('      [WARN] Second file not found for manual switch test');
       }
       
       // Test 6: Test segment-specific play controls
@@ -633,9 +633,9 @@ function getPortConfig() {
         
         // Segment play should NOT auto-start (based on our fixes)
         if (!isPlayingAfterSegmentPlay) {
-          console.log('      ✅ Segment play did not auto-start audio (correct behavior)');
+          console.log('      [PASS] Segment play did not auto-start audio (correct behavior)');
         } else {
-          console.log('      ⚠️  Segment play auto-started audio');
+          console.log('      [WARN] Segment play auto-started audio');
         }
         
         // Test manual play after segment seek
@@ -650,7 +650,7 @@ function getPortConfig() {
         await pauseBtn2.click();
         
       } else {
-        console.log('      ⚠️  No segment play buttons found');
+        console.log('      [WARN] No segment play buttons found');
       }
       
       // Test 7: Test seeking via timeline scrubber
@@ -679,19 +679,19 @@ function getPortConfig() {
         console.log(`      Playing after scrubbing: ${isPlayingAfterScrubbing}`);
         
         if (!isPlayingAfterScrubbing) {
-          console.log('      ✅ Timeline scrubbing did not auto-start playing');
+          console.log('      [PASS] Timeline scrubbing did not auto-start playing');
         } else {
-          console.log('      ⚠️  Timeline scrubbing auto-started playing');
+          console.log('      [WARN] Timeline scrubbing auto-started playing');
         }
         
         if (Math.abs(timeAfterScrubbing - middleValue) < 2.0) {
-          console.log('      ✅ Timeline scrubbing positioned correctly');
+          console.log('      [PASS] Timeline scrubbing positioned correctly');
         } else {
-          console.log('      ⚠️  Timeline scrubbing position may be incorrect');
+          console.log('      [WARN] Timeline scrubbing position may be incorrect');
         }
         
       } else {
-        console.log('      ⚠️  Timeline slider not found');
+        console.log('      [WARN] Timeline slider not found');
       }
       
       await page.screenshot({ path: 'test-screenshots/18-comprehensive-audio-tests.png', fullPage: true });
@@ -731,18 +731,18 @@ function getPortConfig() {
           // Verify the new speaker name is visible
           const hasNewName = await page.locator('text=John Smith').isVisible({ timeout: 3000 }).catch(() => false);
           if (hasNewName) {
-            console.log('   ✅ Speaker name changed to "John Smith"');
+            console.log('   [PASS] Speaker name changed to "John Smith"');
           } else {
-            console.log('   ⚠️  Speaker name change not visible');
+            console.log('   [WARN] Speaker name change not visible');
           }
         } else {
-          console.log('   ⚠️  Speaker edit button not found');
+          console.log('   [WARN] Speaker edit button not found');
         }
         
         await page.screenshot({ path: 'test-screenshots/18a-speaker-changed.png', fullPage: true });
         console.log('   📸 Screenshot saved: 18a-speaker-changed.png\n');
       } catch (e) {
-        console.log('   ⚠️  Speaker name change test failed:', e.message);
+        console.log('   [WARN] Speaker name change test failed:', e.message);
       }
 
       // Step 18b: Test transcription line text editing
@@ -776,7 +776,7 @@ function getPortConfig() {
               await saveBtn.click();
               await page.waitForTimeout(1000);
             } else {
-              console.log('   ⚠️  Save button not found');
+              console.log('   [WARN] Save button not found');
             }
             
             // Verify both original and edited text are shown
@@ -784,25 +784,25 @@ function getPortConfig() {
             const hasOriginalLabel = await page.locator('text=/Original:/i').isVisible().catch(() => false);
             
             if (hasEditedText) {
-              console.log('   ✅ Edited text is visible');
+              console.log('   [PASS] Edited text is visible');
             }
             if (hasOriginalLabel) {
-              console.log('   ✅ Original text label is shown');
+              console.log('   [PASS] Original text label is shown');
             }
             if (!hasEditedText && !hasOriginalLabel) {
-              console.log('   ⚠️  Edit may not have saved properly');
+              console.log('   [WARN] Edit may not have saved properly');
             }
           } else {
-            console.log('   ⚠️  Edit textarea did not appear');
+            console.log('   [WARN] Edit textarea did not appear');
           }
         } else {
-          console.log('   ⚠️  Segment edit button not found');
+          console.log('   [WARN] Segment edit button not found');
         }
         
         await page.screenshot({ path: 'test-screenshots/18b-segment-edited.png', fullPage: true });
         console.log('   📸 Screenshot saved: 18b-segment-edited.png\n');
       } catch (e) {
-        console.log('   ⚠️  Segment editing test failed:', e.message);
+        console.log('   [WARN] Segment editing test failed:', e.message);
       }
 
       // Step 18c: Test AI suggestion for line
@@ -818,9 +818,9 @@ function getPortConfig() {
         const aiBtnVisible = await aiBtn.isVisible({ timeout: 3000 }).catch(() => false);
         
         if (aiBtnVisible) {
-          console.log('   ✅ AI suggestion button found');
+          console.log('   [PASS] AI suggestion button found');
           await aiBtn.click();
-          console.log('   🖱️  Clicked AI suggestion button');
+          console.log('   [CLICK] Clicked AI suggestion button');
           
           // Wait for AI response with longer timeout
           console.log('   ⏳ Waiting for AI response (up to 10 seconds)...');
@@ -839,7 +839,7 @@ function getPortConfig() {
             const dialog = page.locator(selector);
             const visible = await dialog.isVisible({ timeout: 2000 }).catch(() => false);
             if (visible) {
-              console.log(`   ✅ AI correction dialog found with selector: ${selector}`);
+              console.log(`   [PASS] AI correction dialog found with selector: ${selector}`);
               dialogFound = true;
               
               // Try to accept the suggestion
@@ -852,12 +852,12 @@ function getPortConfig() {
                 // Verify modal is actually gone
                 const modalGone = await page.locator('h2:has-text("AI Correction")').isHidden({ timeout: 1000 }).catch(() => true);
                 if (modalGone) {
-                  console.log('   ✅ AI suggestion accepted and modal closed');
+                  console.log('   [PASS] AI suggestion accepted and modal closed');
                 } else {
-                  console.log('   ⚠️  Modal may still be visible');
+                  console.log('   [WARN] Modal may still be visible');
                 }
               } else {
-                console.log('   ⚠️  Accept button not found, closing dialog');
+                console.log('   [WARN] Accept button not found, closing dialog');
                 // Try multiple close button selectors
                 const closeBtns = [
                   'button:has-text("Cancel")',
@@ -879,7 +879,7 @@ function getPortConfig() {
           }
           
           if (!dialogFound) {
-            console.log('   ⚠️  AI correction dialog did not appear within 10 seconds');
+            console.log('   [WARN] AI correction dialog did not appear within 10 seconds');
             console.log('   Note: Check if Ollama is running and responding');
             
             // Check if button is still in loading state
@@ -893,19 +893,19 @@ function getPortConfig() {
               const delayedDialog = page.locator('h2:has-text("AI Correction")');
               const delayedVisible = await delayedDialog.isVisible({ timeout: 3000 }).catch(() => false);
               if (delayedVisible) {
-                console.log('   ✅ AI correction dialog appeared after extended wait');
+                console.log('   [PASS] AI correction dialog appeared after extended wait');
                 const acceptBtn = page.locator('button:has-text("Accept")');
                 if (await acceptBtn.isVisible().catch(() => false)) {
                   await acceptBtn.click();
                   // Wait for modal to fully close (200ms animation + buffer)
                   await page.waitForTimeout(500);
-                  console.log('   ✅ AI suggestion accepted and modal closed');
+                  console.log('   [PASS] AI suggestion accepted and modal closed');
                 }
               }
             }
           }
         } else {
-          console.log('   ❌ AI suggestion button (✨) not found');
+          console.log('   [ERROR] AI suggestion button (✨) not found');
           // Debug: show what buttons are actually available
           const allButtons = await page.locator('button').all();
           console.log(`   Debug: Found ${allButtons.length} buttons on page`);
@@ -919,7 +919,7 @@ function getPortConfig() {
         await page.screenshot({ path: 'test-screenshots/18c-ai-suggestion.png', fullPage: true });
         console.log('   📸 Screenshot saved: 18c-ai-suggestion.png\n');
       } catch (e) {
-        console.log('   ⚠️  AI suggestion test failed:', e.message);
+        console.log('   [WARN] AI suggestion test failed:', e.message);
       }
 
       // Step 18d: Verify LLM Logs functionality
@@ -932,7 +932,7 @@ function getPortConfig() {
         const aiModal = page.locator('h2:has-text("AI Correction")');
         const isModalVisible = await aiModal.isVisible({ timeout: 500 }).catch(() => false);
         if (isModalVisible) {
-          console.log('   ⚠️  AI modal still visible, waiting for it to close...');
+          console.log('   [WARN] AI modal still visible, waiting for it to close...');
           await page.waitForTimeout(500);
         }
         
@@ -951,7 +951,7 @@ function getPortConfig() {
           const llmLogsVisible = await llmLogsButton.isVisible({ timeout: 3000 }).catch(() => false);
           
           if (llmLogsVisible) {
-            console.log('   ✅ LLM Logs menu item found');
+            console.log('   [PASS] LLM Logs menu item found');
             await llmLogsButton.click();
             await page.waitForTimeout(1000);
             
@@ -960,16 +960,16 @@ function getPortConfig() {
             const viewerVisible = await llmLogsViewer.isVisible({ timeout: 3000 }).catch(() => false);
             
             if (viewerVisible) {
-              console.log('   ✅ LLM Logs viewer opened successfully');
+              console.log('   [PASS] LLM Logs viewer opened successfully');
               
               // Check if there are any logs (there should be if AI suggestion was used)
               const noLogsMessage = page.getByText('No logs found');
               const hasNoLogs = await noLogsMessage.isVisible({ timeout: 2000 }).catch(() => false);
               
               if (hasNoLogs) {
-                console.log('   ⚠️  No LLM logs found (AI request may not have been logged)');
+                console.log('   [WARN] No LLM logs found (AI request may not have been logged)');
               } else {
-                console.log('   ✅ LLM logs are present (AI requests were logged)');
+                console.log('   [PASS] LLM logs are present (AI requests were logged)');
               }
               
               // Take screenshot WHILE modal is open
@@ -983,19 +983,19 @@ function getPortConfig() {
                 console.log('   LLM Logs viewer closed');
               }
             } else {
-              console.log('   ⚠️  LLM Logs viewer did not open');
+              console.log('   [WARN] LLM Logs viewer did not open');
             }
           } else {
-            console.log('   ⚠️  LLM Logs menu item not found in Tools menu');
+            console.log('   [WARN] LLM Logs menu item not found in Tools menu');
           }
         } else {
-          console.log('   ⚠️  Tools menu button not found');
+          console.log('   [WARN] Tools menu button not found');
         }
         
         await page.screenshot({ path: 'test-screenshots/18d-llm-logs-verification.png', fullPage: true });
         console.log('   📸 Screenshot saved: 18d-llm-logs-verification.png\n');
       } catch (e) {
-        console.log('   ⚠️  LLM Logs verification failed:', e.message);
+        console.log('   [WARN] LLM Logs verification failed:', e.message);
       }
 
       // Step 18e: Test file deletion before project deletion
@@ -1014,7 +1014,7 @@ function getPortConfig() {
       if (secondFileExistsForDelete) {
         await secondFileDeleteBtn.click();
         await page.waitForTimeout(2000);
-        console.log('   ✅ Second file deleted');
+        console.log('   [PASS] Second file deleted');
         await page.screenshot({ path: 'test-screenshots/18a-second-file-deleted.png', fullPage: true });
         console.log('   📸 Screenshot saved: 18a-second-file-deleted.png');
       }
@@ -1026,14 +1026,14 @@ function getPortConfig() {
       if (firstFileExists) {
         await firstFileDeleteBtn.click();
         await page.waitForTimeout(2000);
-        console.log('   ✅ First file deleted');
+        console.log('   [PASS] First file deleted');
         
         // Verify empty project state
         const noFilesMsg = await page.locator('text=No audio files uploaded yet').isVisible().catch(() => false);
         if (noFilesMsg) {
-          console.log('   ✅ Correct empty project message shown');
+          console.log('   [PASS] Correct empty project message shown');
         } else {
-          console.log('   ⚠️  Empty project message not found');
+          console.log('   [WARN] Empty project message not found');
         }
         
         await page.screenshot({ path: 'test-screenshots/18b-all-files-deleted.png', fullPage: true });
@@ -1081,11 +1081,11 @@ function getPortConfig() {
         await confirmBtn.click();
         await page.waitForTimeout(500);
 
-        console.log(`✅ Project ${projectIds[i]} deleted\n`);
+        console.log(`[PASS] Project ${projectIds[i]} deleted\n`);
       }
 
       await page.screenshot({ path: 'test-screenshots/19-all-projects-deleted.png', fullPage: true });
-      console.log('✅ All projects deleted via GUI\n');
+      console.log('[PASS] All projects deleted via GUI\n');
       console.log('📸 Screenshot saved: 19-all-projects-deleted.png\n');
 
       // Step 20: Verify projects don't exist via API
@@ -1095,15 +1095,15 @@ function getPortConfig() {
       console.log(`API returned ${projects?.length || 0} projects\n`);
 
       if (!projects || projects.length === 0) {
-        console.log('✅ API confirms all projects deleted\n');
+        console.log('[PASS] API confirms all projects deleted\n');
       } else {
-        console.log(`⚠️  API still shows ${projects.length} project(s):\n`);
+        console.log(`[WARN] API still shows ${projects.length} project(s):\n`);
         projects.forEach(p => {
           console.log(`  - Project ${p.id}: ${p.name}`);
         });
       }
 
-      console.log('\n🎉 Complete workflow test finished successfully!');
+      console.log('\n[SUCCESS] Complete workflow test finished successfully!');
       
       // Stay at final screen for verification
       console.log('\n⏳ Staying at final screen for 5 seconds to verify state...');
@@ -1112,29 +1112,29 @@ function getPortConfig() {
       console.log('📸 Screenshot saved: 20-final-verification.png');
       
       // Additional verification notes
-      console.log('\n📋 Test Results Summary:');
-      console.log('✅ Database initialization: Working');
-      console.log('✅ Project creation: Working'); 
-      console.log('✅ File upload: Working');
-      console.log('✅ Transcription: Working');
-      console.log('✅ Segments display: Working');
-      console.log('✅ Audio playback: Working');
-      console.log('✅ File switching: Working');
+      console.log('\n[LIST] Test Results Summary:');
+      console.log('[PASS] Database initialization: Working');
+      console.log('[PASS] Project creation: Working'); 
+      console.log('[PASS] File upload: Working');
+      console.log('[PASS] Transcription: Working');
+      console.log('[PASS] Segments display: Working');
+      console.log('[PASS] Audio playback: Working');
+      console.log('[PASS] File switching: Working');
       
       if (!projects || projects.length === 0) {
-        console.log('✅ Project deletion: Working (all projects deleted)');
-        console.log('✅ Audio position persistence: VERIFIED AUTOMATICALLY');
-        console.log('✅ Audio stops on file switch: VERIFIED AUTOMATICALLY');
-        console.log('✅ Play button resumes from correct position: VERIFIED AUTOMATICALLY');
-        console.log('⚠️  Start screen verification: NEEDS MANUAL CHECK');
+        console.log('[PASS] Project deletion: Working (all projects deleted)');
+        console.log('[PASS] Audio position persistence: VERIFIED AUTOMATICALLY');
+        console.log('[PASS] Audio stops on file switch: VERIFIED AUTOMATICALLY');
+        console.log('[PASS] Play button resumes from correct position: VERIFIED AUTOMATICALLY');
+        console.log('[WARN] Start screen verification: NEEDS MANUAL CHECK');
       } else {
-        console.log('❌ Project deletion: FAILED (projects still exist in API)');
-        console.log('❌ Start screen verification: FAILED (should show start screen)');
+        console.log('[ERROR] Project deletion: FAILED (projects still exist in API)');
+        console.log('[ERROR] Start screen verification: FAILED (should show start screen)');
       }
 
 
     } else {
-      console.log('⚠️  Create project button not found - taking screenshot for debugging');
+      console.log('[WARN] Create project button not found - taking screenshot for debugging');
       await page.screenshot({ path: 'test-screenshots/00-no-create-button.png', fullPage: true });
       console.log('📸 Screenshot saved: 00-no-create-button.png\n');
 
@@ -1144,10 +1144,10 @@ function getPortConfig() {
     }
 
   } catch (error) {
-    console.error('❌ Error during test:', error.message);
+    console.error('[ERROR] Error during test:', error.message);
     await page.screenshot({ path: 'test-screenshots/error.png', fullPage: true });
   } finally {
     await browser.close();
-    console.log('\n✅ Test complete');
+    console.log('\n[PASS] Test complete');
   }
 })();

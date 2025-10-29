@@ -958,7 +958,6 @@ export default function TranscriptionProgress({ fileId, projectName, onStatusCha
               }
             })()}</div>
             <div>Segments: {status.segment_count || 0}</div>
-            <div>Progress: {progressLabel}%</div>
             <div>Model: {(() => {
               if (status.transcription_metadata) {
                 try {

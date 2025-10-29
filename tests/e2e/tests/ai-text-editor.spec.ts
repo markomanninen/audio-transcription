@@ -794,7 +794,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
     expect(createProjectResp.ok()).toBeTruthy();
     const projectData = await createProjectResp.json();
     const projectId = projectData.id;
-    console.log(`[STEP 1] ✅ Audio project created (ID: ${projectId})`);
+    console.log(`[STEP 1] [PASS] Audio project created (ID: ${projectId})`);
 
     // Step 2: Upload audio file
     console.log('[STEP 2] Uploading audio file...');
@@ -813,7 +813,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
     expect(uploadResp.ok()).toBeTruthy();
     const fileData = await uploadResp.json();
     const fileId = fileData.file_id;
-    console.log(`[STEP 2] ✅ Audio file uploaded (ID: ${fileId})`);
+    console.log(`[STEP 2] [PASS] Audio file uploaded (ID: ${fileId})`);
 
     // Step 3: Create mock segments via test API endpoints
     console.log('[STEP 3] Creating transcription segments...');
@@ -857,7 +857,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
       });
     }
 
-    console.log(`[STEP 3] ✅ Created ${segmentsData.length} mock segments`);
+    console.log(`[STEP 3] [PASS] Created ${segmentsData.length} mock segments`);
 
     // Step 4: Navigate to audio dashboard
     console.log('[STEP 4] Navigating to audio dashboard...');
@@ -881,14 +881,14 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
       await skipBtn.click();
     }
 
-    console.log('[STEP 4] ✅ Audio dashboard loaded');
+    console.log('[STEP 4] [PASS] Audio dashboard loaded');
 
     // Step 5: Select our test project
     console.log('[STEP 5] Selecting test project...');
     const projectSelect = page.getByRole('banner').getByRole('combobox');
     await projectSelect.selectOption({ value: projectId.toString() });
     await page.waitForTimeout(2000);
-    console.log('[STEP 5] ✅ Test project selected');
+    console.log('[STEP 5] [PASS] Test project selected');
 
     // Step 6: Click on the file
     console.log('[STEP 6] Selecting audio file...');
@@ -906,7 +906,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
 
     // Wait for actual segment text to be visible (ensures React Query has finished loading)
     await expect(page.getByText('Hello, this is the first segment')).toBeVisible({ timeout: 5000 });
-    console.log('[STEP 6] ✅ Audio file selected and 3 segments loaded');
+    console.log('[STEP 6] [PASS] Audio file selected and 3 segments loaded');
 
     // Step 7: Click "Open in Editor" button
     console.log('[STEP 7] Looking for "Open in Editor" button...');
@@ -916,7 +916,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
 
     // Wait for navigation to editor
     await page.waitForURL(/\/editor\/\d+/, { timeout: 15_000 });
-    console.log(`[STEP 7] ✅ Navigated to editor: ${page.url()}`);
+    console.log(`[STEP 7] [PASS] Navigated to editor: ${page.url()}`);
 
     // Step 8: Verify text content loaded in editor
     console.log('[STEP 8] Verifying transcription content in editor...');
@@ -947,7 +947,7 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
     expect(editorContent).toContain('Speaker');
 
     const paragraphs = editorContent.split('\n\n').filter(p => p.trim().length > 0);
-    console.log(`[STEP 8] ✅ Editor loaded with ${paragraphs.length} paragraphs`);
+    console.log(`[STEP 8] [PASS] Editor loaded with ${paragraphs.length} paragraphs`);
 
     // Step 9: Verify editor is functional
     console.log('[STEP 9] Testing editor functionality...');
@@ -957,13 +957,13 @@ test.describe('AI Text Editor - Audio Transcription Integration', () => {
 
     const updatedContent = await textArea.inputValue();
     expect(updatedContent).toContain('[E2E Test Edit]');
-    console.log('[STEP 9] ✅ Editor is editable');
+    console.log('[STEP 9] [PASS] Editor is editable');
 
     // Step 10: Cleanup - Delete test project
     console.log('[STEP 10] Cleaning up test data...');
     await request.delete(`${API_BASE_URL}/api/upload/project/${projectId}`);
-    console.log('[STEP 10] ✅ Test project deleted');
+    console.log('[STEP 10] [PASS] Test project deleted');
 
-    console.log('\n[TEST] ✅ Audio → Text Editor Integration PASSED\n');
+    console.log('\n[TEST] [PASS] Audio → Text Editor Integration PASSED\n');
   });
 });

@@ -257,8 +257,8 @@ class TestForceRestartEndpoint:
                 assert start_response.status_code == 202
                 restart_payload = restart_response.json()
                 start_payload = start_response.json()
-                assert 'model loading' in restart_payload.get('message', '').lower()
-                assert 'model loading' in start_payload.get('message', '').lower()
+                assert 'loading' in restart_payload.get('message', '').lower()
+                assert 'loading' in start_payload.get('message', '').lower()
 
                 # Both should add to pending queue
                 assert mock_add_pending.call_count == 2

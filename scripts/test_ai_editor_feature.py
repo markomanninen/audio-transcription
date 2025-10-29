@@ -16,16 +16,16 @@ def test_ai_editor_imports():
     
     try:
         from app.api.ai_editor import router
-        print("✅ AI editor router imported successfully")
+        print("[OK] AI editor router imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import AI editor router: {e}")
+        print(f"[ERROR] Failed to import AI editor router: {e}")
         return False
     
     try:
         from app.services.ai_editor_service import AIEditorService
-        print("✅ AI editor service imported successfully")
+        print("[OK] AI editor service imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import AI editor service: {e}")
+        print(f"[ERROR] Failed to import AI editor service: {e}")
         return False
     
     return True
@@ -36,23 +36,23 @@ def test_audio_dependencies():
     
     try:
         import whisper
-        print("✅ OpenAI Whisper imported successfully")
+        print("[OK] OpenAI Whisper imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import whisper: {e}")
+        print(f"[ERROR] Failed to import whisper: {e}")
         return False
     
     try:
         from pydub import AudioSegment
-        print("✅ PyDub imported successfully")
+        print("[OK] PyDub imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import pydub: {e}")
+        print(f"[ERROR] Failed to import pydub: {e}")
         return False
     
     try:
         import pyannote.audio
-        print("✅ Pyannote.audio imported successfully")
+        print("[OK] Pyannote.audio imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import pyannote.audio: {e}")
+        print(f"[ERROR] Failed to import pyannote.audio: {e}")
         return False
     
     return True
@@ -63,10 +63,10 @@ def test_full_app_import():
     
     try:
         from app.main import app
-        print("✅ Full application with audio and AI editor imports successfully")
+        print("[OK] Full application with audio and AI editor imports successfully")
         return True
     except Exception as e:
-        print(f"❌ Failed to import full application: {e}")
+        print(f"[ERROR] Failed to import full application: {e}")
         return False
 
 def test_ai_editor_service_initialization():
@@ -80,10 +80,10 @@ def test_ai_editor_service_initialization():
         # Create LLM service for testing
         llm_service = LLMService()
         # Check if the class can be instantiated (constructor might require arguments)
-        print("✅ AI editor service class available and LLM service can be created")
+        print("[OK] AI editor service class available and LLM service can be created")
         return True
     except Exception as e:
-        print(f"❌ Failed to test AI editor service: {e}")
+        print(f"[ERROR] Failed to test AI editor service: {e}")
         return False
 
 def test_api_routes():
@@ -106,15 +106,15 @@ def test_api_routes():
             # Remove the prefix for comparison
             route_without_prefix = expected_route.replace("/api/ai_editor", "")
             if any(route_without_prefix in route for route in routes):
-                print(f"✅ Route {expected_route} found")
+                print(f"[OK] Route {expected_route} found")
             else:
-                print(f"❌ Route {expected_route} not found")
+                print(f"[ERROR] Route {expected_route} not found")
                 print(f"Available routes: {routes}")
                 return False
         
         return True
     except Exception as e:
-        print(f"❌ Failed to test API routes: {e}")
+        print(f"[ERROR] Failed to test API routes: {e}")
         return False
 
 def main():
@@ -139,15 +139,15 @@ def main():
         print()
     
     print("=" * 65)
-    print(f"📊 Test Results: {passed}/{total} tests passed")
+    print(f"[STATS] Test Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 All tests passed! The AI editor feature with audio support is working correctly.")
-        print("✅ Audio transcription system is fully functional")
-        print("✅ AI text editor feature is fully functional")
+        print("[SUCCESS] All tests passed! The AI editor feature with audio support is working correctly.")
+        print("[OK] Audio transcription system is fully functional")
+        print("[OK] AI text editor feature is fully functional")
         return 0
     else:
-        print("❌ Some tests failed. Check the errors above.")
+        print("[ERROR] Some tests failed. Check the errors above.")
         return 1
 
 if __name__ == "__main__":

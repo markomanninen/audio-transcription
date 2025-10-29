@@ -8,7 +8,7 @@ const path = require('path');
 const historyPath = path.join(__dirname, 'test-history.jsonl');
 
 if (!fs.existsSync(historyPath)) {
-  console.error('❌ No test history found. Run tests and record-test-run.js first.');
+  console.error('[ERROR] No test history found. Run tests and record-test-run.js first.');
   process.exit(1);
 }
 
@@ -46,9 +46,9 @@ console.log('─'.repeat(100));
 // Show each run
 displayRuns.forEach((run, idx) => {
   const t = run.totals;
-  const status = t.failed > 0 ? '❌ FAILED' : 
-                 t.skipped === t.total ? '⏭️  ALL SKIPPED' : 
-                 '✅ PASSED';
+  const status = t.failed > 0 ? '[ERROR] FAILED' : 
+                 t.skipped === t.total ? '[SKIP] ALL SKIPPED' : 
+                 '[PASS] PASSED';
   
   console.log(
     run.date.padEnd(22),

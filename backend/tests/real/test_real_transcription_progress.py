@@ -39,7 +39,7 @@ def test_real_transcription_with_large_model_progress(client, sample_project, sa
         }
     )
     assert start_response.status_code in [200, 202], f"Failed to start: {start_response.text}"
-    print("✅ Transcription started successfully\n")
+    print("Transcription started successfully\n")
 
     # Monitor real progress
     progress_history = []
@@ -88,7 +88,7 @@ def test_real_transcription_with_large_model_progress(client, sample_project, sa
             # Verify progress INCREASES (no regression!)
             if current_progress < last_progress:
                 pytest.fail(
-                    f"❌ PROGRESS REGRESSION! "
+                    f"PROGRESS REGRESSION! "
                     f"Went from {last_progress*100:.1f}% to {current_progress*100:.1f}%"
                 )
 
@@ -104,14 +104,14 @@ def test_real_transcription_with_large_model_progress(client, sample_project, sa
         # Check if completed (API returns uppercase status)
         if current_status in ["completed", "COMPLETED"]:
             print("\n" + "=" * 80)
-            print("✅ TRANSCRIPTION COMPLETED SUCCESSFULLY")
+            print("TRANSCRIPTION COMPLETED SUCCESSFULLY")
             print("=" * 80)
             break
 
         # Check if failed
         if current_status in ["failed", "FAILED"]:
             error_msg = status_data.get("error_message", "Unknown error")
-            pytest.fail(f"❌ Transcription failed: {error_msg}")
+            pytest.fail(f"Transcription failed: {error_msg}")
 
         # Check if stuck - use different timeout based on phase
         max_stuck_allowed = max_stuck_during_transcription if model_loaded else max_stuck_during_init
@@ -119,14 +119,14 @@ def test_real_transcription_with_large_model_progress(client, sample_project, sa
         if stuck_count >= max_stuck_allowed:
             phase = "transcription" if model_loaded else "initialization (model loading)"
             pytest.fail(
-                f"❌ PROGRESS STUCK at {last_progress*100:.1f}% for {stuck_count} seconds during {phase}!\n"
+                f"PROGRESS STUCK at {last_progress*100:.1f}% for {stuck_count} seconds during {phase}!\n"
                 f"Last stage: {current_stage}\n"
                 f"Status: {current_status}"
             )
 
         time.sleep(1)
     else:
-        pytest.fail(f"❌ Transcription timed out after {timeout} seconds")
+        pytest.fail(f"Transcription timed out after {timeout} seconds")
 
     # Final verification
     final_status = client.get(f"/api/transcription/{file_id}/status").json()
@@ -173,5 +173,5 @@ def test_real_transcription_with_large_model_progress(client, sample_project, sa
         print(f"{i:3d}. {stage}")
 
     print("\n" + "=" * 80)
-    print("✅ ALL TESTS PASSED - REAL PROGRESS TRACKING WORKS!")
+    print("ALL TESTS PASSED - REAL PROGRESS TRACKING WORKS!")
     print("=" * 80)

@@ -41,7 +41,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError: () => void }) {
   return (
     <div className="text-center p-8">
-      <div className="text-red-600 dark:text-red-400 mb-4 text-4xl">⚠️</div>
+      <div className="text-red-600 dark:text-red-400 mb-4 text-4xl">!</div>
       <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
         Something went wrong
       </h2>

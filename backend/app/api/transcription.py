@@ -293,11 +293,11 @@ async def start_transcription_with_settings(
                     name="whisper-init"
                 )
                 init_thread.start()
-                print(f"[INITIALIZATION] ✅ Background initialization started")
-                logger.info("✅ Background Whisper initialization started")
+                print(f"[INITIALIZATION] Background initialization started")
+                logger.info("Background Whisper initialization started")
             except Exception as e:
-                print(f"[INITIALIZATION] ❌ Failed to start background initialization: {e}")
-                logger.error(f"❌ Failed to start background Whisper initialization: {e}")
+                print(f"[INITIALIZATION] Failed to start background initialization: {e}")
+                logger.error(f"Failed to start background Whisper initialization: {e}")
                 # Still queue the transcription - it might work later
 
         audio_file = db.query(AudioFile).filter(AudioFile.id == audio_file_id).first()
@@ -364,7 +364,7 @@ async def start_transcription_with_settings(
 
         transcription_thread = threading.Thread(target=run_transcription, daemon=True)
         transcription_thread.start()
-        logger.info(f"✅ Started transcription thread for file {audio_file_id}")
+        logger.info(f"Started transcription thread for file {audio_file_id}")
 
         return {
             "status": "started",
@@ -486,7 +486,7 @@ async def force_restart_transcription(
 
         transcription_thread = threading.Thread(target=run_transcription, daemon=True)
         transcription_thread.start()
-        logger.info(f"✅ Started force-restart transcription thread for file {audio_file_id}")
+        logger.info(f"Started force-restart transcription thread for file {audio_file_id}")
 
         return {
             "status": "started",
@@ -569,9 +569,9 @@ async def start_transcription(
                 try:
                     print(f"📦 Starting Whisper initialization in background for file {audio_file_id}...")
                     initialize_transcription_service()
-                    print(f"✅ Whisper initialization complete for file {audio_file_id}")
+                    print(f"Whisper initialization complete for file {audio_file_id}")
                 except Exception as e:
-                    print(f"❌ Failed to initialize Whisper for file {audio_file_id}: {e}")
+                    print(f"Failed to initialize Whisper for file {audio_file_id}: {e}")
 
             # Start in a daemon thread that won't block the response
             init_thread = threading.Thread(target=init_whisper, daemon=True)
@@ -634,7 +634,7 @@ async def start_transcription(
 
     transcription_thread = threading.Thread(target=run_transcription, daemon=True)
     transcription_thread.start()
-    logger.info(f"✅ Started transcription thread for file {audio_file_id} (legacy endpoint)")
+    logger.info(f"Started transcription thread for file {audio_file_id} (legacy endpoint)")
 
     return {
         "message": "Transcription started",
@@ -1682,7 +1682,7 @@ async def continue_transcription(
         
         def complete_existing():
             segments = transcription_service.resume_or_transcribe_audio(file_id, db, force_restart=False)
-            print(f"✅ RESUMED: Found and completed {len(segments)} existing segments")
+            print(f"RESUMED: Found and completed {len(segments)} existing segments")
         
         background_tasks.add_task(complete_existing)
         return {
@@ -1697,7 +1697,7 @@ async def continue_transcription(
         
         def start_fresh():
             segments = transcription_service.resume_or_transcribe_audio(file_id, db, force_restart=False)
-            print(f"✅ STARTED: Created {len(segments)} new segments")
+            print(f"STARTED: Created {len(segments)} new segments")
         
         background_tasks.add_task(start_fresh)
         return {

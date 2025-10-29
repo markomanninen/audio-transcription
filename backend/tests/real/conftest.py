@@ -11,18 +11,18 @@ import os
 # Parent conftest runs FIRST and creates stubs in sys.modules
 # We must DELETE those stubs BEFORE importing real modules
 
-print("🔧 [tests/real/conftest.py] Removing parent conftest stubs...")
-print(f"🔧 Before removal - 'whisper' in sys.modules: {'whisper' in sys.modules}")
-print(f"🔧 Before removal - 'torch' in sys.modules: {'torch' in sys.modules}")
+print("[tests/real/conftest.py] Removing parent conftest stubs...")
+print(f"Before removal - 'whisper' in sys.modules: {'whisper' in sys.modules}")
+print(f"Before removal - 'torch' in sys.modules: {'torch' in sys.modules}")
 
 # DELETE the stubs created by parent conftest
 stubbed_modules = ["whisper", "torch", "pydub", "magic", "pyannote", "pyannote.audio"]
 for module_name in stubbed_modules:
     if module_name in sys.modules:
-        print(f"🔧 Removing stub: {module_name}")
+        print(f"Removing stub: {module_name}")
         del sys.modules[module_name]
 
-print("🔧 Loading REAL modules...")
+print("Loading REAL modules...")
 
 # NOW import the real modules (Python will load them since they're no longer in sys.modules)
 import pydub
@@ -30,8 +30,8 @@ import magic
 import whisper
 import torch
 
-print(f"✅ Real whisper module loaded: {type(whisper)} - has load_model: {hasattr(whisper, 'load_model')}")
-print(f"✅ Real torch module loaded: {type(torch)} - has cuda: {hasattr(torch, 'cuda')}")
+print(f"Real whisper module loaded: {type(whisper)} - has load_model: {hasattr(whisper, 'load_model')}")
+print(f"Real torch module loaded: {type(torch)} - has cuda: {hasattr(torch, 'cuda')}")
 
 # Force real modules into sys.modules
 sys.modules["pydub"] = pydub
@@ -39,13 +39,13 @@ sys.modules["magic"] = magic
 sys.modules["whisper"] = whisper
 sys.modules["torch"] = torch
 
-print("✅ [tests/real/conftest.py] Real modules installed in sys.modules")
+print("[tests/real/conftest.py] Real modules installed in sys.modules")
 
 # CRITICAL: Reload modules that may have imported the stubs at module load time
 # This ensures they re-import the REAL modules instead of using cached stubs
 import importlib
 if "app.services.audio_service" in sys.modules:
-    print("🔧 Reloading audio_service to pick up real pydub")
+    print("Reloading audio_service to pick up real pydub")
     import app.services.audio_service
     importlib.reload(app.services.audio_service)
 
@@ -162,24 +162,24 @@ def sample_audio_file(test_db, sample_project):
 
     if not test_audio_path:
         # Print available paths for debugging
-        print(f"❌ Could not find test-audio-30s.mp3 in any of these locations:")
+        print(f"Could not find test-audio-30s.mp3 in any of these locations:")
         for path in possible_paths:
             print(f"  - {path} (exists: {os.path.exists(path)})")
 
         # List what's actually in the fixtures directory
         fixtures_dir = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "fixtures")
         if os.path.exists(fixtures_dir):
-            print(f"\n📁 Contents of {fixtures_dir}:")
+            print(f"\nContents of {fixtures_dir}:")
             print(f"  {os.listdir(fixtures_dir)}")
 
     # Create temp file
     with tempfile.NamedTemporaryFile(mode='wb', suffix='.mp3', delete=False) as tmp:
         if test_audio_path and os.path.exists(test_audio_path):
-            print(f"✅ Using test audio file: {test_audio_path}")
+            print(f"Using test audio file: {test_audio_path}")
             with open(test_audio_path, 'rb') as src:
                 tmp.write(src.read())
         else:
-            print("⚠️  Creating minimal MP3 file (no real audio fixture found)")
+            print(" Creating minimal MP3 file (no real audio fixture found)")
             # Create minimal MP3 if fixture doesn't exist
             tmp.write(b'\xff\xfb' + b'\x00' * 1000)
         tmp_path = tmp.name

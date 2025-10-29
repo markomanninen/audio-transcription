@@ -29,7 +29,7 @@ test.describe('Full Application Workflow', () => {
 
     // STEP 1: Create project
     console.log('\n[STEP 1] Creating project...')
-    const createButton = page.getByRole('button', { name: /new project/i })
+    const createButton = page.getByRole('button', { name: 'New Project' })
     await expect(createButton).toBeVisible({ timeout: 10_000 })
     await createButton.click()
 
@@ -41,7 +41,7 @@ test.describe('Full Application Workflow', () => {
     await page.getByRole('button', { name: /^create$/i }).click()
 
     await expect(modalHeading).toBeHidden({ timeout: 15_000 })
-    console.log('[STEP 1] ✅ Project created')
+    console.log('[STEP 1] [PASS] Project created')
 
     // Verify project is selected
     const projectSelect = page.getByRole('banner').getByRole('combobox')
@@ -66,9 +66,9 @@ test.describe('Full Application Workflow', () => {
 
       // Wait for save to complete - modal should close
       await page.waitForTimeout(2000)
-      console.log('[STEP 2] ✅ Project name edited')
+      console.log('[STEP 2] [PASS] Project name edited')
     } else {
-      console.log('[STEP 2] ⚠️  No edit button found, skipping edit step')
+      console.log('[STEP 2] [WARN] No edit button found, skipping edit step')
     }
 
     // STEP 3: Upload audio file
@@ -85,9 +85,9 @@ test.describe('Full Application Workflow', () => {
 
       // Wait for file to appear in file list
       await page.waitForTimeout(3000)
-      console.log('[STEP 3] ✅ File uploaded')
+      console.log('[STEP 3] [PASS] File uploaded')
     } else {
-      console.log('[STEP 3] ⚠️  No file input found, trying API upload...')
+      console.log('[STEP 3] [WARN] No file input found, trying API upload...')
 
       // Upload via API if UI is not ready
       const fileBuffer = fs.readFileSync(AUDIO_PATH)
@@ -103,7 +103,7 @@ test.describe('Full Application Workflow', () => {
       })
       expect(response.ok()).toBeTruthy()
       const data = await response.json()
-      console.log(`[STEP 3] ✅ File uploaded via API, file ID: ${data.file_id}`)
+      console.log(`[STEP 3] [PASS] File uploaded via API, file ID: ${data.file_id}`)
 
       // Refresh to see the file
       await page.reload()
@@ -127,12 +127,12 @@ test.describe('Full Application Workflow', () => {
         await startModalButton.click()
       }
 
-      console.log('[STEP 4] ✅ Transcription started')
+      console.log('[STEP 4] [PASS] Transcription started')
 
       // Wait a bit for transcription to begin
       await page.waitForTimeout(3000)
     } else {
-      console.log('[STEP 4] ⚠️  File may already be transcribing or completed')
+      console.log('[STEP 4] [WARN] File may already be transcribing or completed')
     }
 
     // STEP 5: Delete project
@@ -151,16 +151,16 @@ test.describe('Full Application Workflow', () => {
 
       // Wait for deletion to complete
       await page.waitForTimeout(2000)
-      console.log('[STEP 5] ✅ Project deleted')
+      console.log('[STEP 5] [PASS] Project deleted')
     } else {
-      console.log('[STEP 5] ⚠️  No delete button found, using API...')
+      console.log('[STEP 5] [WARN] No delete button found, using API...')
 
       // Delete via API
       const response = await page.request.delete(`${API_BASE_URL}/api/upload/project/${projectId}`)
       if (response.ok()) {
-        console.log('[STEP 5] ✅ Project deleted via API')
+        console.log('[STEP 5] [PASS] Project deleted via API')
       } else {
-        console.log(`[STEP 5] ⚠️  API delete failed: ${response.status()}`)
+        console.log(`[STEP 5] [WARN] API delete failed: ${response.status()}`)
       }
     }
 
@@ -193,9 +193,9 @@ test.describe('Full Application Workflow', () => {
     // CYCLE 1: Create → Edit → Refresh → Upload → Delete
     console.log('\n[CYCLE 1] Starting...')
 
-    // Create project
-    console.log('[CYCLE 1] Creating project')
-    const createButton = page.getByRole('button', { name: /create audio project|new project/i }).first()
+        // Create project
+    console.log('\n[CYCLE 1] Creating project')
+    const createButton = page.getByRole('button', { name: 'Create Audio Project' })
     await createButton.click()
 
     const projectName1 = `Full Test 1 - ${Date.now()}`
@@ -204,7 +204,7 @@ test.describe('Full Application Workflow', () => {
 
     const modalHeading = page.getByRole('heading', { name: /create new project/i })
     await expect(modalHeading).toBeHidden({ timeout: 15_000 })
-    console.log('[CYCLE 1] ✅ Project created')
+    console.log('[CYCLE 1] [PASS] Project created')
 
     // Get project ID
     const projectSelect = page.getByRole('banner').getByRole('combobox')
@@ -215,13 +215,13 @@ test.describe('Full Application Workflow', () => {
     await page.request.put(`${API_BASE_URL}/api/upload/project/${projectId1}`, {
       data: { name: `${projectName1} - EDITED` },
     })
-    console.log('[CYCLE 1] ✅ Project edited')
+    console.log('[CYCLE 1] [PASS] Project edited')
 
     // Refresh page
     console.log('[CYCLE 1] Refreshing page')
     await page.reload()
     await splash.waitFor({ state: 'detached', timeout: 30_000 })
-    console.log('[CYCLE 1] ✅ Page refreshed')
+    console.log('[CYCLE 1] [PASS] Page refreshed')
 
     // Upload file via API
     console.log('[CYCLE 1] Uploading audio file')
@@ -238,7 +238,7 @@ test.describe('Full Application Workflow', () => {
     })
     expect(uploadResp.ok()).toBeTruthy()
     const fileData = await uploadResp.json()
-    console.log(`[CYCLE 1] ✅ File uploaded, ID: ${fileData.file_id}`)
+    console.log(`[CYCLE 1] [PASS] File uploaded, ID: ${fileData.file_id}`)
 
     // Start transcription via API
     console.log('[CYCLE 1] Starting transcription')
@@ -253,13 +253,13 @@ test.describe('Full Application Workflow', () => {
       }
     )
     expect(transcribeResp.ok()).toBeTruthy()
-    console.log('[CYCLE 1] ✅ Transcription started')
+    console.log('[CYCLE 1] [PASS] Transcription started')
 
     // Delete project via API
     console.log('[CYCLE 1] Deleting project')
     const deleteResp = await page.request.delete(`${API_BASE_URL}/api/upload/project/${projectId1}`)
     expect(deleteResp.ok()).toBeTruthy()
-    console.log('[CYCLE 1] ✅ Project deleted')
+    console.log('[CYCLE 1] [PASS] Project deleted')
 
     // CYCLE 2: Create → Upload → Edit → Delete
     console.log('\n[CYCLE 2] Starting...')
@@ -276,7 +276,7 @@ test.describe('Full Application Workflow', () => {
     await page.getByRole('button', { name: /^create$/i }).click()
 
     await expect(modalHeading).toBeHidden({ timeout: 15_000 })
-    console.log('[CYCLE 2] ✅ Project created')
+    console.log('[CYCLE 2] [PASS] Project created')
 
     const projectId2 = await projectSelect.inputValue()
 
@@ -293,19 +293,19 @@ test.describe('Full Application Workflow', () => {
       },
     })
     expect(uploadResp2.ok()).toBeTruthy()
-    console.log('[CYCLE 2] ✅ File uploaded')
+    console.log('[CYCLE 2] [PASS] File uploaded')
 
     console.log('[CYCLE 2] Editing project')
     const editResp = await page.request.put(`${API_BASE_URL}/api/upload/project/${projectId2}`, {
       data: { name: `${projectName2} - FINAL` },
     })
     expect(editResp.ok()).toBeTruthy()
-    console.log('[CYCLE 2] ✅ Project edited')
+    console.log('[CYCLE 2] [PASS] Project edited')
 
     console.log('[CYCLE 2] Deleting project')
     const deleteResp2 = await page.request.delete(`${API_BASE_URL}/api/upload/project/${projectId2}`)
     expect(deleteResp2.ok()).toBeTruthy()
-    console.log('[CYCLE 2] ✅ Project deleted')
+    console.log('[CYCLE 2] [PASS] Project deleted')
 
     console.log('\n=== ALL CYCLES COMPLETE ===')
   })

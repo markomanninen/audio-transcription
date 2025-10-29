@@ -9,7 +9,7 @@ const path = require('path');
 const resultsPath = process.argv[2] || path.join(__dirname, 'test-results/results.json');
 
 if (!fs.existsSync(resultsPath)) {
-  console.error(`❌ No results.json found at: ${resultsPath}`);
+  console.error(`[ERROR] No results.json found at: ${resultsPath}`);
   console.error('Run tests first with JSON reporter enabled.');
   process.exit(1);
 }
@@ -54,7 +54,7 @@ results.suites.forEach(suite => {
 });
 
 // Display summary
-console.log('\n📊 Test Results Summary\n');
+console.log('\n[STATS] Test Results Summary\n');
 console.log('─'.repeat(80));
 console.log('File'.padEnd(40), 'Passed', 'Failed', 'Skipped', 'Total');
 console.log('─'.repeat(80));

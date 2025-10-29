@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Real Whisper Progress Tracking', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the app
-    await page.goto('http://localhost:3000');
+    await page.goto(process.env.BASE_URL || 'http://127.0.0.1:18300');
 
     // Skip tutorial if present
     await page.evaluate(() => {
@@ -50,7 +50,7 @@ test.describe('Real Whisper Progress Tracking', () => {
     await expect(fileCard).toBeVisible();
 
     // Start transcription with large model to ensure we can see progress updates
-    const startButton = fileCard.locator('button:has-text("Start")').first();
+    const startButton = fileCard.locator('button:has-text("Start Transcription")').first();
     await startButton.click();
     await page.waitForTimeout(1000);
 
@@ -115,7 +115,7 @@ test.describe('Real Whisper Progress Tracking', () => {
         // Check if transcription completed
         const status = await fileCard.getAttribute('data-status');
         if (status === 'completed') {
-          console.log('✅ Transcription completed!');
+          console.log('[PASS] Transcription completed!');
           break;
         }
 
@@ -138,36 +138,36 @@ test.describe('Real Whisper Progress Tracking', () => {
 
     // 1. Should have received multiple progress updates
     expect(progressUpdates.length).toBeGreaterThan(5);
-    console.log('✅ Received multiple progress updates');
+    console.log('[PASS] Received multiple progress updates');
 
     // 2. Should NOT get stuck at 73.8%
     expect(gotStuckAt738).toBe(false);
-    console.log('✅ Progress did NOT get stuck at 73.8%');
+    console.log('[PASS] Progress did NOT get stuck at 73.8%');
 
     // 3. Progress should increase (allowing for small fluctuations)
     const isMonotonicallyIncreasing = progressUpdates.every((val, i, arr) =>
       i === 0 || val >= arr[i - 1] - 1  // Allow 1% tolerance for async updates
     );
     expect(isMonotonicallyIncreasing).toBe(true);
-    console.log('✅ Progress increases monotonically');
+    console.log('[PASS] Progress increases monotonically');
 
     // 4. Should NOT have same progress for more than 20 consecutive checks (40 seconds)
     expect(maxConsecutiveSameProgress).toBeLessThan(20);
-    console.log(`✅ Progress never stuck for more than ${maxConsecutiveSameProgress * 2} seconds`);
+    console.log(`[PASS] Progress never stuck for more than ${maxConsecutiveSameProgress * 2} seconds`);
 
     // 5. Stage messages should show actual percentages (not just "finalizing")
     const hasActualPercentages = stageMessages.some(msg =>
       /\d+% complete/i.test(msg)
     );
     expect(hasActualPercentages).toBe(true);
-    console.log('✅ Stage messages show actual percentages');
+    console.log('[PASS] Stage messages show actual percentages');
 
     // 6. Should NOT see old-style time-based messages
     const hasOldStyleMessages = stageMessages.some(msg =>
       /finalizing.*\d+s.*long running/i.test(msg) && !/\d+% complete/i.test(msg)
     );
     expect(hasOldStyleMessages).toBe(false);
-    console.log('✅ No old-style time-based estimates found');
+    console.log('[PASS] No old-style time-based estimates found');
 
     console.log('\n🎉 ALL PROGRESS TRACKING TESTS PASSED!');
   });
@@ -193,7 +193,7 @@ test.describe('Real Whisper Progress Tracking', () => {
     await page.waitForTimeout(2000);
 
     const fileCard = page.locator('[data-component="file-card"]').first();
-    const startButton = fileCard.locator('button:has-text("Start")').first();
+    const startButton = fileCard.locator('button:has-text("Start Transcription")').first();
     await startButton.click();
 
     // Sample progress 10 times over 30 seconds
@@ -223,6 +223,6 @@ test.describe('Real Whisper Progress Tracking', () => {
     console.log(`\nProgress increased in ${(increaseRate * 100).toFixed(0)}% of samples`);
 
     expect(increaseRate).toBeGreaterThan(0.6); // At least 60% of samples should show increase
-    console.log('✅ Progress shows smooth incremental updates');
+    console.log('[PASS] Progress shows smooth incremental updates');
   });
 });

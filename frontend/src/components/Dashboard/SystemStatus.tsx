@@ -42,11 +42,11 @@ export default function SystemStatus() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'up':
-        return '✅'
+        return <span className="text-green-600 dark:text-green-400">●</span>
       case 'down':
-        return '❌'
+        return <span className="text-red-600 dark:text-red-400">●</span>
       default:
-        return '⚠️'
+        return <span className="text-yellow-600 dark:text-yellow-400">●</span>
     }
   }
 
@@ -61,7 +61,9 @@ export default function SystemStatus() {
     }
   }
 
-  const overallStatusIcon = health?.status === 'healthy' ? '✅' : '⚠️'
+  const overallStatusIcon = health?.status === 'healthy' ? 
+    <span className="text-green-600 dark:text-green-400">●</span> : 
+    <span className="text-yellow-600 dark:text-yellow-400">●</span>
   const overallStatusText = health?.status === 'healthy' ? 'System' : 'System Degraded'
 
   return (

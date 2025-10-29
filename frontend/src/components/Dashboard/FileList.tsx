@@ -94,11 +94,11 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       }))
     })
     
-    // Find all split files (processing or pending ONLY) that could form a batch
-    // Don't include completed files - we only want active batches
+    // Find all split files that could form a batch
+    // Include completed files if there are still processing/pending files from the same parent
     const splitFiles = files.filter(file =>
       file.parent_audio_file_id &&
-      (file.status === 'processing' || file.status === 'pending')
+      (file.status === 'processing' || file.status === 'pending' || file.status === 'completed')
     )
     
     console.log('Split files found for batch detection:', splitFiles.length, splitFiles.map(f => ({
@@ -116,8 +116,13 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
         return groups
       }, {} as Record<number, typeof splitFiles>)
       
-      // Find the largest group of split files processing together
-      const largestGroup = Object.values(parentGroups).reduce((largest, current) => 
+      // Find groups that have at least one active (processing/pending) file
+      const activeGroups = Object.values(parentGroups).filter(group => 
+        group.some(file => file.status === 'processing' || file.status === 'pending')
+      )
+      
+      // Find the largest active group
+      const largestGroup = activeGroups.reduce((largest, current) => 
         current.length > largest.length ? current : largest, [])
       
       if (largestGroup.length >= 2) {
@@ -202,12 +207,30 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
       const current = processingFiles[0]
       currentChunk = { file: current.file, chunk: current.chunk }
       currentIndex = current.index
-    }
-
-    if (!currentChunk) {
-      const fallback = activeBatch.chunks[total - 1]
-      currentChunk = { file: fileMap.get(fallback.fileId), chunk: fallback }
-      currentIndex = total - 1
+    } else {
+      // No processing files - all done or failed
+      // If all files are complete, show the last file as current but mark as complete
+      if (completedCount + failedCount === total) {
+        const lastChunk = activeBatch.chunks[total - 1]
+        currentChunk = { file: fileMap.get(lastChunk.fileId), chunk: lastChunk }
+        currentIndex = total - 1
+      } else {
+        // Find the first non-completed file
+        const pendingFile = activeBatch.chunks.find((chunk) => {
+          const file = fileMap.get(chunk.fileId)
+          return file?.status !== 'completed' && file?.status !== 'failed'
+        })
+        if (pendingFile) {
+          const index = activeBatch.chunks.indexOf(pendingFile)
+          currentChunk = { file: fileMap.get(pendingFile.fileId), chunk: pendingFile }
+          currentIndex = index
+        } else {
+          // Fallback to last file
+          const fallback = activeBatch.chunks[total - 1]
+          currentChunk = { file: fileMap.get(fallback.fileId), chunk: fallback }
+          currentIndex = total - 1
+        }
+      }
     }
 
     const isComplete = completedCount + failedCount === total
@@ -317,15 +340,33 @@ export function FileList({ projectId, onSelectFile, selectedFileId }: FileListPr
   const batchOverlayProgress = batchProgress
     ? batchProgress.isComplete
       ? 100
-      : Math.min(Math.max(Math.round((currentBatchStatus?.progress ?? 0) * 100), 0), 99)
+      : (() => {
+          // Calculate combined progress: completed files + current file progress
+          const completedFilesProgress = batchProgress.completed / batchProgress.total
+          const currentFileProgress = currentBatchStatus?.progress || 0 // Already a fraction 0-1
+          const currentFileContribution = currentFileProgress / batchProgress.total
+          return Math.min(Math.max(Math.round((completedFilesProgress + currentFileContribution) * 100), 0), 100)
+        })()
     : 0
   const batchOverlayFileName = batchProgress
     ? batchProgress.currentChunk?.file?.original_filename ?? batchProgress.currentChunk?.chunk.originalFilename
     : undefined
   const batchOverlayStage = batchProgress?.isComplete
     ? 'Batch completed'
-    : currentBatchStatus?.processing_stage ?? 'Preparing next chunk...'
-  const batchOverlayPosition = batchProgress ? Math.min(batchProgress.currentIndex + 1, batchProgress.total) : 0
+    : (() => {
+        const stage = currentBatchStatus?.processing_stage ?? 'Preparing next chunk...'
+        // Remove all percentage information from stage since we show it in the progress bar
+        return stage
+          .replace(/ - \d+(\.\d+)?% complete( \(\d+s\))?/, '') // Remove "- X% complete (Xs)"
+          .replace(/\d+(\.\d+)?% complete/, '') // Remove standalone "X% complete"
+          .replace(/\d+(\.\d+)?%/, '') // Remove any remaining percentages
+          .trim()
+      })()
+  const batchOverlayPosition = batchProgress 
+    ? batchProgress.isComplete 
+      ? batchProgress.total // Show "3 of 3" when complete
+      : Math.min(batchProgress.currentIndex + 1, batchProgress.total) 
+    : 0
   const batchOverlayRemaining = batchProgress
     ? Math.max(batchProgress.total - batchProgress.completed - batchProgress.failed, 0)
     : 0

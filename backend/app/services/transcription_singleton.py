@@ -64,12 +64,12 @@ def get_transcription_service() -> TranscriptionService:
     with _initialization_lock:
         if _global_transcription_service is None:
             if _initialization_in_progress:
-                raise RuntimeError("❌ Transcription service initialization in progress. Please wait.")
-            raise RuntimeError("❌ Transcription service not initialized. Call initialize_transcription_service() first.")
+                raise RuntimeError("Transcription service initialization in progress. Please wait.")
+            raise RuntimeError("Transcription service not initialized. Call initialize_transcription_service() first.")
         
         # Verify model is actually loaded
         if _global_transcription_service.model is None:
-            raise RuntimeError("❌ Whisper model not loaded. Service initialization may have failed.")
+            raise RuntimeError("Whisper model not loaded. Service initialization may have failed.")
 
         return _global_transcription_service
 
@@ -152,12 +152,12 @@ def initialize_transcription_service() -> None:
     with _initialization_lock:
         # Check if already initialized
         if _global_transcription_service is not None:
-            print("ℹ️  Transcription service already initialized.")
+            print("Transcription service already initialized.")
             return
             
         # Check if initialization is already in progress
         if _initialization_in_progress:
-            print("ℹ️  Transcription service initialization already in progress.")
+            print("Transcription service initialization already in progress.")
             return
             
         # Mark initialization as in progress
@@ -189,7 +189,7 @@ def initialize_transcription_service() -> None:
         service = TranscriptionService(model_size_override=desired_model_size)
         if service.model_size != service.configured_model_size:
             print(
-                f"🎯 Pending transcription requested Whisper '{service.model_size}' "
+                f"Pending transcription requested Whisper '{service.model_size}' "
                 f"(configured default: '{service.configured_model_size}'). Using requested model for initialization."
             )
         
@@ -214,10 +214,10 @@ def initialize_transcription_service() -> None:
         
         if existing_path:
             file_size = os.path.getsize(existing_path) / (1024 * 1024)
-            print(f"📁 Found cached Whisper model '{model_filename}' ({file_size:.1f}MB) - loading from cache...")
+            print(f"Found cached Whisper model '{model_filename}' ({file_size:.1f}MB) - loading from cache...")
         else:
-            print(f"📦 Whisper model '{model_filename}' not cached - downloading...")
-            print("⏳ Please wait - this may take several minutes on first download...")
+            print(f"Whisper model '{model_filename}' not cached - downloading...")
+            print("Please wait - this may take several minutes on first download...")
         
         # Load model with memory monitoring
         print(f"🔄 Loading Whisper model '{model_size}' into memory...")
@@ -229,9 +229,9 @@ def initialize_transcription_service() -> None:
         
         post_load_memory = process.memory_info().rss / 1024 / 1024
         memory_increase = post_load_memory - pre_load_memory
-        print(f"💾 Memory after model load: {post_load_memory:.1f}MB (+{memory_increase:.1f}MB)")
-        print(f"✅ Whisper model '{model_size}' loaded successfully!")
-        print("🚀 Transcription service ready - API can now accept requests.")
+        print(f"Memory after model load: {post_load_memory:.1f}MB (+{memory_increase:.1f}MB)")
+        print(f"Whisper model '{model_size}' loaded successfully!")
+        print("Transcription service ready - API can now accept requests.")
         
         # Set the global service atomically
         with _initialization_lock:
@@ -243,8 +243,8 @@ def initialize_transcription_service() -> None:
         
     except Exception as e:
         import traceback
-        print(f"❌ Failed to load Whisper model: {e}")
-        print(f"❌ Stack trace: {traceback.format_exc()}")
+        print(f"Failed to load Whisper model: {e}")
+        print(f"Stack trace: {traceback.format_exc()}")
         
         # Clear initialization state on failure
         with _initialization_lock:
@@ -411,9 +411,9 @@ def update_model_loading_progress_in_db() -> None:
                 audio_file.transcription_progress = main_progress_fraction
 
             db.commit()
-            print(f"📊 Updated model loading progress to {main_progress:.1f}% ({download_percent}% download) for {len(files_waiting)} file(s)")
+            print(f"Updated model loading progress to {main_progress:.1f}% ({download_percent}% download) for {len(files_waiting)} file(s)")
     except Exception as e:
-        print(f"⚠️ Failed to update model loading progress in DB: {e}")
+        print(f"Failed to update model loading progress in DB: {e}")
         db.rollback()
     finally:
         db.close()
@@ -467,7 +467,7 @@ def add_pending_transcription(
             }
         )
 
-    print(f"📝 Added file {file_id} to pending transcription queue")
+    print(f"Added file {file_id} to pending transcription queue")
 
 
 def get_pending_transcriptions() -> list:
@@ -488,7 +488,7 @@ def process_pending_transcriptions() -> None:
     """Process all pending transcription requests after model is ready."""
     pending = get_pending_transcriptions()
     if pending:
-        print(f"🚀 Processing {len(pending)} pending transcription request(s)...")
+        print(f"Processing {len(pending)} pending transcription request(s)...")
         
         # Import here to avoid circular imports
         from ..api.transcription import transcribe_task
@@ -500,7 +500,7 @@ def process_pending_transcriptions() -> None:
             language = entry.get("language")
             force_restart = entry.get("force_restart", False)
             try:
-                print(f"📝 Starting transcription for file {file_id}")
+                print(f"Starting transcription for file {file_id}")
                 # Create a new thread for each transcription to avoid blocking
                 import threading
                 thread = threading.Thread(
@@ -516,6 +516,6 @@ def process_pending_transcriptions() -> None:
                 )
                 thread.start()
             except Exception as e:
-                print(f"❌ Failed to start transcription for file {file_id}: {e}")
+                print(f"Failed to start transcription for file {file_id}: {e}")
     else:
-        print("ℹ️ No pending transcription requests to process after model initialization.")
+        print("No pending transcription requests to process after model initialization.")

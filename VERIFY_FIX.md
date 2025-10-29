@@ -55,7 +55,7 @@ File 17: 3/3 - Kaaritorpantie - Rainer 5min.mp3
 ## How to Verify
 
 1. **Refresh browser**: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
-2. **Navigate to**: http://localhost:3000/audio
+2. **Navigate to**: <http://localhost:3000/audio>
 3. **Check the file list**: Look at the small badge next to each filename
 4. **Expected**:
    - Files 15, 16: Small "Batch" badge in light purple/indigo
@@ -64,15 +64,19 @@ File 17: 3/3 - Kaaritorpantie - Rainer 5min.mp3
 ## The Bug That Was Fixed
 
 **Before (WRONG)**:
+
 ```typescript
 {file.status === 'processing' ? 'Processing' : isBatchCurrent ? 'Processing' : 'Batch'}
 ```
+
 This showed "Processing" for File 15 even though its status was PENDING, because `isBatchCurrent` was true.
 
 **After (CORRECT)**:
+
 ```typescript
 {file.status === 'processing' ? 'Processing' : 'Batch'}
 ```
+
 Badge now ONLY based on actual file status.
 
 ## Summary

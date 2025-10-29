@@ -22,12 +22,12 @@ class TranscriptionMonitor:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error getting status: {e}")
+            print(f"[ERROR] Error getting status: {e}")
             return None
     
     def start_action(self, file_id: int, action: str = "auto") -> Optional[Dict[str, Any]]:
         """Start a transcription action with monitoring."""
-        print(f"🎯 Starting '{action}' action for file {file_id}...")
+        print(f"[TARGET] Starting '{action}' action for file {file_id}...")
         
         try:
             response = requests.post(
@@ -38,18 +38,18 @@ class TranscriptionMonitor:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error executing action: {e}")
+            print(f"[ERROR] Error executing action: {e}")
             return None
     
     def monitor_with_action(self, file_id: int, action: str = "auto", interval: int = 2):
         """Monitor transcription with initial action and real-time updates."""
-        print(f"🔍 Starting transcription monitor for file {file_id}")
+        print(f"[SEARCH] Starting transcription monitor for file {file_id}")
         print("=" * 60)
         
         # Get initial status
         initial_status = self.get_status(file_id)
         if not initial_status:
-            print("❌ Failed to get initial status")
+            print("[ERROR] Failed to get initial status")
             return
         
         self.print_detailed_status(initial_status)
@@ -65,8 +65,8 @@ class TranscriptionMonitor:
                 action_result["result"] = result
                 action_result["completed"] = True
                 if result:
-                    print(f"\n✅ Action completed: {result.get('action', 'unknown')}")
-                    print(f"📝 {result.get('message', 'No message')}")
+                    print(f"\n[OK] Action completed: {result.get('action', 'unknown')}")
+                    print(f"[TEXT] {result.get('message', 'No message')}")
                     if 'segments' in result:
                         print(f"🧩 Final segments: {result['segments']}")
                 else:
@@ -74,7 +74,7 @@ class TranscriptionMonitor:
             except Exception as e:
                 action_result["error"] = str(e)
                 action_result["completed"] = True
-                print(f"\n❌ Action failed: {e}")
+                print(f"\n[ERROR] Action failed: {e}")
         
         # Start action in background
         action_thread = threading.Thread(target=run_action, daemon=True)
@@ -96,7 +96,7 @@ class TranscriptionMonitor:
                     # Show updates when progress or stage changes
                     if current_progress != last_progress or current_stage != last_stage:
                         elapsed = time.time() - start_time
-                        print(f"⏱️  {elapsed:.1f}s | 📊 {current_progress:.1f}% | 🔄 {current_status} | 📝 {current_stage}")
+                        print(f"⏱️  {elapsed:.1f}s | [STATS] {current_progress:.1f}% | 🔄 {current_status} | [TEXT] {current_stage}")
                         
                         if status.get('segments_created', 0) > 0:
                             print(f"    📑 Segments created: {status['segments_created']}")
@@ -105,7 +105,7 @@ class TranscriptionMonitor:
                             print(f"    🤖 Model: {status['whisper_model_loaded']}")
                         
                         if status.get('audio_transformed'):
-                            print(f"    🎵 Audio transformed: ✅")
+                            print(f"    [AUDIO] Audio transformed: ✅")
                         
                         last_progress = current_progress
                         last_stage = current_stage
@@ -126,14 +126,14 @@ class TranscriptionMonitor:
         """Print comprehensive status information."""
         print(f"📁 File: {status.get('filename', 'Unknown')}")
         print(f"🆔 ID: {status.get('file_id', 'Unknown')}")
-        print(f"📊 Status: {status.get('status', 'Unknown')}")
+        print(f"[STATS] Status: {status.get('status', 'Unknown')}")
         print(f"📈 Progress: {status.get('progress', 0) * 100:.1f}%")
         print(f"🧩 Segments: {status.get('segments_created', 0)}")
         print(f"🔄 Can Resume: {'✅' if status.get('can_resume', False) else '❌'}")
-        print(f"⚠️  Is Stuck: {'🚨 YES' if status.get('is_stuck', False) else '✅ No'}")
-        print(f"📝 Stage: {status.get('transcription_stage', 'Unknown')}")
+        print(f"⚠️  Is Stuck: {'🚨 YES' if status.get('is_stuck', False) else '[OK] No'}")
+        print(f"[TEXT] Stage: {status.get('transcription_stage', 'Unknown')}")
         print(f"🤖 Model: {status.get('whisper_model_loaded') or 'Not loaded'}")
-        print(f"🎵 Audio Transformed: {'✅' if status.get('audio_transformed', False) else '❌'}")
+        print(f"[AUDIO] Audio Transformed: {'✅' if status.get('audio_transformed', False) else '❌'}")
         
         if status.get('interruption_count', 0) > 0:
             print(f"🔄 Interruptions: {status['interruption_count']}")
@@ -169,12 +169,12 @@ def main():
     monitor = TranscriptionMonitor(args.url)
     
     if args.status_only:
-        print(f"🔍 Getting status for file {args.file_id}")
+        print(f"[SEARCH] Getting status for file {args.file_id}")
         status = monitor.get_status(args.file_id)
         if status:
             monitor.print_detailed_status(status)
         else:
-            print("❌ Failed to get status")
+            print("[ERROR] Failed to get status")
     else:
         monitor.monitor_with_action(args.file_id, args.action, args.interval)
 

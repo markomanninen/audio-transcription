@@ -246,7 +246,7 @@ print(json.dumps(files))
             }.get(file_info["status"], "📄")
             
             print(f"{status_emoji} {file_info['filename']}")
-            print(f"   📊 Status: {file_info['status']} ({file_info['progress']}%)")
+            print(f"   [STATS] Status: {file_info['status']} ({file_info['progress']}%)")
             print(f"   🕒 Duration: {self.format_time(file_info['duration'])}")
             print(f"   📅 Uploaded: {file_info['created_at']}")
             
@@ -341,7 +341,7 @@ conn.close()
                         
                         print(f"{status_emoji} {file_info['filename']}")
                         print(f"🆔 File ID: {file_info['id']}")
-                        print(f"📊 Status: {file_info['status']} ({file_info['progress']}%)")
+                        print(f"[STATS] Status: {file_info['status']} ({file_info['progress']}%)")
                         print(f"🕒 Duration: {self.format_time(file_info['duration'])}")
                         
                         if file_info['started_at']:
@@ -359,7 +359,7 @@ conn.close()
                             completion_pct = min((segment_count / estimated_total) * 100, 99)
                             print(f"📈 Estimated completion: {completion_pct:.1f}%")
                             
-                            print("📝 Latest segments:")
+                            print("[TEXT] Latest segments:")
                             for seg_id, text, start, end, speaker in file_info['recent_segments']:
                                 speaker_info = f" (Speaker {speaker})" if speaker else ""
                                 print(f"   {start:.1f}s-{end:.1f}s{speaker_info}: {text[:50]}...")
@@ -370,9 +370,9 @@ conn.close()
                         print(f"📁 Path: {file_info['file_path']}")
                         
                     except Exception as e:
-                        print(f"❌ Error parsing file data: {e}")
+                        print(f"[ERROR] Error parsing file data: {e}")
                 else:
-                    print(f"❌ File ID {file_id} not found")
+                    print(f"[ERROR] File ID {file_id} not found")
                 
                 print(f"\\n🔄 Refreshing in {interval} seconds... (Ctrl+C to stop)")
                 time.sleep(interval)
@@ -385,11 +385,11 @@ conn.close()
         health = self.get_json("/health")
         
         if "error" in health:
-            print("❌ System Status: OFFLINE")
+            print("[ERROR] System Status: OFFLINE")
             print(f"   Error: {health['error']}")
             return False
         
-        print("✅ System Status: ONLINE")
+        print("[OK] System Status: ONLINE")
         if 'transcription_service' in health:
             ts = health['transcription_service']
             print(f"🤖 Model: {ts.get('model_size', 'Unknown')} ({ts.get('status', 'Unknown')})")
@@ -398,7 +398,7 @@ conn.close()
     
     def check_for_zombies(self):
         """Check for zombie transcription processes and orphaned database records"""
-        print("🔍 Checking for zombie processes...")
+        print("[SEARCH] Checking for zombie processes...")
         
         # Check for orphaned PROCESSING records without active processes
         python_code = '''
@@ -491,7 +491,7 @@ except:
             print("⚠️  Zombies detected but processes are active - manual intervention may be needed")
             return False
         else:
-            print("✅ No zombie processes detected")
+            print("[OK] No zombie processes detected")
             return True
     
     def cleanup_zombies(self, zombies):
@@ -529,11 +529,11 @@ except Exception as e:
         result = self.run_docker_query(cleanup_code)
         
         if result and "SUCCESS" in result:
-            print("✅ Zombie cleanup completed successfully")
+            print("[OK] Zombie cleanup completed successfully")
             print("💡 Affected files have been reset to PENDING status")
             return True
         else:
-            print(f"❌ Zombie cleanup failed: {result}")
+            print(f"[ERROR] Zombie cleanup failed: {result}")
             return False
     
     def show_processing_details(self, show_segments=False):
@@ -541,7 +541,7 @@ except Exception as e:
         processing_files = self.get_processing_files()
         
         if not processing_files:
-            print("✅ No files currently being processed")
+            print("[OK] No files currently being processed")
             return
         
         print(f"🔄 Active Transcriptions: {len(processing_files)}")
@@ -549,7 +549,7 @@ except Exception as e:
         
         for file_info in processing_files:
             print(f"\n📄 File: {file_info['filename']}")
-            print(f"📊 Progress: {file_info['progress']:.1%}")
+            print(f"[STATS] Progress: {file_info['progress']:.1%}")
             
             # Show timing information
             if file_info.get('started_at'):
@@ -579,7 +579,7 @@ except Exception as e:
                 segment_count = file_info['segment_count']
                 duration = file_info['duration']
                 
-                print(f"📝 Segments Created: {segment_count:,}")
+                print(f"[TEXT] Segments Created: {segment_count:,}")
                 
                 if duration:
                     completion_pct, eta = self.estimate_completion(segment_count, duration, elapsed)
@@ -601,7 +601,7 @@ except Exception as e:
                     if eta:
                         print(f"⏰ Estimated remaining: {self.format_time(eta)}")
                     
-                    print(f"🎵 Audio duration: {self.format_time(duration)}")
+                    print(f"[AUDIO] Audio duration: {self.format_time(duration)}")
     
     def show_recent_activity(self, limit=5):
         """Show recent transcription activity with timestamps"""
@@ -655,10 +655,10 @@ except Exception as e:
                 pass
         
         if not files:
-            print("📋 No recent activity found")
+            print("[LIST] No recent activity found")
             return
         
-        print(f"📋 Recent Activity (last {len(files)} files):")
+        print(f"[LIST] Recent Activity (last {len(files)} files):")
         print("=" * 60)
         
         for file_info in files:
@@ -670,7 +670,7 @@ except Exception as e:
             }.get(file_info["status"], "📄")
             
             print(f"{status_emoji} {file_info['filename']}")
-            print(f"   📊 Status: {file_info['status']}")
+            print(f"   [STATS] Status: {file_info['status']}")
             
             # Show relevant timestamps based on status
             if file_info['status'] == 'COMPLETED' and file_info.get('completed_at'):
@@ -705,7 +705,7 @@ except Exception as e:
 
     def show_system_overview(self):
         """Show system overview with statistics"""
-        print("🎯 Audio Transcription System Status")
+        print("[TARGET] Audio Transcription System Status")
         print("=" * 50)
         print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print()
@@ -722,7 +722,7 @@ except Exception as e:
         # System statistics
         stats = self.get_system_stats()
         if stats:
-            print("\n📊 System Statistics:")
+            print("\n[STATS] System Statistics:")
             total = sum(stats.values())
             for status, count in stats.items():
                 emoji = {"COMPLETED": "✅", "PROCESSING": "🔄", "FAILED": "❌", "PENDING": "⏳"}.get(status, "📄")
@@ -782,7 +782,7 @@ def main():
             print("=" * 40)
             monitor.show_file_details()
         elif args.recent:
-            print("📋 Recent Activity")
+            print("[LIST] Recent Activity")
             print("=" * 40)
             monitor.show_recent_activity()
         elif args.monitor_file:
@@ -797,7 +797,7 @@ def main():
     except KeyboardInterrupt:
         print("\n👋 Goodbye!")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

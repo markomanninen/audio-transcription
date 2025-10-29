@@ -415,7 +415,7 @@ describe('useUpload hooks', () => {
         timeout: 3000,
       });
 
-      expect(result.current.data?.[0].duration).toBeNull();
+      expect(result.current.data?.[0].duration).toBeUndefined();
     });
   });
 

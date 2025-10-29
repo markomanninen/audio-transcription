@@ -10,7 +10,7 @@ const resultsPath = path.join(__dirname, 'test-results/results.json');
 const historyPath = path.join(__dirname, 'test-history.jsonl'); // Store OUTSIDE test-results (Playwright clears that dir)
 
 if (!fs.existsSync(resultsPath)) {
-  console.error('❌ No results.json found. Run tests first.');
+  console.error('[ERROR] No results.json found. Run tests first.');
   process.exit(1);
 }
 
@@ -65,5 +65,5 @@ runSummary.totals = Object.values(runSummary.files).reduce((acc, stats) => ({
 // Append to history file (JSONL format - one JSON object per line)
 fs.appendFileSync(historyPath, JSON.stringify(runSummary) + '\n');
 
-console.log('✅ Test run recorded to test-history.jsonl');
-console.log(`📊 ${runSummary.totals.passed}/${runSummary.totals.total} passed, ${runSummary.totals.failed} failed, ${runSummary.totals.skipped} skipped`);
+console.log('[PASS] Test run recorded to test-history.jsonl');
+console.log(`[STATS] ${runSummary.totals.passed}/${runSummary.totals.total} passed, ${runSummary.totals.failed} failed, ${runSummary.totals.skipped} skipped`);

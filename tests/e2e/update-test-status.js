@@ -10,7 +10,7 @@ const resultsPath = path.join(__dirname, 'test-results/results.json');
 const statusPath = path.join(__dirname, 'test-status.json');
 
 if (!fs.existsSync(resultsPath)) {
-  console.error('❌ No results.json found. Run tests first.');
+  console.error('[ERROR] No results.json found. Run tests first.');
   process.exit(1);
 }
 
@@ -65,5 +65,5 @@ results.suites.forEach(suite => {
 fs.writeFileSync(statusPath, JSON.stringify(status, null, 2));
 
 const fileCount = Object.keys(status).length;
-console.log(`✅ Updated test status for ${fileCount} file(s)`);
+console.log(`[PASS] Updated test status for ${fileCount} file(s)`);
 console.log(`📄 See test-status.json for current state of all test files`);

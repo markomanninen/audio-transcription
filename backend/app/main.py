@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
         database.init_db()
         print("[STARTUP] Database initialized")
     except Exception as e:
-        print(f"[STARTUP] ❌ Database initialization failed: {e}")
+        print(f"[STARTUP] Database initialization failed: {e}")
         raise
 
     # Normalize legacy lowercase transcription statuses so they align with the current enum.
@@ -52,9 +52,9 @@ async def lifespan(app: FastAPI):
         results = normalize_transcription_statuses(database.engine)
         normalized = results.get("normalized", 0)
         invalid_reset = results.get("invalid_reset", 0)
-        print(f"[STARTUP] 🛠️ Normalized {normalized} transcription status value(s); reset {invalid_reset} invalid record(s).")
+        print(f"[STARTUP] Normalized {normalized} transcription status value(s); reset {invalid_reset} invalid record(s).")
     except Exception as exc:
-        print(f"[STARTUP] ⚠️ Failed to normalize transcription statuses: {exc}")
+        print(f"[STARTUP] Failed to normalize transcription statuses: {exc}")
 
     # Optionally seed deterministic data for local end-to-end tests.
     if os.getenv("SEED_E2E_DATA", "").lower() in {"1", "true", "yes", "on"}:
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
             seed_e2e_data()
         except Exception as exc:
-            print(f"⚠️ Failed to seed E2E data: {exc}")
+            print(f"Failed to seed E2E data: {exc}")
     
     # Clean up any orphaned transcriptions from previous server crashes/restarts
     print("[STARTUP] Cleaning up orphaned transcriptions...")
@@ -90,14 +90,14 @@ async def lifespan(app: FastAPI):
             db.commit()
             print(f"🔄 Preserved interrupted transcription progress for {len(orphaned_files)} file(s)")
         else:
-            print("✅ No orphaned transcriptions found")
+            print("No orphaned transcriptions found")
             
     finally:
         db.close()
     
     # DON'T start transcription service initialization automatically during startup
     # Let it initialize only when first transcription is requested to avoid startup issues
-    print("🚀 FastAPI starting - Whisper will initialize when first transcription is requested")
+    print("FastAPI starting - Whisper will initialize when first transcription is requested")
     
     yield
     # Shutdown: Clean up resources

@@ -68,7 +68,7 @@ class LogInspector:
         container_name = self.get_container_name(container)
         
         if not self.check_container_exists(container_name):
-            print(f"❌ Container '{container_name}' not found or not running")
+            print(f"[ERROR] Container '{container_name}' not found or not running")
             print("Available containers:")
             self.list_containers()
             return ""
@@ -91,7 +91,7 @@ class LogInspector:
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 return result.stdout
         except subprocess.CalledProcessError as e:
-            print(f"❌ Error getting logs: {e}")
+            print(f"[ERROR] Error getting logs: {e}")
             return ""
 
     def filter_logs(self, logs: str, filter_pattern: str, case_sensitive: bool = False) -> str:
@@ -125,17 +125,17 @@ class LogInspector:
             # Color coding for different log levels
             if highlight_errors:
                 if re.search(r'ERROR|error|FAILED|failed|exception', line, re.IGNORECASE):
-                    line = f"🔴 {line}"
+                    line = f"[ERROR] {line}"
                 elif re.search(r'WARNING|warning|WARN', line, re.IGNORECASE):
-                    line = f"🟡 {line}"
+                    line = f"[WARN] {line}"
                 elif re.search(r'INFO|info', line, re.IGNORECASE):
-                    line = f"ℹ️  {line}"
+                    line = f"[INFO] {line}"
                 elif re.search(r'completed|success|✅', line, re.IGNORECASE):
-                    line = f"✅ {line}"
+                    line = f"[OK] {line}"
                 elif re.search(r'transcription|whisper', line, re.IGNORECASE):
-                    line = f"🎵 {line}"
+                    line = f"[AUDIO] {line}"
                 elif re.search(r'segments.*created|INSERT INTO segments', line, re.IGNORECASE):
-                    line = f"📝 {line}"
+                    line = f"[TEXT] {line}"
             
             formatted_lines.append(line)
         
@@ -150,11 +150,11 @@ class LogInspector:
             )
             print(result.stdout)
         except subprocess.CalledProcessError as e:
-            print(f"❌ Error listing containers: {e}")
+            print(f"[ERROR] Error listing containers: {e}")
 
     def show_filter_help(self):
         """Show available filter patterns."""
-        print("📋 Available filter patterns:")
+        print("[LIST] Available filter patterns:")
         for name, pattern in self.filter_patterns.items():
             print(f"  {name:12} - {pattern}")
         print("\n💡 You can also use custom regex patterns")
@@ -220,11 +220,11 @@ Examples:
         return
     
     # Get logs
-    print(f"📋 Inspecting {args.container} container logs...")
+    print(f"[LIST] Inspecting {args.container} container logs...")
     if args.since:
         print(f"⏰ Since: {args.since}")
     if args.filter:
-        print(f"🔍 Filter: {args.filter}")
+        print(f"[SEARCH] Filter: {args.filter}")
     print("-" * 60)
     
     logs = inspector.get_logs(
@@ -256,7 +256,7 @@ Examples:
     
     # Show summary
     line_count = len([l for l in logs.split('\n') if l.strip()])
-    print(f"\n📊 Summary: {line_count} log lines displayed")
+    print(f"\n[STATS] Summary: {line_count} log lines displayed")
 
 
 if __name__ == '__main__':

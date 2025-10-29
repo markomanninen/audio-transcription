@@ -82,7 +82,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
 
     // STEP 1: Create new project
     console.log('\n[STEP 1] Creating project for batch test...')
-    const createButton = page.getByRole('button', { name: /new project|create.*project/i })
+    const createButton = page.getByRole('button', { name: 'Create Audio Project' })
     await expect(createButton).toBeVisible({ timeout: 10_000 })
     await createButton.click()
 
@@ -99,7 +99,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     await expect(projectSelect).toHaveValue(/^\d+$/, { timeout: 10_000 })
     const projectId = await projectSelect.inputValue()
 
-    console.log(`[STEP 1] ✅ Project created (ID: ${projectId})`)
+    console.log(`[STEP 1] [PASS] Project created (ID: ${projectId})`)
     await captureScreenshot(page, '02-project-created', `Project "${projectName}" created`)
 
     // STEP 2: Upload source audio file
@@ -121,7 +121,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     const uploadData = await uploadResp.json()
     const sourceFileId = uploadData.file_id
 
-    console.log(`[STEP 2] ✅ Source file uploaded (ID: ${sourceFileId})`)
+    console.log(`[STEP 2] [PASS] Source file uploaded (ID: ${sourceFileId})`)
 
     // Wait for file to appear in UI
     await page.waitForTimeout(2000)
@@ -156,7 +156,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     const splitDialog = page.locator('text="Split Audio & Batch Transcribe"')
     await expect(splitDialog).toBeVisible({ timeout: 5_000 })
 
-    console.log('[STEP 3] ✅ Split & Batch dialog opened')
+    console.log('[STEP 3] [PASS] Split & Batch dialog opened')
     await captureScreenshot(page, '04-split-dialog-open', 'Split & Batch configuration dialog')
 
     // STEP 4: Configure split settings
@@ -183,7 +183,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
       await diarizationCheckbox.uncheck()
     }
 
-    console.log('[STEP 4] ✅ Split settings configured (2min chunks, 5s overlap, auto-transcribe)')
+    console.log('[STEP 4] [PASS] Split settings configured (2min chunks, 5s overlap, auto-transcribe)')
     await captureScreenshot(page, '05-split-configured', 'Split settings configured')
 
     // STEP 5: Execute split and monitor toast notification
@@ -198,7 +198,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     })
 
     await expect(successToast).toBeVisible({ timeout: 30_000 })
-    console.log('[STEP 5] ✅ Split operation completed - success toast visible')
+    console.log('[STEP 5] [PASS] Split operation completed - success toast visible')
     await captureScreenshot(page, '06-split-success-toast', 'Success toast showing chunks created')
 
     // Extract chunk count from toast message
@@ -215,7 +215,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     expect(fileListUpdated).toBeTruthy()
 
     const totalFiles = await page.locator('[data-component="file-card"]').count()
-    console.log(`[STEP 6] ✅ File list updated - showing ${totalFiles} files (1 source + ${expectedChunkCount} chunks)`)
+    console.log(`[STEP 6] [PASS] File list updated - showing ${totalFiles} files (1 source + ${expectedChunkCount} chunks)`)
     await captureScreenshot(page, '07-file-list-updated', `File list showing all ${totalFiles} files`)
 
     // STEP 7: Verify TranscriptionProgress panel appears and updates
@@ -228,7 +228,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     await page.waitForTimeout(3000)
 
     if (await progressPanel.isVisible({ timeout: 5000 }).catch(() => false)) {
-      console.log('[STEP 7] ✅ TranscriptionProgress panel is visible')
+      console.log('[STEP 7] [PASS] TranscriptionProgress panel is visible')
       await captureScreenshot(page, '08-progress-panel-visible', 'Transcription progress panel showing')
 
       // Monitor progress for a few seconds
@@ -247,7 +247,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
         }
       }
     } else {
-      console.log('[STEP 7] ⚠️  TranscriptionProgress panel not detected - may be different component')
+      console.log('[STEP 7] [WARN] TranscriptionProgress panel not detected - may be different component')
       await captureScreenshot(page, '08-no-progress-panel', 'Expected progress panel not visible')
     }
 
@@ -264,27 +264,27 @@ test.describe('Batch Split and Transcribe Workflow', () => {
       const fileName = await batchCurrentFile.locator('[data-file-name]').innerText()
       const fileId = await batchCurrentFile.getAttribute('data-file-id')
 
-      console.log(`[STEP 8] ✅ Currently processing file detected: "${fileName}" (ID: ${fileId})`)
+      console.log(`[STEP 8] [PASS] Currently processing file detected: "${fileName}" (ID: ${fileId})`)
 
       // Verify it has the indigo ring styling
       const classList = await batchCurrentFile.getAttribute('class')
       const hasIndigoRing = classList?.includes('ring-indigo-500')
 
       if (hasIndigoRing) {
-        console.log(`[STEP 8] ✅ Active file has correct indigo ring styling`)
+        console.log(`[STEP 8] [PASS] Active file has correct indigo ring styling`)
       } else {
-        console.log(`[STEP 8] ⚠️  Active file missing indigo ring - classes: ${classList}`)
+        console.log(`[STEP 8] [WARN] Active file missing indigo ring - classes: ${classList}`)
       }
 
       // Check for "Processing" badge
       const processingBadge = batchCurrentFile.locator('text=/Processing/i')
       if (await processingBadge.isVisible({ timeout: 1000 }).catch(() => false)) {
-        console.log(`[STEP 8] ✅ "Processing" badge visible on active file`)
+        console.log(`[STEP 8] [PASS] "Processing" badge visible on active file`)
       }
 
       await captureScreenshot(page, '10-active-file-highlighted', `Processing: "${fileName}"`)
     } else {
-      console.log('[STEP 8] ⚠️  No file with data-batch-current="true" found')
+      console.log('[STEP 8] [WARN] No file with data-batch-current="true" found')
 
       // Fallback: Check for any batch member files
       const batchMembers = await page.locator('[data-component="file-card"][data-batch-member="true"]').count()
@@ -329,12 +329,12 @@ test.describe('Batch Split and Transcribe Workflow', () => {
       // Check if file count changed (shouldn't during batch)
       const currentFileCount = await page.locator('[data-component="file-card"]').count()
       if (currentFileCount !== lastFileCount) {
-        console.log(`[STEP 9] ⚠️  File count changed from ${lastFileCount} to ${currentFileCount}`)
+        console.log(`[STEP 9] [WARN] File count changed from ${lastFileCount} to ${currentFileCount}`)
         lastFileCount = currentFileCount
       }
     }
 
-    console.log(`[STEP 9] ✅ Monitored batch processing - ${completedCount} files completed`)
+    console.log(`[STEP 9] [PASS] Monitored batch processing - ${completedCount} files completed`)
 
     // STEP 10: Look for completion notification
     console.log('\n[STEP 10] Checking for batch completion notifications...')
@@ -348,10 +348,10 @@ test.describe('Batch Split and Transcribe Workflow', () => {
 
     if (await completionToast.isVisible({ timeout: 10_000 }).catch(() => false)) {
       const toastMessage = await completionToast.innerText()
-      console.log(`[STEP 10] ✅ Completion notification found: "${toastMessage}"`)
+      console.log(`[STEP 10] [PASS] Completion notification found: "${toastMessage}"`)
       await captureScreenshot(page, '12-completion-notification', 'Batch completion notification')
     } else {
-      console.log('[STEP 10] ⚠️  No completion notification detected (may complete after test ends)')
+      console.log('[STEP 10] [WARN] No completion notification detected (may complete after test ends)')
       await captureScreenshot(page, '12-no-completion-notification', 'No completion notification visible')
     }
 
@@ -365,12 +365,12 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     // 1. File list should have source + chunks
     const finalFileCount = await page.locator('[data-component="file-card"]').count()
     expect(finalFileCount).toBeGreaterThanOrEqual(expectedChunkCount + 1)
-    console.log(`✅ File list contains ${finalFileCount} files (expected >= ${expectedChunkCount + 1})`)
+    console.log(`[PASS] File list contains ${finalFileCount} files (expected >= ${expectedChunkCount + 1})`)
 
     // 2. Verify batch members are tagged correctly
     const batchMemberCount = await page.locator('[data-component="file-card"][data-batch-member="true"]').count()
     expect(batchMemberCount).toBeGreaterThanOrEqual(expectedChunkCount)
-    console.log(`✅ ${batchMemberCount} files marked as batch members`)
+    console.log(`[PASS] ${batchMemberCount} files marked as batch members`)
 
     // 3. Check if any file is still processing or if all completed
     const stillProcessing = await page.locator('[data-component="file-card"][data-batch-current="true"]').count()
@@ -383,16 +383,16 @@ test.describe('Batch Split and Transcribe Workflow', () => {
 
     // At least one file should have completed or be processing
     expect(processingStatus + completedStatus).toBeGreaterThan(0)
-    console.log(`✅ Transcription activity detected (${processingStatus + completedStatus} files)`)
+    console.log(`[PASS] Transcription activity detected (${processingStatus + completedStatus} files)`)
 
     // 4. Verify selected file exists and is part of batch
     const selectedFileCount = await page.locator('[data-component="file-card"][data-selected="true"]').count()
     if (selectedFileCount > 0) {
       const selectedFile = page.locator('[data-component="file-card"][data-selected="true"]').first()
       const isSelectedBatchMember = await selectedFile.getAttribute('data-batch-member')
-      console.log(`✅ Selected file exists (batch-member: ${isSelectedBatchMember})`)
+      console.log(`[PASS] Selected file exists (batch-member: ${isSelectedBatchMember})`)
     } else {
-      console.log(`⚠️  No file is currently selected`)
+      console.log(`[WARN] No file is currently selected`)
     }
 
     // 5. Source file should still be present
@@ -400,16 +400,16 @@ test.describe('Batch Split and Transcribe Workflow', () => {
       hasText: /source-audio-for-split/i
     })
     await expect(sourceFile).toBeVisible()
-    console.log('✅ Source audio file is still present in list')
+    console.log('[PASS] Source audio file is still present in list')
 
     // CLEANUP: Delete project
     console.log('\n[CLEANUP] Deleting test project...')
 
     const deleteResp = await page.request.delete(`${API_BASE_URL}/api/upload/project/${projectId}`)
     if (deleteResp.ok()) {
-      console.log('[CLEANUP] ✅ Test project deleted')
+      console.log('[CLEANUP] [PASS] Test project deleted')
     } else {
-      console.log(`[CLEANUP] ⚠️  Failed to delete project: ${deleteResp.status()}`)
+      console.log(`[CLEANUP] [WARN] Failed to delete project: ${deleteResp.status()}`)
     }
 
     console.log('\n=== BATCH SPLIT & TRANSCRIBE TEST COMPLETE ===')
@@ -432,7 +432,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     await splash.waitFor({ state: 'detached', timeout: 30_000 })
 
     // Create project
-    const createButton = page.getByRole('button', { name: /new project|create.*project/i })
+    const createButton = page.getByRole('button', { name: 'Create Audio Project' })
     await createButton.click()
 
     const projectName = `Batch Error Test ${Date.now()}`
@@ -475,7 +475,7 @@ test.describe('Batch Split and Transcribe Workflow', () => {
     const initialFileCount = await page.locator('[data-component="file-card"]').count()
     expect(initialFileCount).toBe(1)
 
-    console.log('[TEST] ✅ UI remains stable with single file')
+    console.log('[TEST] [PASS] UI remains stable with single file')
     await captureScreenshot(page, 'error-test-stable-ui', 'UI stable after error scenario')
 
     // Cleanup

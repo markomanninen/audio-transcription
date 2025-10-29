@@ -68,6 +68,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **If you create files in wrong locations, the user will be justifiably angry. Follow these rules religiously.**
 
+## ⚠️  CRITICAL: AI Assistant Guidelines
+
+### Production Readiness Assessments
+
+**ABSOLUTE RULE: AI assistants MUST NEVER claim or assess production readiness.**
+
+❌ **FORBIDDEN Statements:**
+
+- "The system is production-ready"
+- "This is ready for production deployment"
+- "Tests are production-ready"
+- "The application is ready for release"
+- Any definitive claims about production suitability
+
+✅ **APPROPRIATE Statements:**
+
+- "The documentation appears comprehensive"
+- "The testing procedures seem well-structured"
+- "The project demonstrates testing practices"
+- "Based on the documentation reviewed..."
+- "This would require human evaluation to determine..."
+
+### Human Judgment Requirements
+
+**Production readiness determinations MUST be left to humans. No exceptions.**
+
+Only humans can assess:
+
+- System reliability under real-world conditions
+- Security implications and risk tolerance
+- Performance requirements and thresholds
+- Business requirements and acceptance criteria
+- Regulatory compliance needs
+- Operational readiness and support capabilities
+
+### Appropriate AI Role
+
+AI assistants should:
+
+- ✅ Analyze and summarize documentation
+- ✅ Identify testing procedures and patterns
+- ✅ Point out potential areas for review
+- ✅ Suggest best practices and improvements
+- ❌ **NEVER** make production readiness judgments
+- ❌ **NEVER** claim systems are "ready" for any deployment scenario
+
+> **Remember: Technical documentation analysis ≠ Production readiness assessment**
+
+### Icon Usage Policy
+
+**STRICT RULE: Minimize icon usage throughout the codebase.**
+
+❌ **ABSOLUTELY FORBIDDEN:**
+
+- Icons in backend code (Python files, comments, docstrings, logs)
+- Icons in backend tests, configuration files, or documentation
+- Icons in API responses, error messages, or database content
+- Excessive icons in frontend code or components
+
+✅ **FRONTEND: Use sparingly and only when necessary:**
+
+- Essential UI elements (close button: ×, menu: ☰)
+- Critical user feedback (error: !, success: ✓)
+- Functional buttons where text alone is insufficient
+
+**Rationale:** Icons can cause encoding issues, reduce readability in terminals, complicate debugging, and create inconsistent rendering across systems.
+
 ## Project Overview
 
 Docker-hosted audio interview transcription application with advanced editing capabilities. Users upload audio files, get automatic transcription with speaker recognition, edit text interactively, compare original vs edited versions, use AI for spell/grammar checking, and export to SRT, HTML, and PDF formats.

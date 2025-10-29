@@ -8,14 +8,14 @@ const path = require('path');
 const statusPath = path.join(__dirname, 'test-status.json');
 
 if (!fs.existsSync(statusPath)) {
-  console.error('❌ No test-status.json found. Run tests and update-test-status.js first.');
+  console.error('[ERROR] No test-status.json found. Run tests and update-test-status.js first.');
   process.exit(1);
 }
 
 const status = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
 const files = Object.keys(status).sort();
 
-console.log('\n📊 Current Test Status (All Files)\n');
+console.log('\n[STATS] Current Test Status (All Files)\n');
 console.log('─'.repeat(100));
 console.log('File'.padEnd(40), 'Last Run'.padEnd(23), 'Passed', 'Failed', 'Skipped', 'Total', 'Status');
 console.log('─'.repeat(100));

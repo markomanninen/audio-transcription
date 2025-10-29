@@ -63,7 +63,7 @@ test.describe('Progress Bar Continuous Updates', () => {
     // Skip project selector validation - just wait for modal to close
     await page.waitForTimeout(2000); // Give project time to be selected
 
-    console.log('[STEP 1] ✅ Project created\n');
+    console.log('[STEP 1] [PASS] Project created\n');
 
     // STEP 2: Upload 30-second audio file
     console.log('[STEP 2] Uploading 30-second audio file...');
@@ -76,7 +76,7 @@ test.describe('Progress Bar Continuous Updates', () => {
 
     await fileInput.setInputFiles(TEST_AUDIO_FILE);
     await page.waitForTimeout(2000);
-    console.log('[STEP 2] ✅ File uploaded\n');
+    console.log('[STEP 2] [PASS] File uploaded\n');
 
     const fileCard = page.locator('[data-component="file-card"]').first();
     await expect(fileCard).toBeVisible();
@@ -104,14 +104,14 @@ test.describe('Progress Bar Continuous Updates', () => {
     await startTranscriptionButton.click();
     await page.waitForTimeout(2000); // Wait for modal to close and transcription to start
 
-    console.log('[STEP 3] ✅ Transcription started with LARGE model\n');
+    console.log('[STEP 3] [PASS] Transcription started with LARGE model\n');
 
     // STEP 3.5: SELECT the file to see progress in right panel
     console.log('[STEP 3.5] Selecting file to view progress...');
     await fileCard.click();
     await page.waitForTimeout(1000); // Wait for right panel to appear
     await page.screenshot({ path: `test-results/01-file-selected.png`, fullPage: true });
-    console.log('[STEP 3.5] ✅ File selected, progress panel should be visible\n');
+    console.log('[STEP 3.5] [PASS] File selected, progress panel should be visible\n');
 
     // STEP 4: Monitor progress bar continuously
     console.log('[STEP 4] Monitoring progress bar (max 5 minutes)...\n');
@@ -142,14 +142,14 @@ test.describe('Progress Bar Continuous Updates', () => {
           // Take screenshot when progress bar disappears to debug the issue
           if (elapsed === 0) {
             await page.screenshot({ path: `test-results/00-progress-panel-missing-initial.png`, fullPage: true });
-            console.log(`[${elapsed}s] ⚠️  DEBUG: Progress panel not visible at start - screenshot saved`);
+            console.log(`[${elapsed}s] [WARN] DEBUG: Progress panel not visible at start - screenshot saved`);
           }
 
           // Check if transcription completed
           const status = await fileCard.getAttribute('data-status');
           if (status === 'completed') {
             finalStatus = 'completed';
-            console.log(`\n[${elapsed}s] ✅ Transcription COMPLETED`);
+            console.log(`\n[${elapsed}s] [PASS] Transcription COMPLETED`);
             await page.screenshot({ path: `test-results/05-transcription-completed.png`, fullPage: true });
             break;
           } else if (status === 'failed') {
@@ -162,14 +162,14 @@ test.describe('Progress Bar Continuous Updates', () => {
             // Progress bar disappeared but not completed!
             progressBarDisappeared = true;
             errors.push(`Progress bar disappeared at ${elapsed}s but status is ${status}`);
-            console.log(`\n[${elapsed}s] ⚠️  PROGRESS BAR DISAPPEARED (status: ${status})`);
+            console.log(`\n[${elapsed}s] [WARN] PROGRESS BAR DISAPPEARED (status: ${status})`);
           }
         }
 
         // Extract current progress percentage from the progress panel
         const panelText = await progressPanel.textContent({ timeout: 1000 }).catch(() => '');
-        const progressMatch = panelText.match(/(\d+(?:\.\d+)?)\s*%/);
-        const stageMatch = panelText.match(/Transcribing audio[^)]*\)|Stage:[^)]*\)|Loading[^)]*\)|Creating[^)]*\)|.*(?:complete|model|processing)/i);
+        const progressMatch = panelText?.match(/(\d+(?:\.\d+)?)\s*%/);
+        const stageMatch = panelText?.match(/Transcribing audio[^)]*\)|Stage:[^)]*\)|Loading[^)]*\)|Creating[^)]*\)|.*(?:complete|model|processing)/i);
 
         if (progressMatch) {
           const currentProgress = parseFloat(progressMatch[1]);
@@ -211,7 +211,7 @@ test.describe('Progress Bar Continuous Updates', () => {
           // Check for stuck progress (more than 30 seconds at same value)
           if (sameProgressCount > 30) {
             errors.push(`Progress stuck at ${currentProgress}% for ${sameProgressCount} seconds`);
-            console.log(`\n⚠️  WARNING: Progress stuck at ${currentProgress}% for ${sameProgressCount}s`);
+            console.log(`\n[WARN] WARNING: Progress stuck at ${currentProgress}% for ${sameProgressCount}s`);
           }
         }
 
@@ -257,15 +257,15 @@ test.describe('Progress Bar Continuous Updates', () => {
 
     // 1. Should have received multiple progress updates
     expect(progressStages.length).toBeGreaterThan(3);
-    console.log('✅ Received multiple progress updates');
+    console.log('[PASS] Received multiple progress updates');
 
     // 2. Progress bar should NOT disappear before completion
     expect(progressBarDisappeared).toBe(false);
-    console.log('✅ Progress bar remained visible throughout');
+    console.log('[PASS] Progress bar remained visible throughout');
 
     // 3. Should complete successfully
     expect(finalStatus).toBe('completed');
-    console.log('✅ Transcription completed successfully');
+    console.log('[PASS] Transcription completed successfully');
 
     // 4. Progress should increase monotonically (allow small fluctuations)
     let nonIncreasing = 0;
@@ -275,27 +275,27 @@ test.describe('Progress Bar Continuous Updates', () => {
       }
     }
     expect(nonIncreasing).toBeLessThan(2); // Allow max 1 decrease
-    console.log('✅ Progress increases monotonically');
+    console.log('[PASS] Progress increases monotonically');
 
     // 5. Should NOT get stuck for more than 30 seconds
     expect(maxStuck).toBeLessThan(30);
-    console.log(`✅ Progress never stuck (max ${maxStuck}s at same value)`);
+    console.log(`[PASS] Progress never stuck (max ${maxStuck}s at same value)`);
 
     // 6. Should show real percentages (not just time-based "finalizing")
     const hasRealPercentages = progressStages.some(s =>
       /\d+%\s+complete/i.test(s.stage) || s.percent > 0
     );
     expect(hasRealPercentages).toBe(true);
-    console.log('✅ Shows real progress percentages');
+    console.log('[PASS] Shows real progress percentages');
 
     // 7. Should NOT have errors
     expect(errors.length).toBe(0);
-    console.log('✅ No errors encountered');
+    console.log('[PASS] No errors encountered');
 
     // 8. Should reach near 100% before completion
     const maxProgress = Math.max(...progressStages.map(s => s.percent));
     expect(maxProgress).toBeGreaterThan(85);
-    console.log(`✅ Reached ${maxProgress.toFixed(1)}% before completion`);
+    console.log(`[PASS] Reached ${maxProgress.toFixed(1)}% before completion`);
 
     console.log('\n========================================');
     console.log('🎉 ALL UI TESTS PASSED!');
@@ -310,7 +310,8 @@ test.describe('Progress Bar Continuous Updates', () => {
     console.log(`File ID: ${fileId}`);
 
     // Call transcription status API
-    const apiResponse = await page.request.get(`http://localhost:3000/api/transcription/${fileId}/status`);
+    const apiBaseUrl = process.env.API_BASE_URL || 'http://127.0.0.1:18200';
+    const apiResponse = await page.request.get(`${apiBaseUrl}/api/transcription/${fileId}/status`);
     expect(apiResponse.ok()).toBe(true);
 
     const apiData = await apiResponse.json();
@@ -323,13 +324,13 @@ test.describe('Progress Bar Continuous Updates', () => {
     expect(apiData.status).toBe('completed');
     expect(apiData.progress).toBeGreaterThanOrEqual(1.0);
     expect(apiData.segment_count).toBeGreaterThan(0);
-    console.log('\n✅ API data matches UI state');
+    console.log('\n[PASS] API data matches UI state');
 
     // STEP 7: DATABASE VERIFICATION
     console.log('\n[STEP 7] Verifying database state...\n');
 
     // Use API to query backend database state
-    const filesResponse = await page.request.get(`http://localhost:3000/api/upload/files/1`); // Assuming project ID 1
+    const filesResponse = await page.request.get(`${apiBaseUrl}/api/upload/files/1`); // Assuming project ID 1
     expect(filesResponse.ok()).toBe(true);
 
     const filesData = await filesResponse.json();
@@ -343,12 +344,12 @@ test.describe('Progress Bar Continuous Updates', () => {
     console.log(`  Error message: ${ourFile.error_message || 'none'}`);
 
     expect(ourFile.status).toBe('completed');
-    console.log('\n✅ Database state verified');
+    console.log('\n[PASS] Database state verified');
 
     // STEP 8: SEGMENTS VERIFICATION
     console.log('\n[STEP 8] Verifying segments created...\n');
 
-    const segmentsResponse = await page.request.get(`http://localhost:3000/api/transcription/${fileId}/segments`);
+    const segmentsResponse = await page.request.get(`${apiBaseUrl}/api/transcription/${fileId}/segments`);
     expect(segmentsResponse.ok()).toBe(true);
 
     const segments = await segmentsResponse.json();
@@ -370,7 +371,7 @@ test.describe('Progress Bar Continuous Updates', () => {
       expect(firstSegment.original_text.length).toBeGreaterThan(0);
     }
 
-    console.log('\n✅ Segments verified');
+    console.log('\n[PASS] Segments verified');
 
     console.log('\n========================================');
     console.log('🎉 ALL TESTS PASSED (UI + API + DB)!');
@@ -420,19 +421,19 @@ test.describe('Progress Bar Continuous Updates', () => {
         const cardText = await fileCard.textContent({ timeout: 1000 }).catch(() => '');
 
         // Extract stage information
-        if (cardText.includes('Loading') || cardText.includes('loading')) {
+        if (cardText?.includes('Loading') || cardText?.includes('loading')) {
           if (!seenStages.includes('loading')) {
             seenStages.push('loading');
             console.log(`✓ Stage: Model loading`);
           }
         }
-        if (cardText.includes('Transcribing') || cardText.includes('transcribing')) {
+        if (cardText?.includes('Transcribing') || cardText?.includes('transcribing')) {
           if (!seenStages.includes('transcribing')) {
             seenStages.push('transcribing');
             console.log(`✓ Stage: Transcribing audio`);
           }
         }
-        if (cardText.includes('Creating') || cardText.includes('segments')) {
+        if (cardText?.includes('Creating') || cardText?.includes('segments')) {
           if (!seenStages.includes('creating')) {
             seenStages.push('creating');
             console.log(`✓ Stage: Creating segments`);
@@ -459,6 +460,6 @@ test.describe('Progress Bar Continuous Updates', () => {
     expect(seenStages.length).toBeGreaterThanOrEqual(2);
     expect(seenStages).toContain('transcribing');
 
-    console.log('✅ All expected stages observed\n');
+    console.log('[PASS] All expected stages observed\n');
   });
 });

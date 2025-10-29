@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSplitAndBatchTranscribe } from '../../hooks/useTranscription'
 import { useToast } from '../../hooks/useToast'
 
@@ -51,19 +51,63 @@ export default function SplitBatchDialog({
   projectId,
   onBatchBegin,
 }: SplitBatchDialogProps) {
-  const [chunkDurationMinutes, setChunkDurationMinutes] = useState<number>(10)
-  const [overlapSeconds, setOverlapSeconds] = useState<number>(0)
-  const [startTranscription, setStartTranscription] = useState<boolean>(true)
-  const [includeDiarization, setIncludeDiarization] = useState<boolean>(true)
-  const [modelSize, setModelSize] = useState<string>('')
-  const [language, setLanguage] = useState<string>('')
+  const [chunkDurationMinutes, setChunkDurationMinutes] = useState(5)
+  const [overlapSeconds, setOverlapSeconds] = useState(10)
+  const [language, setLanguage] = useState('')
+  const [modelSize, setModelSize] = useState('medium') // Default to medium for better testing
+  const [startTranscription, setStartTranscription] = useState(true)
+  const [includeDiarization, setIncludeDiarization] = useState(false)
+
   const splitMutation = useSplitAndBatchTranscribe(projectId)
   const { success, error } = useToast()
+  const mouseDownTargetRef = useRef<EventTarget | null>(null)
 
-  const handleClose = () => {
-    if (splitMutation.isPending) return
-    onClose()
-  }
+  // Load saved settings from localStorage when dialog opens
+  useEffect(() => {
+    if (open) {
+      try {
+        const savedSettings = localStorage.getItem('lastUsedTranscriptionSettings')
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings)
+          setLanguage(settings.language === 'auto' ? '' : settings.language || '')
+          setModelSize(settings.model_size || 'medium')
+          setIncludeDiarization(settings.use_diarization || false)
+        }
+      } catch (error) {
+        console.warn('Failed to load saved transcription settings:', error)
+      }
+    }
+  }, [open])
+
+  const handleClose = useCallback(() => {
+    if (!splitMutation.isPending) {
+      onClose()
+    }
+  }, [splitMutation.isPending, onClose])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = 'unset'
+      }
+    }
+  }, [open])
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && open) {
+        handleClose()
+      }
+    }
+
+    if (open) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open, handleClose])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -115,9 +159,33 @@ export default function SplitBatchDialog({
 
   if (!open) return null
 
+  const handleBackdropMouseDown = (event: React.MouseEvent) => {
+    // Record where the mouse down started
+    mouseDownTargetRef.current = event.target
+  }
+
+  const handleBackdropMouseUp = (event: React.MouseEvent) => {
+    // Only close if both mouse down and mouse up happened on the backdrop
+    if (
+      event.target === event.currentTarget && 
+      mouseDownTargetRef.current === event.currentTarget
+    ) {
+      handleClose()
+    }
+    // Reset the ref
+    mouseDownTargetRef.current = null
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg p-6 max-w-lg w-full mx-4 border border-border shadow-lg">
+    <div 
+      className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50"
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
+    >
+      <div 
+        className="bg-card rounded-lg p-6 max-w-lg w-full mx-4 border border-border shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold mb-1">Split Audio & Batch Transcribe</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Configure how to split <span className="font-medium">{fileName}</span> into manageable chunks.

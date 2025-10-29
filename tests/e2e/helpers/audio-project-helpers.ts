@@ -43,7 +43,7 @@ export async function setupAudioProject(page: Page, projectName?: string) {
   const projectSelect = page.getByRole('banner').getByRole('combobox')
 
   // Wait for the new project to appear as an option in the dropdown
-  // Note: Project names in dropdown have emoji prefix like "🎙️ Test Project 123"
+  // Note: Project names in dropdown have prefix like "[PROJECT] Test Project 123"
   await page.waitForFunction(
     (projectName) => {
       const select = document.querySelector('select[class*="block w-full"]') as HTMLSelectElement
@@ -56,8 +56,8 @@ export async function setupAudioProject(page: Page, projectName?: string) {
       const options = Array.from(select.options)
       const projectOption = options.find(opt => {
         const text = opt.textContent || ''
-        // Remove emoji and check if it contains our project name
-        const cleanText = text.replace(/🎙️\s*/, '')
+        // Remove prefix and check if it contains our project name
+        const cleanText = text.replace(/\[PROJECT\]\s*/, '')
         return cleanText.includes(projectName)
       })
 

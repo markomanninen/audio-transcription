@@ -266,6 +266,6 @@ def seed_e2e_data() -> None:
         session.add(pending_file)
 
         session.commit()
-        print("✅ Seeded E2E sample project with completed and pending audio files.")
+        print("Seeded E2E sample project with completed and pending audio files.")
     finally:
         session.close()

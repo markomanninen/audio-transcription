@@ -75,7 +75,7 @@ class TranscriptionService:
         if not configured:
             if configured_raw:
                 logger.warning(
-                    f"⚠️ Invalid WHISPER_MODEL_SIZE '{configured_raw}'. Falling back to 'base'."
+                    f"Invalid WHISPER_MODEL_SIZE '{configured_raw}'. Falling back to 'base'."
                 )
             configured = "base"
 
@@ -84,7 +84,7 @@ class TranscriptionService:
         if not override_normalized:
             if override_raw and override_raw != configured:
                 logger.warning(
-                    f"⚠️ Invalid Whisper model override '{override_raw}'. Falling back to configured default '{configured}'."
+                    f"Invalid Whisper model override '{override_raw}'. Falling back to configured default '{configured}'."
                 )
             override_normalized = configured
 
@@ -176,20 +176,20 @@ class TranscriptionService:
         active_model = (model_size or self.model_size).lower()
         
         if available_gb < 2.0:
-            recommendations.append("⚠️ Low memory detected. Consider using 'tiny' model or closing other applications.")
+            recommendations.append("Low memory detected. Consider using 'tiny' model or closing other applications.")
         elif available_gb < 4.0 and active_model in ["medium", "large"]:
-            recommendations.append("💡 Consider using 'base' or 'small' model for better performance.")
+            recommendations.append("Consider using 'base' or 'small' model for better performance.")
             
         if cpu_percent > 80:
-            recommendations.append("🔥 High CPU usage detected. Close other applications for better performance.")
+            recommendations.append("High CPU usage detected. Close other applications for better performance.")
             
         if self.device == "cpu" and available_gb > 8:
             try:
                 import torch
                 if torch.cuda.is_available():
-                    recommendations.append("🚀 GPU acceleration available but not used. Set WHISPER_DEVICE=cuda for better performance.")
+                    recommendations.append("GPU acceleration available but not used. Set WHISPER_DEVICE=cuda for better performance.")
                 elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-                    recommendations.append("🚀 Apple Silicon GPU available but not used. Set WHISPER_DEVICE=mps for better performance.")
+                    recommendations.append("Apple Silicon GPU available but not used. Set WHISPER_DEVICE=mps for better performance.")
             except:
                 pass
                 
@@ -469,20 +469,20 @@ class TranscriptionService:
         Returns:
             Action result with details
         """
-        logger.info(f"🎯 Starting smart transcription action '{action}' for file {audio_file_id}")
+        logger.info(f"Starting smart transcription action '{action}' for file {audio_file_id}")
         
         status = self.get_transcription_status(audio_file_id, db)
         
         if "error" in status:
-            logger.error(f"❌ Error getting status for file {audio_file_id}: {status['error']}")
+            logger.error(f"Error getting status for file {audio_file_id}: {status['error']}")
             return status
         
-        logger.info(f"📊 Current status: {status['status']}, progress: {status['progress']*100:.1f}%, segments: {status['segments_created']}")
+        logger.info(f"Current status: {status['status']}, progress: {status['progress']*100:.1f}%, segments: {status['segments_created']}")
 
         # Auto-decide action based on current state
         if action == "auto":
             if status["status"] == "COMPLETED":
-                logger.info(f"✅ File {audio_file_id} already completed with {status['segments_created']} segments")
+                logger.info(f"File {audio_file_id} already completed with {status['segments_created']} segments")
                 return {
                     "action": "already_complete",
                     "message": f"Transcription already completed with {status['segments_created']} segments",
@@ -496,14 +496,14 @@ class TranscriptionService:
                 logger.info(f"🔄 Auto-deciding to RESTART transcription (stuck or failed)")
             else:
                 action = "continue"
-                logger.info(f"▶️ Auto-deciding to CONTINUE transcription")
+                logger.info(f"Auto-deciding to CONTINUE transcription")
         
         # Execute the determined action
         if action == "resume":
             if status["can_resume"]:
-                logger.info(f"🚀 RESUMING transcription for file {audio_file_id}")
+                logger.info(f"RESUMING transcription for file {audio_file_id}")
                 segments = self.resume_or_transcribe_audio(audio_file_id, db, force_restart=False)
-                logger.info(f"✅ Resume completed with {len(segments)} total segments")
+                logger.info(f"Resume completed with {len(segments)} total segments")
                 return {
                     "action": "resumed",
                     "message": f"Resumed existing transcription with {len(segments)} segments",
@@ -511,9 +511,9 @@ class TranscriptionService:
                 }
             else:
                 # No segments to resume, start fresh
-                logger.info(f"📝 No segments to resume, starting fresh transcription for file {audio_file_id}")
+                logger.info(f"No segments to resume, starting fresh transcription for file {audio_file_id}")
                 segments = self.resume_or_transcribe_audio(audio_file_id, db, force_restart=False)
-                logger.info(f"✅ Fresh transcription completed with {len(segments)} segments")
+                logger.info(f"Fresh transcription completed with {len(segments)} segments")
                 return {
                     "action": "started_fresh",
                     "message": f"No segments to resume, started fresh transcription",
@@ -524,23 +524,23 @@ class TranscriptionService:
             logger.info(f"🔄 FORCE RESTARTING transcription for file {audio_file_id}")
             restart_result = self.force_restart_transcription(audio_file_id, db)
             if "error" not in restart_result:
-                logger.info(f"🗑️ Deleted {restart_result['deleted_segments']} existing segments")
-                logger.info(f"▶️ Starting fresh transcription...")
+                logger.info(f"Deleted {restart_result['deleted_segments']} existing segments")
+                logger.info(f"Starting fresh transcription...")
                 segments = self.resume_or_transcribe_audio(audio_file_id, db, force_restart=False)
-                logger.info(f"✅ Restart completed with {len(segments)} new segments")
+                logger.info(f"Restart completed with {len(segments)} new segments")
                 return {
                     "action": "restarted",
                     "message": f"Force restarted and completed transcription with {len(segments)} segments",
                     "deleted_segments": restart_result["deleted_segments"],
                     "new_segments": len(segments)
                 }
-            logger.error(f"❌ Restart failed: {restart_result}")
+            logger.error(f"Restart failed: {restart_result}")
             return restart_result
         
         elif action == "continue":
-            logger.info(f"▶️ CONTINUING transcription for file {audio_file_id}")
+            logger.info(f"CONTINUING transcription for file {audio_file_id}")
             segments = self.resume_or_transcribe_audio(audio_file_id, db, force_restart=False)
-            logger.info(f"✅ Continue completed with {len(segments)} total segments")
+            logger.info(f"Continue completed with {len(segments)} total segments")
             return {
                 "action": "continued",
                 "message": f"Continued transcription, created {len(segments)} segments",
@@ -548,7 +548,7 @@ class TranscriptionService:
             }
         
         else:
-            logger.error(f"❌ Unknown action: {action}")
+            logger.error(f"Unknown action: {action}")
             return {"error": f"Unknown action: {action}"}
 
     def resume_or_transcribe_audio(
@@ -651,7 +651,7 @@ class TranscriptionService:
         existing_segments = db.query(Segment).filter(Segment.audio_file_id == audio_file_id).all()
         
         if existing_segments and not force_restart:
-            transcription_logger.info(f"🚀 RESUMING: Found {len(existing_segments)} existing segments - no re-processing needed!")
+            transcription_logger.info(f"RESUMING: Found {len(existing_segments)} existing segments - no re-processing needed!")
             audio_file.transcription_status = TranscriptionStatus.COMPLETED
             audio_file.transcription_progress = 1.0
             audio_file.error_message = None
@@ -706,12 +706,12 @@ class TranscriptionService:
                     normalized_requested = normalize_model_name(requested_model_size)
                     
                     if not normalized_requested:
-                        logger.warning(f"⚠️ Requested model '{requested_model_size}' is not supported. Falling back to '{self.model_size}'.")
+                        logger.warning(f"Requested model '{requested_model_size}' is not supported. Falling back to '{self.model_size}'.")
                         file_model_size = self.model_size
                     else:
                         file_model_size = normalized_requested
                         if file_model_size != self.model_size:
-                            logger.info(f"ℹ️ Using user-selected Whisper model '{file_model_size}' (default configured model: '{self.model_size}').")
+                            logger.info(f"Using user-selected Whisper model '{file_model_size}' (default configured model: '{self.model_size}').")
                     
                     logger.info(f"Using system settings: model_size={file_model_size}, language={file_language}, diarization={include_diarization}")
                 except (json.JSONDecodeError, KeyError) as e:
@@ -814,7 +814,7 @@ class TranscriptionService:
 
                 if available_memory_gb < required_memory:
                     logger.warning(
-                        f"⚠️ Low memory: {available_memory_gb:.1f}GB available, {required_memory}GB recommended for {file_model_size} model"
+                        f"Low memory: {available_memory_gb:.1f}GB available, {required_memory}GB recommended for {file_model_size} model"
                     )
 
             except Exception as e:
@@ -824,7 +824,7 @@ class TranscriptionService:
             try:
                 model_to_use = self.load_model(file_model_size)
             except Exception as e:
-                logger.error(f"❌ Failed to load Whisper model '{file_model_size}': {e}")
+                logger.error(f"Failed to load Whisper model '{file_model_size}': {e}")
                 raise RuntimeError(f"Failed to load Whisper model '{file_model_size}': {e}")
 
             audio_file.whisper_model_loaded = file_model_size
@@ -1026,7 +1026,7 @@ class TranscriptionService:
                 try:
                     if os.path.exists(audio_file.audio_transformation_path):
                         os.remove(audio_file.audio_transformation_path)
-                        transcription_logger.info(f"🗑️  Cleaned up converted file: {audio_file.audio_transformation_path}")
+                        transcription_logger.info(f" Cleaned up converted file: {audio_file.audio_transformation_path}")
                 except Exception as cleanup_error:
                     transcription_logger.warning(f"Failed to clean up converted file: {cleanup_error}")
 
@@ -1065,7 +1065,7 @@ class TranscriptionService:
                 try:
                     if os.path.exists(audio_file.audio_transformation_path):
                         os.remove(audio_file.audio_transformation_path)
-                        transcription_logger.info(f"🗑️  Cleaned up converted file after failure: {audio_file.audio_transformation_path}")
+                        transcription_logger.info(f" Cleaned up converted file after failure: {audio_file.audio_transformation_path}")
                 except Exception as cleanup_error:
                     transcription_logger.warning(f"Failed to clean up converted file: {cleanup_error}")
 

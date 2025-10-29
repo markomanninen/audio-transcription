@@ -222,7 +222,8 @@ class AudioService:
         if chunk_duration_ms >= total_duration_ms:
             raise ValueError("Chunk duration covers the entire audio; splitting not required.")
 
-        extension = Path(file_path).suffix.lower().lstrip(".") or "wav"
+        # Force use wav format for chunks to avoid FFmpeg codec issues
+        extension = "wav"
         original_stem = Path(file_path).stem
 
         chunks: List[Dict[str, Any]] = []

@@ -133,7 +133,7 @@ test.describe('Transcription Completion Status Updates', () => {
     const segmentCountAttr = await segmentLocator.getAttribute('data-segment-count')
     const segmentCount = segmentCountAttr ? parseInt(segmentCountAttr, 10) : 0
 
-    console.log(`✅ Transcription completed successfully with ${segmentCount} segments`)
+    console.log(`[PASS] Transcription completed successfully with ${segmentCount} segments`)
   })
 
   test('force-restart shows processing then updates to completed correctly', async ({ page }) => {
@@ -164,7 +164,7 @@ test.describe('Transcription Completion Status Updates', () => {
     const restartCardStatus = (await fileCard.getAttribute('data-status')) ?? 'pending'
     expect(ACTIVE_STATUSES).toContain(restartCardStatus)
 
-    console.log('✅ Status correctly shows processing after force-restart')
+    console.log('[PASS] Status correctly shows processing after force-restart')
 
     // Wait for transcription to complete (up to 2 minutes)
     await expect(fileCard.getByText(/completed/i)).toBeVisible({ timeout: 120000 })
@@ -199,7 +199,7 @@ test.describe('Transcription Completion Status Updates', () => {
     )
     expect(hasPendingAfterRestart).toBe(false)
 
-    console.log(`✅ Force-restart completed without showing 'pending' status`)
+    console.log(`[PASS] Force-restart completed without showing 'pending' status`)
   })
 
   test('status remains consistent during page refresh', async ({ page }) => {
@@ -239,7 +239,7 @@ test.describe('Transcription Completion Status Updates', () => {
     const refreshedPanelStatus = await waitForPanelStatus(page, refreshedStatusPanel, 30000)
     expect(refreshedPanelStatus).toBe('completed')
 
-    console.log('✅ Status remained consistent after page refresh')
+    console.log('[PASS] Status remained consistent after page refresh')
   })
 
   test('no console errors during status transitions', async ({ page }) => {
@@ -276,6 +276,6 @@ test.describe('Transcription Completion Status Updates', () => {
 
     expect(criticalErrors.length).toBe(0)
 
-    console.log('✅ No console errors during status transitions')
+    console.log('[PASS] No console errors during status transitions')
   })
 })

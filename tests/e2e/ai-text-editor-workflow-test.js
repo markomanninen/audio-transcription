@@ -126,7 +126,7 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
     await page.goto(frontendUrl);
     await page.waitForLoadState('networkidle');
     await page.screenshot({ path: path.join(screenshotDir, '01-app-loaded.png'), fullPage: true });
-    console.log('✅ App loaded');
+    console.log('[PASS] App loaded');
     console.log('📸 Screenshot: 01-app-loaded.png\n');
 
     // Step 2: Handle tutorial if present
@@ -138,9 +138,9 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
       console.log('   Tutorial found, skipping...');
       await skipTutorialBtn.click();
       await page.waitForTimeout(500);
-      console.log('✅ Tutorial skipped\n');
+      console.log('[PASS] Tutorial skipped\n');
     } else {
-      console.log('⏭️  No tutorial found\n');
+      console.log('[SKIP] No tutorial found\n');
     }
 
     // Step 2a: Navigate to the text editor workspace
@@ -187,10 +187,10 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
       await projectTypeSelect.selectOption('text');
       await page.waitForTimeout(300);
       await page.screenshot({ path: path.join(screenshotDir, '02a-text-project-selected.png'), fullPage: true });
-      console.log('✅ Text project type selected');
+      console.log('[PASS] Text project type selected');
       console.log('📸 Screenshot: 02a-text-project-selected.png');
     } else {
-      console.log('⚠️  No project type selector found, may be using default');
+      console.log('[WARN] No project type selector found, may be using default');
     }
 
     // Fill project details
@@ -234,7 +234,7 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
     }
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '03-text-project-created.png'), fullPage: true });
-    console.log('✅ Text project created');
+    console.log('[PASS] Text project created');
     console.log('📸 Screenshot: 03-text-project-created.png\n');
 
     const editorNavigation = await editorNavigationPromise;
@@ -339,7 +339,7 @@ async function fetchLatestProjectId(request, backendUrl, projectName) {
         }
       }
       await page.screenshot({ path: path.join(screenshotDir, '04-editor-opened.png'), fullPage: true });
-      console.log('✅ Editor page opened');
+      console.log('[PASS] Editor page opened');
       console.log('📸 Screenshot: 04-editor-opened.png\n');
     } else {
       throw new Error('Could not open editor page');
@@ -377,7 +377,7 @@ The future of AI holds immense potential for solving complex problems and improv
     await textArea.fill(initialText);
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '05-initial-text-entered.png'), fullPage: true });
-    console.log('✅ Initial text entered');
+    console.log('[PASS] Initial text entered');
     console.log('📸 Screenshot: 05-initial-text-entered.png\n');
 
     // ============================================
@@ -396,10 +396,10 @@ The future of AI holds immense potential for solving complex problems and improv
       await saveVersionBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(screenshotDir, '06-version-saved.png'), fullPage: true });
-      console.log('✅ Version saved');
+      console.log('[PASS] Version saved');
       console.log('📸 Screenshot: 06-version-saved.png\n');
     } else {
-      console.log('⚠️  Save version button not found, continuing...\n');
+      console.log('[WARN] Save version button not found, continuing...\n');
     }
 
     // Step 7: Make changes to the text
@@ -409,7 +409,7 @@ The future of AI holds immense potential for solving complex problems and improv
     await textArea.fill(editedText);
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '07-text-edited.png'), fullPage: true });
-    console.log('✅ Text edited');
+    console.log('[PASS] Text edited');
     console.log('📸 Screenshot: 07-text-edited.png\n');
 
     // Step 8: Save second version
@@ -418,7 +418,7 @@ The future of AI holds immense potential for solving complex problems and improv
       await saveVersionBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(screenshotDir, '08-second-version-saved.png'), fullPage: true });
-      console.log('✅ Second version saved');
+      console.log('[PASS] Second version saved');
       console.log('📸 Screenshot: 08-second-version-saved.png\n');
     }
 
@@ -431,7 +431,7 @@ The future of AI holds immense potential for solving complex problems and improv
 
     if (hasHistory) {
       await page.screenshot({ path: path.join(screenshotDir, '09-version-history-visible.png'), fullPage: true });
-      console.log('✅ Version history panel visible');
+      console.log('[PASS] Version history panel visible');
       console.log('📸 Screenshot: 09-version-history-visible.png\n');
 
       // Try to rollback to previous version
@@ -443,7 +443,7 @@ The future of AI holds immense potential for solving complex problems and improv
         await rollbackBtn.click();
         await page.waitForTimeout(500);
         await page.screenshot({ path: path.join(screenshotDir, '09a-rolled-back.png'), fullPage: true });
-        console.log('✅ Rolled back to previous version');
+        console.log('[PASS] Rolled back to previous version');
         console.log('📸 Screenshot: 09a-rolled-back.png\n');
 
         // Restore the edited version
@@ -451,7 +451,7 @@ The future of AI holds immense potential for solving complex problems and improv
         await page.waitForTimeout(300);
       }
     } else {
-      console.log('⚠️  Version history not visible\n');
+      console.log('[WARN] Version history not visible\n');
     }
 
     // ============================================
@@ -476,14 +476,14 @@ The future of AI holds immense potential for solving complex problems and improv
       // Wait for results
       await page.waitForTimeout(3000);
       await page.screenshot({ path: path.join(screenshotDir, '10a-semantic-results.png'), fullPage: true });
-      console.log('✅ Semantic reconstruction completed');
+      console.log('[PASS] Semantic reconstruction completed');
       console.log('📸 Screenshot: 10a-semantic-results.png\n');
 
       const initialDiffViewer = page.getByTestId('ai-diff-viewer');
       const initialDiffVisible = await initialDiffViewer.isVisible({ timeout: 3000 }).catch(() => false);
       if (initialDiffVisible) {
         await page.screenshot({ path: path.join(screenshotDir, '10b-diff-view-initial.png'), fullPage: true });
-        console.log('✅ Diff viewer visible after semantic reconstruction');
+        console.log('[PASS] Diff viewer visible after semantic reconstruction');
         console.log('📸 Screenshot: 10b-diff-view-initial.png');
       } else {
         console.log('ℹ️  Diff viewer will be triggered again before validation.');
@@ -498,7 +498,7 @@ The future of AI holds immense potential for solving complex problems and improv
         await page.waitForTimeout(500);
       }
     } else {
-      console.log('⚠️  Semantic reconstruction button not found\n');
+      console.log('[WARN] Semantic reconstruction button not found\n');
     }
 
     // ============================================
@@ -541,7 +541,7 @@ The future of AI holds immense potential for solving complex problems and improv
 
           await page.waitForTimeout(3000);
           await page.screenshot({ path: path.join(screenshotDir, '11a-style-generated.png'), fullPage: true });
-          console.log('✅ Style generation completed');
+          console.log('[PASS] Style generation completed');
           console.log('📸 Screenshot: 11a-style-generated.png\n');
 
           // Dismiss suggestion again to keep editor controls active
@@ -554,10 +554,10 @@ The future of AI holds immense potential for solving complex problems and improv
           }
         }
       } else {
-        console.log('⚠️  Style selector stayed disabled; skipping style generation step.\n');
+        console.log('[WARN] Style selector stayed disabled; skipping style generation step.\n');
       }
     } else {
-      console.log('⚠️  Style generation not found\n');
+      console.log('[WARN] Style generation not found\n');
     }
 
     // ============================================
@@ -584,13 +584,13 @@ The future of AI holds immense potential for solving complex problems and improv
 
         await page.waitForTimeout(3000);
         await page.screenshot({ path: path.join(screenshotDir, '12a-nlp-results.png'), fullPage: true });
-        console.log('✅ NLP analysis completed');
+        console.log('[PASS] NLP analysis completed');
         console.log('📸 Screenshot: 12a-nlp-results.png\n');
       } else {
-        console.log('⚠️  NLP button stayed disabled; skipping NLP analysis step.\n');
+        console.log('[WARN] NLP button stayed disabled; skipping NLP analysis step.\n');
       }
     } else {
-      console.log('⚠️  NLP analysis button not found\n');
+      console.log('[WARN] NLP analysis button not found\n');
     }
 
     // ============================================
@@ -616,14 +616,14 @@ The future of AI holds immense potential for solving complex problems and improv
           diffViewer = page.getByTestId('ai-diff-viewer');
           hasDiff = await diffViewer.isVisible({ timeout: 2000 }).catch(() => false);
         } else {
-          console.log('⚠️  Semantic button stayed disabled; unable to re-trigger diff viewer.\n');
+          console.log('[WARN] Semantic button stayed disabled; unable to re-trigger diff viewer.\n');
         }
       }
     }
 
     if (hasDiff) {
       await page.screenshot({ path: path.join(screenshotDir, '13-diff-view.png'), fullPage: true });
-      console.log('✅ Diff viewer visible');
+      console.log('[PASS] Diff viewer visible');
       console.log('📸 Screenshot: 13-diff-view.png\n');
 
       // Look for accept/reject buttons
@@ -636,7 +636,7 @@ The future of AI holds immense potential for solving complex problems and improv
 
       if (hasAccept && hasReject) {
         await page.screenshot({ path: path.join(screenshotDir, '13a-suggestion-controls.png'), fullPage: true });
-        console.log('✅ Accept/Reject controls found');
+        console.log('[PASS] Accept/Reject controls found');
         console.log('📸 Screenshot: 13a-suggestion-controls.png\n');
 
         // Test reject
@@ -647,7 +647,7 @@ The future of AI holds immense potential for solving complex problems and improv
         console.log('📸 Screenshot: 13b-suggestion-rejected.png\n');
       }
     } else {
-      console.log('⚠️  Diff viewer not visible\n');
+      console.log('[WARN] Diff viewer not visible\n');
     }
 
     // ============================================
@@ -663,7 +663,7 @@ The future of AI holds immense potential for solving complex problems and improv
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
     await page.screenshot({ path: path.join(screenshotDir, '14-export-templates-page.png'), fullPage: true });
-    console.log('✅ Export templates page opened');
+    console.log('[PASS] Export templates page opened');
     console.log('📸 Screenshot: 14-export-templates-page.png\n');
 
     // Step 15: Create new template
@@ -706,10 +706,10 @@ Generated on: {{date}}`;
       await saveTemplateBtn.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(screenshotDir, '15a-template-created.png'), fullPage: true });
-      console.log('✅ Template created');
+      console.log('[PASS] Template created');
       console.log('📸 Screenshot: 15a-template-created.png\n');
     } else {
-      console.log('⚠️  New template button not found\n');
+      console.log('[WARN] New template button not found\n');
     }
 
     // ============================================
@@ -725,7 +725,7 @@ Generated on: {{date}}`;
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '16-back-to-editor.png'), fullPage: true });
-    console.log('✅ Back to editor');
+    console.log('[PASS] Back to editor');
     console.log('📸 Screenshot: 16-back-to-editor.png\n');
 
     // Step 17: Test export with template
@@ -749,7 +749,7 @@ Generated on: {{date}}`;
 
       const optionCount = await exportSelect.locator('option').count();
       if (optionCount <= 1) {
-        console.log('⚠️  No export templates available after waiting; skipping export step.\n');
+        console.log('[WARN] No export templates available after waiting; skipping export step.\n');
       } else {
         console.log('   Selecting export format...');
         await exportSelect.selectOption({ index: 1 });
@@ -769,15 +769,15 @@ Generated on: {{date}}`;
 
           const download = await downloadPromise;
           if (download) {
-            console.log(`✅ Export successful: ${download.suggestedFilename()}`);
+            console.log(`[PASS] Export successful: ${download.suggestedFilename()}`);
           } else {
-            console.log('⚠️  No download detected');
+            console.log('[WARN] No download detected');
           }
           console.log('📸 Screenshot saved\n');
         }
       }
     } else {
-      console.log('⚠️  Export functionality not found\n');
+      console.log('[WARN] Export functionality not found\n');
     }
 
     // ============================================
@@ -793,7 +793,7 @@ Generated on: {{date}}`;
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(screenshotDir, '18-back-to-dashboard.png'), fullPage: true });
-    console.log('✅ Back to dashboard');
+    console.log('[PASS] Back to dashboard');
     console.log('📸 Screenshot: 18-back-to-dashboard.png\n');
 
     // Step 19: Verify project appears in list
@@ -808,14 +808,14 @@ Generated on: {{date}}`;
       const cardTitle = await card.locator('h3').textContent();
       if (cardTitle && cardTitle.includes('AI Editor Test')) {
         const cardId = await card.getAttribute('data-project-id');
-        console.log(`✅ Found test project card (ID ${cardId}): ${cardTitle.trim()}`);
+        console.log(`[PASS] Found test project card (ID ${cardId}): ${cardTitle.trim()}`);
         foundTestProject = true;
         break;
       }
     }
 
     if (!foundTestProject) {
-      console.log('⚠️  Test project not found in card list');
+      console.log('[WARN] Test project not found in card list');
     }
 
     await page.screenshot({ path: path.join(screenshotDir, '19-project-verification.png'), fullPage: true });
@@ -825,26 +825,26 @@ Generated on: {{date}}`;
     // TEST SUMMARY
     // ============================================
     console.log('\n═══════════════════════════════════════');
-    console.log('✅ TEST COMPLETED SUCCESSFULLY');
+    console.log('[PASS] TEST COMPLETED SUCCESSFULLY');
     console.log('═══════════════════════════════════════\n');
     console.log('Test Summary:');
-    console.log('  ✅ App initialization');
-    console.log('  ✅ Text project creation');
-    console.log('  ✅ Editor navigation');
-    console.log('  ✅ Basic text editing');
-    console.log('  ✅ Version history & save');
-    console.log('  ✅ AI semantic reconstruction');
-    console.log('  ✅ AI style generation');
-    console.log('  ✅ NLP analysis');
-    console.log('  ✅ Diff view & suggestions');
-    console.log('  ✅ Export templates management');
-    console.log('  ✅ Template-based export');
-    console.log('  ✅ Dashboard navigation');
+    console.log('  [PASS] App initialization');
+    console.log('  [PASS] Text project creation');
+    console.log('  [PASS] Editor navigation');
+    console.log('  [PASS] Basic text editing');
+    console.log('  [PASS] Version history & save');
+    console.log('  [PASS] AI semantic reconstruction');
+    console.log('  [PASS] AI style generation');
+    console.log('  [PASS] NLP analysis');
+    console.log('  [PASS] Diff view & suggestions');
+    console.log('  [PASS] Export templates management');
+    console.log('  [PASS] Template-based export');
+    console.log('  [PASS] Dashboard navigation');
     console.log('\n📸 All screenshots saved to:', screenshotDir);
-    console.log('\n🎉 AI Text Editor workflow test completed!\n');
+    console.log('\n[SUCCESS] AI Text Editor workflow test completed!\n');
 
   } catch (error) {
-    console.error('\n❌ TEST FAILED:', error.message);
+    console.error('\n[ERROR] TEST FAILED:', error.message);
     console.error(error.stack);
 
     // Take error screenshot

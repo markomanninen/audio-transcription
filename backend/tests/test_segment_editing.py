@@ -131,7 +131,7 @@ def test_delete_segment(client, test_db, sample_project, sample_audio_file, samp
     """Deleting a segment should resequence the remaining segments."""
     target = sample_segments[1]
 
-    response = client.delete(f"/api/transcription/segment/{target.id}")
+    response = client.delete(f"/api/transcription/segments/{target.id}")
     assert response.status_code == 200
     data = response.json()
     remaining_ids = [item["id"] for item in data["segments"]]
