@@ -583,11 +583,12 @@ class DevRunner:
         # Method 3: Check if required packages are available (fallback)
         else:
             try:
-                import fastapi
-                import uvicorn
-                venv_detected = True
-                self.warning("No virtual environment detected, but required packages are available")
-            except ImportError:
+                import importlib
+                if importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("uvicorn") is not None:
+                    venv_detected = True
+                    self.warning("No virtual environment detected, but required packages are available")
+            except Exception:
+                # Ignore any issues checking specs
                 pass
         
         if not venv_detected:
@@ -597,12 +598,16 @@ class DevRunner:
         
         # Check if backend dependencies are installed
         try:
-            import fastapi
-            import uvicorn
-            self.success("Backend dependencies: OK")
-        except ImportError as e:
-            self.error(f"Missing backend dependencies: {e}")
-            self.info("Run: cd backend && pip install -r requirements.txt")
+            import importlib
+            if importlib.util.find_spec("fastapi") is not None and importlib.util.find_spec("uvicorn") is not None:
+                self.success("Backend dependencies: OK")
+            else:
+                self.error("Missing backend dependencies: fastapi or uvicorn not installed")
+                self.info("Run: cd backend && pip install -r requirements.txt")
+                return False
+        except ImportError:
+            # importlib should be available, but if not, report missing deps
+            self.error("Could not verify backend dependencies (importlib missing)")
             return False
         
         # Check if frontend dependencies are installed
@@ -612,10 +617,10 @@ class DevRunner:
             return False
         
         self.success("Frontend dependencies: OK")
-        
+
         # Check FFmpeg
         try:
-            subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+            subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
             self.success("FFmpeg: OK")
         except (subprocess.CalledProcessError, FileNotFoundError):
             # For test environment, FFmpeg is optional (AI corrections don't need it)
@@ -627,7 +632,7 @@ class DevRunner:
                 self.error("FFmpeg not found")
                 self.info("Install with: brew install ffmpeg")
                 return False
-        
+
         return True
 
     def setup_environment(self):
@@ -766,8 +771,9 @@ class DevRunner:
                         if stderr_output:
                             for line in stderr_output.splitlines()[-10:]:  # Last 10 lines
                                 self.error(f"  {line.strip()}", "BACKEND")
-                    except:
-                        pass
+                    except Exception:
+                        # Ignore stderr read errors but log for debugging
+                        self.debug("Error reading backend stderr during startup")
                     return False
                 
                 # Check if healthy (this will test if the server is responding)
@@ -1079,7 +1085,7 @@ class DevRunner:
                                     print(f"{Colors.CYAN}[{service.upper()}]{Colors.END} {line.rstrip()}")
                                 else:
                                     break
-                            except:
+                            except Exception:
                                 break
                 
                 time.sleep(0.1)
@@ -1098,8 +1104,9 @@ class DevRunner:
         print("\n[WARNING] Received shutdown signal, cleaning up...")
         try:
             self.stop_services()
-        except:
-            pass
+        except Exception:
+            # Best-effort stop; log and continue
+            self.debug("stop_services raised an exception during shutdown")
         sys.exit(0)
 
     def run(self, backend_only=False, frontend_only=False, restart=False, check=False, stop=False, cleanup=False, logs=False, docker_status=False, skip_docker=False):
