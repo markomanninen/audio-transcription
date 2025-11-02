@@ -1,0 +1,68 @@
+version: '3.8'
+
+# Audio Transcription Application - End User Configuration
+# Uses pre-built images from Docker Hub
+
+services:
+  backend:
+    image: markomann/audio-transcription-backend:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - audio-data:/app/data
+      - whisper-cache:/root/.cache/whisper
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=sqlite:///./data/transcriptions.db
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WHISPER_MODEL_SIZE=base  # Options: tiny, base, small, medium, large
+      - MAX_UPLOAD_SIZE=524288000  # 500MB
+    depends_on:
+      - redis
+      - ollama
+    restart: unless-stopped
+    networks:
+      - transcribe-network
+
+  frontend:
+    image: markomann/audio-transcription-frontend:latest
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - transcribe-network
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - transcribe-network
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - transcribe-network
+
+volumes:
+  audio-data:
+    driver: local
+  whisper-cache:
+    driver: local
+  redis-data:
+    driver: local
+  ollama-data:
+    driver: local
+
+networks:
+  transcribe-network:
+    driver: bridge

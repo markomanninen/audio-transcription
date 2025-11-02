@@ -82,9 +82,44 @@ scripts/status.bat
 ./scripts/deploy.ps1
 ```
 
-### Publishing Docker images
+### Publishing Docker Images
 
-From a Unix-like shell (macOS / Linux / WSL) you can publish both backend and frontend images:
+#### Multi-Platform Publishing (Recommended)
+
+Publish Docker images for multiple architectures (amd64 + arm64) with both CPU and GPU variants:
+
+```bash
+# Login to Docker Hub first (one-time setup)
+docker login --username markomann
+
+# Publish ALL variants (CPU + CUDA + Frontend)
+./scripts/publish_all_multiplatform.sh
+```
+
+**Result:**
+
+- `markomann/audio-transcription-backend:latest` (CPU, amd64 + arm64)
+- `markomann/audio-transcription-backend:latest-cuda` (GPU, amd64)
+- `markomann/audio-transcription-frontend:latest` (amd64 + arm64)
+
+**Individual variants:**
+
+```bash
+# Backend CPU variant only (multi-platform)
+TORCH_VARIANT=cpu ./scripts/publish_backend_multiplatform.sh
+
+# Backend CUDA/GPU variant only (amd64)
+TORCH_VARIANT=cuda ./scripts/publish_backend_multiplatform.sh
+
+# Frontend only (multi-platform)
+./scripts/publish_frontend_multiplatform.sh
+```
+
+See [docs/DOCKER_PUBLISHING.md](../docs/DOCKER_PUBLISHING.md) for comprehensive documentation.
+
+#### Legacy Publishing (Single Platform)
+
+From a Unix-like shell (macOS / Linux / WSL) you can publish single-platform images:
 
 ```bash
 ./scripts/publish_all.sh
@@ -93,11 +128,12 @@ From a Unix-like shell (macOS / Linux / WSL) you can publish both backend and fr
 ./scripts/publish_frontend.sh
 ```
 
-Notes:
+**Notes:**
 
 - These scripts use `docker compose` when available, falling back to `docker-compose`.
-
-- They attempt to detect the image built by compose and tag it for Docker Hub. If detection fails, tag the local image manually before pushing.
+- They attempt to detect the image built by compose and tag it for Docker Hub.
+- Single platform only (native architecture)
+- Use multiplatform scripts for production deployments
 
 ### Windows / PowerShell notes
 

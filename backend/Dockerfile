@@ -1,5 +1,8 @@
 FROM python:3.11-slim AS builder
 
+# Build argument to choose PyTorch variant (cpu or cuda)
+ARG TORCH_VARIANT=cpu
+
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -16,7 +19,18 @@ WORKDIR /app
 
 # Install only runtime Python dependencies into a clean prefix
 COPY requirements.prod.txt .
-RUN pip install --no-compile --prefix=/install -r requirements.prod.txt
+# Use cache mount for pip downloads (speeds up rebuilds)
+# Install PyTorch variant based on build arg, then install other dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ "$TORCH_VARIANT" = "cpu" ]; then \
+        pip install --no-compile --prefix=/install \
+            torch==2.3.1 torchaudio==2.3.1 \
+            --index-url https://download.pytorch.org/whl/cpu; \
+    else \
+        pip install --no-compile --prefix=/install \
+            torch==2.3.1 torchaudio==2.3.1; \
+    fi && \
+    pip install --no-compile --prefix=/install -r requirements.prod.txt
 
 FROM python:3.11-slim AS runtime
 
