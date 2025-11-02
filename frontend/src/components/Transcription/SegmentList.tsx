@@ -27,6 +27,7 @@ interface SegmentListProps {
   isPlaying?: boolean
   onOpenEditor?: () => void
   exportButton?: React.ReactNode
+  llmProvider?: string
 }
 
 export default function SegmentList({
