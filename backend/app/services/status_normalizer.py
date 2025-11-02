@@ -3,6 +3,8 @@ Utilities for reconciling transcription status values stored in the database.
 """
 from __future__ import annotations
 
+from typing import Dict
+
 from sqlalchemy import text, bindparam
 from sqlalchemy.engine import Engine
 

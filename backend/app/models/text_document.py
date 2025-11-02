@@ -1,10 +1,17 @@
 """
 TextDocument model - represents a standalone text document.
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from .project import Project
 
 class TextDocument(Base, TimestampMixin):
     """A standalone text document, not tied to an audio file."""
