@@ -779,6 +779,9 @@ class TranscriptionService:
             )
 
             self._update_progress_with_stage(audio_file, "Converting audio format", 0.05, db, elapsed)
+            
+            # CRITICAL: Create fresh AudioService instance to ensure FFmpeg configuration
+            audio_service = AudioService()
             wav_path = audio_service.convert_to_wav(audio_file.file_path)
 
             # Mark audio as transformed

@@ -2,6 +2,7 @@
 Audio file handling service.
 """
 import os
+import shutil
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -19,8 +20,76 @@ class AudioService:
     MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE
 
     def __init__(self):
+        """Initialize AudioService and configure FFmpeg paths."""
         self.storage_path = Path(settings.AUDIO_STORAGE_PATH)
         self.storage_path.mkdir(parents=True, exist_ok=True)
+        self._configure_ffmpeg()
+
+    def _configure_ffmpeg(self):
+        """Configure FFmpeg paths for all environments (macOS, Linux, Windows)."""
+        # Common FFmpeg installation paths
+        ffmpeg_paths = [
+            # macOS paths
+            '/opt/homebrew/bin/ffmpeg',  # macOS Homebrew ARM
+            '/usr/local/bin/ffmpeg',     # macOS Homebrew Intel
+            
+            # Linux paths
+            '/usr/bin/ffmpeg',           # Linux system package
+            '/usr/local/bin/ffmpeg',     # Linux manual install
+            
+            # Windows paths
+            'C:\\ffmpeg\\bin\\ffmpeg.exe',              # Common Windows install
+            'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe', # Program Files
+            'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe', # x86 Program Files
+            'ffmpeg.exe',                # Windows PATH with .exe
+            
+            # Cross-platform system PATH
+            shutil.which('ffmpeg')       # System PATH (all platforms)
+        ]
+        
+        ffprobe_paths = [
+            # macOS paths
+            '/opt/homebrew/bin/ffprobe',  # macOS Homebrew ARM
+            '/usr/local/bin/ffprobe',     # macOS Homebrew Intel
+            
+            # Linux paths  
+            '/usr/bin/ffprobe',           # Linux system package
+            '/usr/local/bin/ffprobe',     # Linux manual install
+            
+            # Windows paths
+            'C:\\ffmpeg\\bin\\ffprobe.exe',              # Common Windows install
+            'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe', # Program Files
+            'C:\\Program Files (x86)\\ffmpeg\\bin\\ffprobe.exe', # x86 Program Files
+            'ffprobe.exe',                # Windows PATH with .exe
+            
+            # Cross-platform system PATH
+            shutil.which('ffprobe')       # System PATH (all platforms)
+        ]
+        
+        # Find working FFmpeg
+        ffmpeg_path = None
+        for path in ffmpeg_paths:
+            if path and os.path.isfile(path) and os.access(path, os.X_OK):
+                ffmpeg_path = path
+                break
+        
+        # Find working ffprobe
+        ffprobe_path = None
+        for path in ffprobe_paths:
+            if path and os.path.isfile(path) and os.access(path, os.X_OK):
+                ffprobe_path = path
+                break
+        
+        if ffmpeg_path and ffprobe_path:
+            # Configure pydub to use the found binaries
+            AudioSegment.converter = ffmpeg_path
+            AudioSegment.ffmpeg = ffmpeg_path
+            AudioSegment.ffprobe = ffprobe_path
+            print(f"[AudioService] FFmpeg configured: {ffmpeg_path}, ffprobe: {ffprobe_path}")
+        else:
+            # Let pydub try to find them automatically
+            print(f"[AudioService] FFmpeg auto-detection: ffmpeg={ffmpeg_path}, ffprobe={ffprobe_path}")
+            pass
 
     def validate_file(self, file_content: bytes, filename: str) -> tuple[bool, str]:
         """

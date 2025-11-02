@@ -462,6 +462,31 @@ test.describe('AI Text Editor - AI Features', () => {
 });
 
 test.describe('AI Text Editor - Diff View', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/ai_editor/semantic-reconstruction', async (route) => {
+      let requestText = 'Original text';
+      try {
+        const payload = route.request().postDataJSON?.();
+        if (payload && typeof payload.text === 'string' && payload.text.trim().length > 0) {
+          requestText = payload.text;
+        }
+      } catch (error) {
+        // Ignore parse errors and fall back to default suggestion text
+      }
+
+      const suggestion = `${requestText} (AI suggestion)`;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: {
+          'access-control-allow-origin': '*',
+        },
+        body: JSON.stringify({ result: suggestion }),
+      });
+    });
+  });
+
   test('should display side-by-side diff', async ({ page }) => {
     await goToTextWorkspace(page);
 
@@ -471,27 +496,14 @@ test.describe('AI Text Editor - Diff View', () => {
     const textArea = page.locator('textarea').first();
     await textArea.fill('Original text for diff comparison.');
 
-    // Trigger AI feature to generate diff
     const semanticBtn = page.getByRole('button', { name: /semantic.*reconstruction/i });
-    const hasBtn = await semanticBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    await expect(semanticBtn).toBeVisible({ timeout: 5_000 });
+    await semanticBtn.click();
 
-    if (hasBtn) {
-      await semanticBtn.click();
-
-      // Wait for AI to process and diff viewer to appear (AI can be slow)
-      const diffViewer = page.getByTestId('ai-diff-viewer');
-      const hasDiff = await diffViewer.isVisible({ timeout: 20000 }).catch(() => false);
-
-      if (hasDiff) {
-        await expect(diffViewer.getByText('Current Text', { exact: false })).toBeVisible();
-        await expect(diffViewer.getByText('AI Suggestion', { exact: false })).toBeVisible();
-      } else {
-        // Skip if AI didn't respond in time (LLM service may be slow or unavailable)
-        test.skip();
-      }
-    } else {
-      test.skip();
-    }
+    const diffViewer = page.getByTestId('ai-diff-viewer');
+    await expect(diffViewer).toBeVisible({ timeout: 5_000 });
+    await expect(diffViewer.getByText('Current Text', { exact: false })).toBeVisible();
+    await expect(diffViewer.getByText('AI Suggestion', { exact: false })).toBeVisible();
   });
 
   test('should allow accepting suggestions', async ({ page }) => {
@@ -504,32 +516,21 @@ test.describe('AI Text Editor - Diff View', () => {
     const originalText = 'Text for acceptance test.';
     await textArea.fill(originalText);
 
-    // Trigger AI to get suggestions
     const semanticBtn = page.getByRole('button', { name: /semantic.*reconstruction/i });
-    const hasBtn = await semanticBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    await expect(semanticBtn).toBeVisible({ timeout: 5_000 });
+    await semanticBtn.click();
 
-    if (hasBtn) {
-      await semanticBtn.click();
+    const diffViewer = page.getByTestId('ai-diff-viewer');
+    await expect(diffViewer).toBeVisible({ timeout: 5_000 });
 
-      // Wait for AI to process and diff viewer to appear (AI can be slow)
-      const diffViewer = page.getByTestId('ai-diff-viewer');
-      const hasDiff = await diffViewer.isVisible({ timeout: 20000 }).catch(() => false);
+    const approveBtn = page.getByRole('button', { name: 'Approve' });
+    await expect(approveBtn).toBeVisible({ timeout: 5_000 });
+    await approveBtn.click();
 
-      if (hasDiff) {
-        // Find Approve button (exact text from UI)
-        const approveBtn = page.getByRole('button', { name: 'Approve' });
-        await approveBtn.click();
-        await page.waitForTimeout(500);
+    await expect(diffViewer).toBeHidden({ timeout: 5_000 });
 
-        // Verify diff viewer is closed
-        const diffStillVisible = await diffViewer.isVisible({ timeout: 1000 }).catch(() => false);
-        expect(diffStillVisible).toBe(false);
-      } else {
-        test.skip();
-      }
-    } else {
-      test.skip();
-    }
+    const newValue = await textArea.inputValue();
+    expect(newValue).not.toBe(originalText);
   });
 
   test('should allow rejecting suggestions', async ({ page }) => {
@@ -542,35 +543,21 @@ test.describe('AI Text Editor - Diff View', () => {
     const originalText = 'Text for rejection test.';
     await textArea.fill(originalText);
 
-    // Trigger AI to get suggestions
     const semanticBtn = page.getByRole('button', { name: /semantic.*reconstruction/i });
-    const hasBtn = await semanticBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    await expect(semanticBtn).toBeVisible({ timeout: 5_000 });
+    await semanticBtn.click();
 
-    if (hasBtn) {
-      await semanticBtn.click();
+    const diffViewer = page.getByTestId('ai-diff-viewer');
+    await expect(diffViewer).toBeVisible({ timeout: 5_000 });
 
-      // Wait for AI to process and diff viewer to appear (AI can be slow)
-      const diffViewer = page.getByTestId('ai-diff-viewer');
-      const hasDiff = await diffViewer.isVisible({ timeout: 20000 }).catch(() => false);
+    const rejectBtn = page.getByRole('button', { name: 'Reject' });
+    await expect(rejectBtn).toBeVisible({ timeout: 5_000 });
+    await rejectBtn.click();
 
-      if (hasDiff) {
-        // Find Reject button (exact text from UI)
-        const rejectBtn = page.getByRole('button', { name: 'Reject' });
-        await rejectBtn.click();
-        await page.waitForTimeout(500);
+    await expect(diffViewer).toBeHidden({ timeout: 5_000 });
 
-        // Verify diff viewer is closed and text unchanged
-        const diffStillVisible = await diffViewer.isVisible({ timeout: 1000 }).catch(() => false);
-        expect(diffStillVisible).toBe(false);
-
-        const newValue = await textArea.inputValue();
-        expect(newValue).toBe(originalText);
-      } else {
-        test.skip();
-      }
-    } else {
-      test.skip();
-    }
+    const newValue = await textArea.inputValue();
+    expect(newValue).toBe(originalText);
   });
 });
 

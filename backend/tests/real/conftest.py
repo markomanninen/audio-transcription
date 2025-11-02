@@ -48,6 +48,104 @@ if "app.services.audio_service" in sys.modules:
     print("Reloading audio_service to pick up real pydub")
     import app.services.audio_service
     importlib.reload(app.services.audio_service)
+    
+    # CRITICAL: Force FFmpeg configuration GLOBALLY for REAL pydub
+    print("FORCING GLOBAL FFmpeg configuration for ALL real test AudioSegment instances")
+    from pydub import AudioSegment
+    import shutil
+    import os
+    
+    # Find FFmpeg paths manually - ALL PLATFORMS
+    ffmpeg_paths = [
+        # macOS paths
+        '/opt/homebrew/bin/ffmpeg',  # macOS Homebrew ARM
+        '/usr/local/bin/ffmpeg',     # macOS Homebrew Intel
+        
+        # Linux paths
+        '/usr/bin/ffmpeg',           # Linux system package
+        '/usr/local/bin/ffmpeg',     # Linux manual install
+        
+        # Windows paths
+        'C:\\ffmpeg\\bin\\ffmpeg.exe',              # Common Windows install
+        'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe', # Program Files
+        'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe', # x86 Program Files
+        'ffmpeg.exe',                # Windows PATH with .exe
+        
+        # Cross-platform system PATH
+        shutil.which('ffmpeg')       # System PATH (all platforms)
+    ]
+    
+    ffprobe_paths = [
+        # macOS paths
+        '/opt/homebrew/bin/ffprobe',  # macOS Homebrew ARM
+        '/usr/local/bin/ffprobe',     # macOS Homebrew Intel
+        
+        # Linux paths
+        '/usr/bin/ffprobe',           # Linux system package
+        '/usr/local/bin/ffprobe',     # Linux manual install
+        
+        # Windows paths
+        'C:\\ffmpeg\\bin\\ffprobe.exe',              # Common Windows install
+        'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe', # Program Files
+        'C:\\Program Files (x86)\\ffmpeg\\bin\\ffprobe.exe', # x86 Program Files
+        'ffprobe.exe',                # Windows PATH with .exe
+        
+        # Cross-platform system PATH
+        shutil.which('ffprobe')       # System PATH (all platforms)
+    ]
+    
+    ffmpeg_path = None
+    for path in ffmpeg_paths:
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            ffmpeg_path = path
+            break
+            
+    ffprobe_path = None
+    for path in ffprobe_paths:
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            ffprobe_path = path
+            break
+    
+    if ffmpeg_path and ffprobe_path:
+        # FORCE GLOBAL AudioSegment configuration
+        AudioSegment.converter = ffmpeg_path
+        AudioSegment.ffmpeg = ffmpeg_path  
+        AudioSegment.ffprobe = ffprobe_path
+        
+        # MONKEY PATCH the AudioSegment class to ALWAYS use our paths
+        original_init = AudioSegment.__init__
+        def patched_init(self, *args, **kwargs):
+            result = original_init(self, *args, **kwargs)
+            # Ensure our FFmpeg paths are ALWAYS set
+            AudioSegment.converter = ffmpeg_path
+            AudioSegment.ffmpeg = ffmpeg_path
+            AudioSegment.ffprobe = ffprobe_path
+            return result
+        AudioSegment.__init__ = patched_init
+        
+        print(f"REAL TEST FFmpeg GLOBALLY configured and MONKEY-PATCHED: {ffmpeg_path}, ffprobe: {ffprobe_path}")
+        
+        # FORCE PATH ENVIRONMENT WITH FFmpeg FOR REAL TEST
+        ffmpeg_dirs = [
+            "/opt/homebrew/bin",  # Homebrew ARM Mac
+            "/usr/local/bin",     # Homebrew Intel Mac  
+            "/usr/bin",           # Linux system
+            "/bin"                # Linux fallback
+        ]
+        current_path = os.environ.get('PATH', '')
+        for ffmpeg_dir in ffmpeg_dirs:
+            if ffmpeg_dir not in current_path:
+                current_path = f"{ffmpeg_dir}:{current_path}"
+        os.environ['PATH'] = current_path
+        print(f"REAL TEST PATH FORCED: {os.environ['PATH'][:200]}...")
+    else:
+        print(f"REAL TEST FFmpeg auto-detection FAILED: ffmpeg={ffmpeg_path}, ffprobe={ffprobe_path}")
+        raise RuntimeError("FFmpeg/ffprobe not found for real tests!")
+
+if "app.services.transcription_service" in sys.modules:
+    print("Reloading transcription_service to pick up reloaded audio_service")
+    import app.services.transcription_service
+    importlib.reload(app.services.transcription_service)
 
 # NOW we can continue with other imports
 import pytest

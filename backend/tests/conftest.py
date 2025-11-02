@@ -22,6 +22,8 @@ if "pydub" not in sys.modules:
     class _DummyAudioSegment:
         def __init__(self, duration_ms: int = 60000):
             self._duration_ms = max(duration_ms, 0)
+            self.channels = 2  # Add missing attributes
+            self.frame_rate = 44100
 
         @classmethod
         def from_file(cls, *_args, **_kwargs):
@@ -40,7 +42,44 @@ if "pydub" not in sys.modules:
 
         def export(self, buffer, *_args, **_kwargs):
             if hasattr(buffer, "write"):
-                buffer.write(b"\x00" * 10)
+                # Write actual WAV header + minimal data for tests
+                wav_header = (
+                    b'RIFF' +
+                    (1044).to_bytes(4, 'little') +  # File size
+                    b'WAVE' +
+                    b'fmt ' +
+                    (16).to_bytes(4, 'little') +    # Format chunk size
+                    (1).to_bytes(2, 'little') +     # Audio format (PCM)
+                    (2).to_bytes(2, 'little') +     # Number of channels
+                    (44100).to_bytes(4, 'little') + # Sample rate
+                    (176400).to_bytes(4, 'little') + # Byte rate
+                    (4).to_bytes(2, 'little') +     # Block align
+                    (16).to_bytes(2, 'little') +    # Bits per sample
+                    b'data' +
+                    (1000).to_bytes(4, 'little')    # Data chunk size
+                )
+                buffer.write(wav_header)
+                buffer.write(b"\x00" * 1000)  # Audio data
+            elif isinstance(buffer, str):
+                # Write to file path
+                with open(buffer, 'wb') as f:
+                    wav_header = (
+                        b'RIFF' +
+                        (1044).to_bytes(4, 'little') +
+                        b'WAVE' +
+                        b'fmt ' +
+                        (16).to_bytes(4, 'little') +
+                        (1).to_bytes(2, 'little') +
+                        (2).to_bytes(2, 'little') +
+                        (44100).to_bytes(4, 'little') +
+                        (176400).to_bytes(4, 'little') +
+                        (4).to_bytes(2, 'little') +
+                        (16).to_bytes(2, 'little') +
+                        b'data' +
+                        (1000).to_bytes(4, 'little')
+                    )
+                    f.write(wav_header)
+                    f.write(b"\x00" * 1000)
             return None
 
         def __len__(self):
@@ -337,3 +376,98 @@ def sample_speakers(test_db, sample_project):
         test_db.add(speaker)
     test_db.commit()
     return speakers
+
+
+@pytest.fixture(autouse=True)
+def reset_pydub_after_real_tests():
+    """Reset pydub AudioSegment configuration after REAL tests may have modified it."""
+    yield  # Let test run first
+    
+    # Check if we have real pydub loaded (not our dummy)
+    if "pydub" in sys.modules:
+        pydub_module = sys.modules["pydub"]
+        if hasattr(pydub_module, "AudioSegment") and hasattr(pydub_module.AudioSegment, "converter"):
+            # Real pydub is loaded - we need to restore our dummy for normal tests
+            
+            # Restore dummy pydub
+            class _DummyAudioSegment:
+                def __init__(self, duration_ms: int = 60000):
+                    self._duration_ms = max(duration_ms, 0)
+                    self.channels = 2  # Add missing attributes
+                    self.frame_rate = 44100
+
+                @classmethod
+                def from_file(cls, *_args, **_kwargs):
+                    # Simulate 1 minute duration audio by default
+                    return cls(duration_ms=60000)
+
+                @staticmethod
+                def silent(duration: int = 1000):
+                    return _DummyAudioSegment(duration_ms=duration)
+
+                def set_channels(self, *_args, **_kwargs):
+                    return self
+
+                def set_frame_rate(self, *_args, **_kwargs):
+                    return self
+
+                def export(self, buffer, *_args, **_kwargs):
+                    if hasattr(buffer, "write"):
+                        # Write actual WAV header + minimal data for tests
+                        wav_header = (
+                            b'RIFF' +
+                            (1044).to_bytes(4, 'little') +  # File size
+                            b'WAVE' +
+                            b'fmt ' +
+                            (16).to_bytes(4, 'little') +    # Format chunk size
+                            (1).to_bytes(2, 'little') +     # Audio format (PCM)
+                            (2).to_bytes(2, 'little') +     # Number of channels
+                            (44100).to_bytes(4, 'little') + # Sample rate
+                            (176400).to_bytes(4, 'little') + # Byte rate
+                            (4).to_bytes(2, 'little') +     # Block align
+                            (16).to_bytes(2, 'little') +    # Bits per sample
+                            b'data' +
+                            (1000).to_bytes(4, 'little')    # Data chunk size
+                        )
+                        buffer.write(wav_header)
+                        buffer.write(b"\x00" * 1000)  # Audio data
+                    elif isinstance(buffer, str):
+                        # Write to file path
+                        with open(buffer, 'wb') as f:
+                            wav_header = (
+                                b'RIFF' +
+                                (1044).to_bytes(4, 'little') +
+                                b'WAVE' +
+                                b'fmt ' +
+                                (16).to_bytes(4, 'little') +
+                                (1).to_bytes(2, 'little') +
+                                (2).to_bytes(2, 'little') +
+                                (44100).to_bytes(4, 'little') +
+                                (176400).to_bytes(4, 'little') +
+                                (4).to_bytes(2, 'little') +
+                                (16).to_bytes(2, 'little') +
+                                b'data' +
+                                (1000).to_bytes(4, 'little')
+                            )
+                            f.write(wav_header)
+                            f.write(b"\x00" * 1000)
+                    return None
+
+                def __len__(self):
+                    return self._duration_ms
+
+                def __getitem__(self, item):
+                    if isinstance(item, slice):
+                        start = item.start or 0
+                        stop = item.stop if item.stop is not None else self._duration_ms
+                        return _DummyAudioSegment(duration_ms=max(stop - start, 0))
+                    raise TypeError("AudioSegment slices must be slice objects")
+            
+            # Replace real pydub with dummy
+            sys.modules["pydub"] = SimpleNamespace(AudioSegment=_DummyAudioSegment)
+            
+            # Reload modules that imported pydub
+            import importlib
+            if "app.services.audio_service" in sys.modules:
+                import app.services.audio_service
+                importlib.reload(app.services.audio_service)

@@ -111,31 +111,17 @@ class OllamaProvider(LLMProvider):
             # Log failed request
             self._log_request(
                 prompt=prompt,
-                response=str(e),
+                response="",
                 original_text=text,
                 context=context,
                 corrected_text=text,  # Return original on error
                 duration_ms=duration_ms,
                 segment_id=segment_id,
                 project_id=project_id,
-                status="error"
-            )
-            
-            raise ConnectionError(f"Ollama request failed: {e}")
-
-            # Log error
-            self._log_request(
-                prompt=prompt,
-                response="",
-                original_text=text,
-                context=context,
-                duration_ms=duration_ms,
-                segment_id=segment_id,
-                project_id=project_id,
                 status="error",
                 error_message=str(e)
             )
-
+            
             if isinstance(e, httpx.RequestError):
                 raise ConnectionError(f"Failed to connect to Ollama: {str(e)}")
             else:

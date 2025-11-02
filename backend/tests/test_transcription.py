@@ -2,6 +2,9 @@
 Tests for transcription API endpoints.
 """
 import json
+import os
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -218,14 +221,17 @@ def test_transcription_service(mock_whisper, test_db, temp_audio_dir):
 
     # Run transcription
     service = TranscriptionService()
-    with patch('app.services.audio_service.AudioService.convert_to_wav', return_value=temp_path), \
-         patch('app.services.audio_service.AudioSegment.from_file') as mock_audio_segment:
-        
-        # Mock audio segment with duration
-        mock_audio = Mock()
-        mock_audio.duration_seconds = 10.0
-        mock_audio_segment.return_value = mock_audio
-        
+    
+    # Create a real temporary file for converted output 
+    with tempfile.NamedTemporaryFile(suffix="_converted.wav", delete=False) as f:
+        f.write(b'\x00' * 1000)  # Write some dummy data
+        converted_path = f.name
+
+    def mock_convert_to_wav(file_path):
+        """Mock that returns a real file path with dummy content"""
+        return converted_path
+
+    with patch('app.services.audio_service.AudioService.convert_to_wav', side_effect=mock_convert_to_wav):
         segments = service.transcribe_audio(audio_file.id, test_db)
 
     # Verify results
@@ -237,8 +243,9 @@ def test_transcription_service(mock_whisper, test_db, temp_audio_dir):
 
     # Cleanup
     import os
-    if os.path.exists(temp_path):
-        os.remove(temp_path)
+    for path in [temp_path, converted_path]:
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def test_transcription_status_progress_states(client, project_with_file, test_db, monkeypatch):

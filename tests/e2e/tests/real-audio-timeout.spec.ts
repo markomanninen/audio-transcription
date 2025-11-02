@@ -5,11 +5,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Real Audio Timeout Test', () => {
   test('create project with audio and test 60-second AI correction timeout', async ({ page }) => {
-    // Use Playwright base URL for backend API calls
-    const backendUrl = 'http://127.0.0.1:18216';
+    // Get current test environment URLs
+    const frontendUrl = page.url() || 'http://127.0.0.1:18356';
+    const frontendPort = new URL(frontendUrl).port || '18356';
+    const backendPort = parseInt(frontendPort) - 1000 + 220; // Calculate backend port
+    const backendUrl = `http://127.0.0.1:${backendPort}`;
     
     console.log(`🎯 REAL AUDIO TIMEOUT TEST`);
-    console.log(`   Frontend: ${page.url()}`);
+    console.log(`   Frontend: ${frontendUrl}`);
     console.log(`   Backend: ${backendUrl}`);
 
     // 1. Set 60-second timeout in localStorage

@@ -118,3 +118,5 @@ test-screenshots/
 *.coverage
 *screenshots*
 *assets*
+
+.coverage*

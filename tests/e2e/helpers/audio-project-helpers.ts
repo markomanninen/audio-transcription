@@ -83,6 +83,37 @@ export async function setupAudioProject(page: Page, projectName?: string) {
 
   const projectId = await projectSelect.inputValue()
 
+  // Upload test audio file to have segments for testing
+  try {
+    const fileInput = page.locator('input[type="file"]')
+    if (await fileInput.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // Use the existing test audio file
+      await fileInput.setInputFiles('/Users/markomanninen/Documents/GitHub/transcribe/data/audio/test-upload.wav')
+      
+      // Wait for upload to complete
+      await page.waitForTimeout(2000)
+      
+      // Start transcription if button appears
+      const transcribeButton = page.getByRole('button', { name: /transcribe|start/i })
+      if (await transcribeButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await transcribeButton.click()
+        
+        // Wait for transcription to complete and segments to appear
+        await page.waitForFunction(
+          () => {
+            const segments = document.querySelectorAll('[data-testid="segment-item"]')
+            return segments.length > 0
+          },
+          { timeout: 60000 }
+        )
+        
+        console.log('✅ Audio uploaded and transcribed successfully')
+      }
+    }
+  } catch (error) {
+    console.log('⚠️  Audio upload failed, continuing without segments:', error)
+  }
+
   return {
     projectName: name,
     projectId: parseInt(projectId, 10),

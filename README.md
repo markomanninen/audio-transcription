@@ -398,17 +398,28 @@ npm run dev
 ### Run Tests
 
 ```bash
-# Backend tests
-cd backend
-pytest
+# BACKEND TESTS (161 tests - SAFE, excludes REAL tests)
+npm run test:backend              # Quick: python -m pytest --tb=no -q (no REAL tests)
+npm run test:backend:with-real    # ALL 162 tests INCLUDING REAL transcription (may crash)
+npm run test:backend:verbose      # Detailed: python -m pytest -v (no REAL tests)
+npm run test:backend:coverage     # With coverage report (no REAL tests)
+npm run test:backend:real         # REAL audio/model tests ONLY (isolated, with timeout)
 
-# Frontend tests
-cd frontend
-npm test
+# FRONTEND TESTS  
+npm run test:frontend             # Unit tests: vitest
+npm run test:frontend:watch       # Watch mode
+npm run test:frontend:coverage    # With coverage
 
-# E2E tests
-npm run test:e2e
+# ALL TESTS
+npm run test:all                  # Backend (safe) + Frontend
+
+# E2E TESTS (Full workflow)
+npm run test:e2e                  # Real transcription
+npm run test:e2e:stub             # Mock transcription (faster)
 ```
+
+**💡 TURVALLISET TESTIT**: `npm run test:backend` ajaa 161 testiä ilman REAL testejä jotka voivat crashata!  
+**⚠️ REAL TESTIT**: `npm run test:backend:real` ajaa oikeat äänitestit (voi olla epävakaa threading-ongelmien takia).
 
 ### API Documentation
 
