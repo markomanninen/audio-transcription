@@ -98,32 +98,32 @@ except Exception as e:
         if result:
             try:
                 return json.loads(result)
-            except:
+            except Exception:
                 pass
         return []
     
     def get_system_stats(self):
         """Get overall system statistics"""
         python_code = '''
-import sqlite3, json
-try:
-    conn = sqlite3.connect("/app/data/transcriptions.db")
-    cursor = conn.cursor()
+    import sqlite3, json
+    try:
+        conn = sqlite3.connect("/app/data/transcriptions.db")
+        cursor = conn.cursor()
     
-    cursor.execute("SELECT transcription_status, COUNT(*) FROM audio_files GROUP BY transcription_status")
-    stats = dict(cursor.fetchall())
+        cursor.execute("SELECT transcription_status, COUNT(*) FROM audio_files GROUP BY transcription_status")
+        stats = dict(cursor.fetchall())
     
-    conn.close()
-    print(json.dumps(stats))
-except:
-    print("{}")
-'''
+        conn.close()
+        print(json.dumps(stats))
+    except Exception:
+        print("{}")
+    '''
         
         result = self.run_docker_query(python_code)
         if result:
             try:
                 return json.loads(result)
-            except:
+            except Exception:
                 pass
         return {}
     
@@ -161,7 +161,7 @@ except:
                     remaining_segments = estimated_total - segment_count
                     eta_seconds = remaining_segments / rate
                     eta = eta_seconds
-            except:
+            except Exception:
                 pass
         
         return completion_pct, eta
@@ -179,7 +179,7 @@ except:
                 return f"{seconds/60:.1f}m"
             else:
                 return f"{seconds:.0f}s"
-        except:
+        except Exception:
             return str(seconds)
     
     def get_detailed_file_info(self):
@@ -263,7 +263,7 @@ print(json.dumps(files))
                         end_time = datetime.fromisoformat(file_info['completed_at'].replace('Z', '+00:00'))
                         transcription_duration = (end_time - start_time).total_seconds()
                         print(f"   ⏱️  Transcription took: {self.format_time(transcription_duration)}")
-                    except:
+                    except Exception:
                         pass
             elif file_info.get('started_at') and file_info["status"] == "PROCESSING":
                 # Show how long it's been processing
@@ -273,7 +273,7 @@ print(json.dumps(files))
                     now = datetime.now()
                     processing_time = (now - start_time).total_seconds()
                     print(f"   ⏳ Processing for: {self.format_time(processing_time)}")
-                except:
+                except Exception:
                     pass
             
             if file_info.get('updated_at') and file_info['updated_at'] != file_info['created_at']:
@@ -436,7 +436,7 @@ except Exception as e:
         if result:
             try:
                 zombies = json.loads(result)
-            except:
+            except Exception:
                 pass
         
         # Check if there are active Python processes
@@ -458,7 +458,7 @@ except:
         if proc_result:
             try:
                 active_processes = json.loads(proc_result)
-            except:
+            except Exception:
                 pass
         
         if zombies:
@@ -561,7 +561,7 @@ except Exception as e:
                     now = datetime.now()
                     processing_time = (now - start_time).total_seconds()
                     print(f"⏳ Processing for: {self.format_time(processing_time)}")
-                except:
+                except Exception:
                     pass
             
             if file_info.get('updated_at'):
@@ -650,7 +650,7 @@ except Exception as e:
         if result:
             try:
                 files = json.loads(result)
-            except:
+            except Exception:
                 pass
         
         if not files:
@@ -681,7 +681,7 @@ except Exception as e:
                         end_time = datetime.fromisoformat(file_info['completed_at'].replace('Z', '+00:00'))
                         duration = (end_time - start_time).total_seconds()
                         print(f"   ⏱️  Took: {self.format_time(duration)} (for {self.format_time(file_info['duration'])} audio)")
-                    except:
+                    except Exception:
                         pass
             elif file_info['status'] == 'PROCESSING' and file_info.get('started_at'):
                 print(f"   🚀 Started: {file_info['started_at']}")
@@ -691,7 +691,7 @@ except Exception as e:
                     now = datetime.now()
                     processing_time = (now - start_time).total_seconds()
                     print(f"   ⏳ Processing for: {self.format_time(processing_time)}")
-                except:
+                except Exception:
                     pass
             elif file_info['status'] == 'PENDING':
                 print(f"   📅 Uploaded: {file_info['created_at']}")

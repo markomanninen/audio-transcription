@@ -253,7 +253,7 @@ Examples:
     print(logs)
     
     # Show summary
-    line_count = len([l for l in logs.split('\n') if l.strip()])
+    line_count = len([ln for ln in logs.split('\n') if ln.strip()])
     print(f"\n[STATS] Summary: {line_count} log lines displayed")
 
 
