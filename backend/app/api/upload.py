@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import List, Optional
 
 from ..core.database import get_db
 from ..services.audio_service import AudioService
@@ -24,23 +24,23 @@ class UploadResponse(BaseModel):
     filename: str
     original_filename: str
     file_size: int
-    duration: float | None
+    duration: Optional[float]
     status: str
-    parent_audio_file_id: int | None = None
-    split_start_seconds: float | None = None
-    split_end_seconds: float | None = None
+    parent_audio_file_id: Optional[int] = None
+    split_start_seconds: Optional[float] = None
+    split_end_seconds: Optional[float] = None
     split_depth: int = 0
     split_order: int = 0
     # Add processing_stage and error_message for enhanced status detection
-    processing_stage: str | None = None
-    error_message: str | None = None
+    processing_stage: Optional[str] = None
+    error_message: Optional[str] = None
 
 
 class ProjectCreateRequest(BaseModel):
     """Request model for creating a project."""
     name: str
-    description: str | None = None
-    content_type: str | None = "general"
+    description: Optional[str] = None
+    content_type: Optional[str] = "general"
 
 
 class ProjectResponse(BaseModel):
@@ -49,13 +49,13 @@ class ProjectResponse(BaseModel):
 
     id: int
     name: str
-    description: str | None
-    content_type: str | None
+    description: Optional[str]
+    content_type: Optional[str]
     created_at: datetime
 
 
-@router.get("/projects", response_model=list[ProjectResponse])
-async def list_projects(db: Session = Depends(get_db)) -> list[Project]:
+@router.get("/projects", response_model=List[ProjectResponse])
+async def list_projects(db: Session = Depends(get_db)) -> List[Project]:
     """
     List all projects.
     """
@@ -256,11 +256,11 @@ async def upload_file(
     )
 
 
-@router.get("/files/{project_id}", response_model=list[UploadResponse])
+@router.get("/files/{project_id}", response_model=List[UploadResponse])
 async def list_project_files(
     project_id: int,
     db: Session = Depends(get_db)
-) -> list[UploadResponse]:
+) -> List[UploadResponse]:
     """
     List all audio files in a project.
 
@@ -283,7 +283,7 @@ async def list_project_files(
 
     files = db.query(AudioFile).filter(AudioFile.project_id == project_id).all()
 
-    children_map: dict[int | None, list[AudioFile]] = {}
+    children_map: Dict[Optional[int], List[AudioFile]] = {}
     for file in files:
         children_map.setdefault(file.parent_audio_file_id, []).append(file)
 
@@ -295,7 +295,7 @@ async def list_project_files(
             )
         )
 
-    ordered: list[AudioFile] = []
+    ordered: List[AudioFile] = []
     visited: set[int] = set()
 
     def add_branch(node: AudioFile) -> None:

@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Use local dev environment by default, Docker in CI
-const isDev = !process.env.CI && !process.env.USE_DOCKER
-const baseURL = isDev ? 'http://localhost:5173' : 'http://localhost:3000'
+// Use environment-specified ports if available, otherwise defaults
+const frontendPort = process.env.FRONTEND_PORT || (process.env.CI || process.env.USE_DOCKER ? '3000' : '5173')
+const baseURL = `http://localhost:${frontendPort}`
 
 export default defineConfig({
   testDir: './tests',

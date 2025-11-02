@@ -3,6 +3,7 @@ Application configuration using Pydantic settings.
 """
 from pathlib import Path
 from urllib.parse import urlsplit
+from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     # Storage
     AUDIO_STORAGE_PATH: str = "./data/audio"
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB in bytes
-    ALLOWED_AUDIO_FORMATS: list[str] = ["mp3", "wav", "m4a", "mp4", "webm", "ogg", "flac"]
+    ALLOWED_AUDIO_FORMATS: List[str] = ["mp3", "wav", "m4a", "mp4", "webm", "ogg", "flac"]
 
     # Whisper configuration
     WHISPER_MODEL_SIZE: str = "medium"  # tiny, base, small, medium, large
@@ -72,7 +73,7 @@ class Settings(BaseSettings):
     )
 
     @property
-    def cors_origins_list(self) -> list[str]:
+    def cors_origins_list(self) -> List[str]:
         if not self.CORS_ORIGINS:
             return []
         raw = self.CORS_ORIGINS.strip()

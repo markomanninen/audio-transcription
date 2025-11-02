@@ -41,6 +41,7 @@ export const useProviderHealth = () => {
 export const useCorrectSegment = () => {
   return useMutation({
     mutationFn: (request: CorrectionRequest) => correctSegment(request),
+    retry: false, // Disable retries for AI correction
     onSuccess: () => {
       // Don't automatically invalidate - let user review and accept
       // queryClient.invalidateQueries({ queryKey: ['segments'] })
@@ -54,6 +55,7 @@ export const useCorrectSegment = () => {
 export const useCorrectBatch = () => {
   return useMutation({
     mutationFn: (request: BatchCorrectionRequest) => correctBatch(request),
+    retry: false, // Disable retries for AI correction
     onSuccess: () => {
       // Don't automatically invalidate - let user review and accept
       // queryClient.invalidateQueries({ queryKey: ['segments'] })

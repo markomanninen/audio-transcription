@@ -11,7 +11,7 @@ import json
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable
+from typing import List, Iterable
 
 from ..core.config import settings
 from ..core.database import SessionLocal
@@ -47,7 +47,7 @@ def _copy_asset(source: Path, target: Path) -> None:
 def _create_segments(
     audio_file_id: int,
     speakers: Iterable[Speaker],
-) -> list[Segment]:
+) -> List[Segment]:
     """Build a consistent transcript for seeded completed files."""
     speaker_cycle = list(speakers)
     if not speaker_cycle:
@@ -62,7 +62,7 @@ def _create_segments(
         (36.0, 44.5, "Perfect, I'll follow up with documentation after this call."),
     ]
 
-    segments: list[Segment] = []
+    segments: List[Segment] = []
     for index, (start, end, text) in enumerate(base_lines, start=1):
         speaker = speaker_cycle[(index - 1) % len(speaker_cycle)]
         segments.append(

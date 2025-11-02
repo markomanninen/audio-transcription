@@ -60,14 +60,42 @@ class LLMService:
         """List available providers."""
         return list(self._providers.keys())
 
+    def _create_provider_with_model(self, provider: str, model: Optional[str] = None, timeout: Optional[int] = None) -> Optional[LLMProvider]:
+        """Create a provider instance with a specific model and/or timeout."""
+        
+        if provider == "ollama":
+            final_timeout = timeout or settings.OLLAMA_TIMEOUT
+            
+            return OllamaProvider(
+                base_url=settings.OLLAMA_BASE_URL,
+                model=model or settings.OLLAMA_MODEL,  # Use provided model or default
+                timeout=final_timeout,
+                api_key=settings.OLLAMA_API_KEY if settings.OLLAMA_API_KEY else None,
+                verify_ssl=settings.OLLAMA_VERIFY_SSL,
+                external=settings.OLLAMA_EXTERNAL,
+                db=self.db
+            )
+        elif provider == "openrouter":
+            openrouter_key = getattr(settings, 'OPENROUTER_API_KEY', None)
+            if openrouter_key:
+                return OpenRouterProvider(
+                    api_key=openrouter_key,
+                    model=model or getattr(settings, 'OPENROUTER_MODEL', 'meta-llama/llama-3.2-1b-instruct:free'),
+                    timeout=timeout or 30,  # Use provided timeout or default to 30
+                    db=self.db
+                )
+        return None
+
     async def correct_text(
         self,
         text: str,
         provider: str = "ollama",
+        model: Optional[str] = None,
         context: str = "",
         correction_type: str = "all",
         segment_id: Optional[int] = None,
-        project_id: Optional[int] = None
+        project_id: Optional[int] = None,
+        timeout: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Correct text using specified provider.
@@ -75,6 +103,7 @@ class LLMService:
         Args:
             text: Text to correct
             provider: Provider to use ("ollama" or "openrouter")
+            model: Optional specific model to use (overrides default)
             context: Optional context
             correction_type: Type of correction
             segment_id: Optional segment ID for logging
@@ -87,7 +116,14 @@ class LLMService:
             ValueError: If provider not found
             ConnectionError: If provider unavailable
         """
-        llm_provider = self.get_provider(provider)
+        # If a specific model is requested, create a new provider instance
+        if model:
+            llm_provider = self._create_provider_with_model(provider, model, timeout)
+        elif timeout:
+            # If timeout is specified but no model, create provider with timeout
+            llm_provider = self._create_provider_with_model(provider, None, timeout)
+        else:
+            llm_provider = self.get_provider(provider)
 
         if not llm_provider:
             raise ValueError(f"Provider '{provider}' not available. Available: {self.list_providers()}")

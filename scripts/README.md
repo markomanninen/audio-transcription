@@ -81,3 +81,26 @@ scripts/status.bat
 # Deploy with PowerShell
 ./scripts/deploy.ps1
 ```
+
+### Publishing Docker images
+
+From a Unix-like shell (macOS / Linux / WSL) you can publish both backend and frontend images:
+
+```bash
+./scripts/publish_all.sh
+# or individually:
+./scripts/publish_backend.sh
+./scripts/publish_frontend.sh
+```
+
+Notes:
+
+- These scripts use `docker compose` when available, falling back to `docker-compose`.
+
+- They attempt to detect the image built by compose and tag it for Docker Hub. If detection fails, tag the local image manually before pushing.
+
+### Windows / PowerShell notes
+
+- Use an elevated PowerShell if Docker Desktop requires it. Run `./scripts/deploy.ps1` from the repository root.
+- The deploy script checks multiple common backend ports (8000, 8080, 8081) for the health endpoint when waiting for startup.
+- If you prefer to run from WSL, the bash publish scripts will work there as well.

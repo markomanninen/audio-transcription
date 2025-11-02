@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 from ..models.audio_file import TranscriptionStatus
 
 
-def normalize_transcription_statuses(engine: Engine) -> dict[str, int]:
+def normalize_transcription_statuses(engine: Engine) -> Dict[str, int]:
     """
     Ensure all persisted transcription statuses use the canonical enum values.
 

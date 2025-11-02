@@ -4,7 +4,7 @@ Audio file handling service.
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from io import BytesIO
 import magic
 from pydub import AudioSegment
@@ -182,7 +182,7 @@ class AudioService:
         file_path: str,
         chunk_duration_seconds: float,
         overlap_seconds: float = 0.0,
-        original_display_name: str | None = None,
+        original_display_name: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Split an audio file into multiple chunks.

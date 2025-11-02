@@ -40,22 +40,22 @@ class TranscriptionStatusResponse(BaseModel):
     original_filename: str
     status: str
     progress: float
-    error_message: str | None
-    processing_stage: str | None
+    error_message: Optional[str]
+    processing_stage: Optional[str]
     segment_count: int
-    duration: float | None
-    transcription_started_at: str | None
-    transcription_completed_at: str | None
-    created_at: str | None
-    updated_at: str | None
-    transcription_metadata: str | None
-    parent_file_id: int | None = None
-    split_start_seconds: float | None = None
-    split_end_seconds: float | None = None
-    split_label: str | None = None
-    split_total_chunks: int | None = None
-    split_origin_filename: str | None = None
-    split_depth: int | None = None
+    duration: Optional[float]
+    transcription_started_at: Optional[str]
+    transcription_completed_at: Optional[str]
+    created_at: Optional[str]
+    updated_at: Optional[str]
+    transcription_metadata: Optional[str]
+    parent_file_id: Optional[int] = None
+    split_start_seconds: Optional[float] = None
+    split_end_seconds: Optional[float] = None
+    split_label: Optional[str] = None
+    split_total_chunks: Optional[int] = None
+    split_origin_filename: Optional[str] = None
+    split_depth: Optional[int] = None
 
 
 class SegmentResponse(BaseModel):
@@ -66,8 +66,8 @@ class SegmentResponse(BaseModel):
     start_time: float
     end_time: float
     original_text: str
-    edited_text: str | None
-    speaker_id: int | None
+    edited_text: Optional[str]
+    speaker_id: Optional[int]
     sequence: int
     is_passive: bool
 
@@ -93,7 +93,7 @@ class StartTranscriptionRequest(BaseModel):
 
     include_diarization: bool = True
     model_size: str = "tiny"  # tiny, base, small, medium, large
-    language: str | None = None  # None for auto-detection
+    language: Optional[str] = None  # None for auto-detection
 
 
 class SegmentUpdateRequest(BaseModel):
@@ -122,7 +122,7 @@ class SegmentInsertRequest(BaseModel):
 class SegmentJoinRequest(BaseModel):
     """Request to merge multiple segments into one."""
     segment_ids: List[int]
-    max_gap_seconds: float | None = 1.5
+    max_gap_seconds: Optional[float] = 1.5
 
 
 class AudioSplitRequest(BaseModel):
@@ -133,8 +133,8 @@ class AudioSplitRequest(BaseModel):
     overlap_seconds: float = 0.0
     start_transcription: bool = True
     include_diarization: bool = True
-    model_size: str | None = None
-    language: str | None = None
+    model_size: Optional[str] = None
+    language: Optional[str] = None
 
 
 class SplitChunkResponse(BaseModel):
@@ -143,11 +143,11 @@ class SplitChunkResponse(BaseModel):
     original_filename: str
     duration: float
     order_index: int
-    chunk_label: str | None = None
-    chunk_total: int | None = None
-    split_start_seconds: float | None = None
-    split_end_seconds: float | None = None
-    parent_file_id: int | None = None
+    chunk_label: Optional[str] = None
+    chunk_total: Optional[int] = None
+    split_start_seconds: Optional[float] = None
+    split_end_seconds: Optional[float] = None
+    parent_file_id: Optional[int] = None
     transcription_requested: bool
     started_immediately: bool
 
@@ -161,8 +161,8 @@ class SplitBatchResponse(BaseModel):
 def transcribe_task(
     audio_file_id: int,
     include_diarization: bool = True,
-    model_size: str | None = None,
-    language: str | None = None,
+    model_size: Optional[str] = None,
+    language: Optional[str] = None,
     force_restart: bool = False,
 ) -> None:
     """Background task for transcription (supports queued execution)."""
@@ -1510,7 +1510,7 @@ async def split_audio_and_batch_transcribe(
             detail=f"Failed to split audio file: {exc}"
         )
 
-    created_entries: list[tuple[AudioFile, dict]] = []
+    created_entries: List[tuple[AudioFile, dict]] = []
     try:
         for chunk in chunks:
             metadata = {
@@ -1570,7 +1570,7 @@ async def split_audio_and_batch_transcribe(
     for new_file, _ in created_entries:
         db.refresh(new_file)
 
-    results: list[SplitChunkResponse] = []
+    results: List[SplitChunkResponse] = []
     service_ready = is_transcription_service_ready()
 
     if request.start_transcription:

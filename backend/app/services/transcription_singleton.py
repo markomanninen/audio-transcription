@@ -4,7 +4,7 @@ Global transcription service singleton to avoid repeated model downloads.
 import re
 import subprocess
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from .transcription_service import (
     TranscriptionService,
     VALID_MODEL_SIZES,
@@ -20,7 +20,7 @@ _initialization_in_progress = False
 _model_ready = False
 
 
-def _model_cache_candidates(model_size: str) -> list[str]:
+def _model_cache_candidates(model_size: str) -> List[str]:
     """Return possible cache filenames for a given model."""
     special_cases = {
         "large": ["large-v3.pt", "large-v2.pt", "large.pt"],
@@ -43,7 +43,7 @@ def _determine_initial_model_size() -> str:
 
     configured = normalize_model_name(settings.WHISPER_MODEL_SIZE) or "base"
 
-    pending_models: list[str] = []
+    pending_models: List[str] = []
     for entry in _pending_transcriptions:
         model_value = _normalize_model_size(entry.get("model_size"))
         if model_value:
@@ -423,7 +423,7 @@ def update_model_loading_progress_in_db() -> None:
 _download_progress = None
 
 # Track pending transcription requests (file_id, include_diarization)
-_pending_transcriptions: list[dict] = []
+_pending_transcriptions: List[dict] = []
 
 
 def cleanup_transcription_service() -> None:
@@ -438,8 +438,8 @@ def add_pending_transcription(
     file_id: int,
     *,
     include_diarization: bool = True,
-    model_size: str | None = None,
-    language: str | None = None,
+    model_size: Optional[str] = None,
+    language: Optional[str] = None,
     force_restart: bool = False,
 ) -> None:
     """Add or update a transcription request in the pending queue."""

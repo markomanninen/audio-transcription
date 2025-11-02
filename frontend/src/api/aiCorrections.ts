@@ -6,13 +6,17 @@ import { apiClient } from './client'
 export interface CorrectionRequest {
   segment_id: number
   provider?: string
+  model?: string
   correction_type?: string
+  timeout?: number
 }
 
 export interface BatchCorrectionRequest {
   segment_ids: number[]
   provider?: string
+  model?: string
   correction_type?: string
+  timeout?: number
 }
 
 export interface CorrectionResponse {

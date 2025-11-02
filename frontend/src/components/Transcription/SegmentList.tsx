@@ -25,7 +25,6 @@ interface SegmentListProps {
   onPauseRequest?: () => void
   currentTime?: number
   isPlaying?: boolean
-  llmProvider?: string
   onOpenEditor?: () => void
   exportButton?: React.ReactNode
 }
@@ -37,7 +36,6 @@ export default function SegmentList({
   onPauseRequest,
   currentTime = 0,
   isPlaying = false,
-  llmProvider = 'ollama',
   onOpenEditor,
   exportButton
 }: SegmentListProps) {
@@ -433,19 +431,83 @@ export default function SegmentList({
       toastError('Segment inactive', 'Reactivate the segment before requesting AI corrections.')
       return
     }
+    
     try {
       setCorrectingSegmentId(segment.id)
+      
+      // Get provider from localStorage, not from props
+      const actualProvider = localStorage.getItem('llmProvider') || 'ollama'
+      console.log(`🤖 AI Correction using provider: ${actualProvider}`)
+      
+      // Get the selected model from localStorage based on actual provider
+      const selectedModel = actualProvider === 'ollama' 
+        ? localStorage.getItem('ollama_model') || 'llama3.2:1b'
+        : localStorage.getItem('openrouter_model') || 'anthropic/claude-3-haiku'
+      
+      // Get timeout setting based on actual provider
+      const timeoutSetting = actualProvider === 'ollama' 
+        ? localStorage.getItem('ollama_timeout') || '30'
+        : localStorage.getItem('openrouter_timeout') || '30'
+      
+      console.log(`🤖 AI Correction params: provider=${actualProvider}, model=${selectedModel}, timeout=${timeoutSetting}`)
+      
       const result = await correctSegment.mutateAsync({
         segment_id: segment.id,
-        provider: llmProvider,
-        correction_type: 'all'
+        provider: actualProvider,
+        model: selectedModel,
+        correction_type: 'all',
+        timeout: parseInt(timeoutSetting, 10)
       })
       setCorrection(result)
+      // Close menu when correction succeeds and modal will show
+      setOpenMenuId(null)
     } catch (err: unknown) {
-      console.error('AI correction failed:', err)
+      console.error('🚨 AI correction failed - FULL ERROR OBJECT:', err)
+      console.error('🚨 Error type:', typeof err)
+      console.error('🚨 Error constructor:', err?.constructor?.name)
+      
       const error = err as { response?: { data?: { detail?: string } }; message?: string }
+      console.error('🚨 Parsed error response:', error?.response)
+      console.error('🚨 Error message:', error?.message)
+      
       const description = error?.response?.data?.detail ?? error?.message ?? 'Unable to correct the segment.'
-      toastError('AI correction failed', description)
+      console.error('🚨 Final description for toast:', description)
+      
+      // Show timeout errors longer for better user visibility with helpful guidance
+      if (description.includes('timeout') || description.includes('Ollama request failed')) {
+        // Get the correct localStorage keys based on provider
+        const provider = localStorage.getItem('llmProvider') || 'ollama'
+        const timeoutSetting = provider === 'ollama' 
+          ? localStorage.getItem('ollama_timeout') || '30'
+          : localStorage.getItem('openrouter_timeout') || '30'
+        const modelSetting = provider === 'ollama'
+          ? localStorage.getItem('ollama_model') || 'qwen3:4b'
+          : localStorage.getItem('openrouter_model') || 'anthropic/claude-3-haiku'
+        
+        toast({ 
+          variant: 'error', 
+          title: 'AI correction timed out', 
+          description: `Request timed out after ${timeoutSetting} seconds using ${modelSetting}. Try using a smaller model (like llama3.2:1b) or increase the timeout in AI settings.`,
+          duration: 12000 // 12 seconds for timeout errors with guidance
+        })
+        // Close menu after showing timeout error
+        setOpenMenuId(null)
+      } else {
+        // Provide helpful guidance for other AI correction errors
+        let helpfulDescription = description
+        if (description.includes('model not found') || description.includes('model') && description.includes('not available')) {
+          helpfulDescription = `Model not available. Check if your selected model is installed in Ollama. Try switching to a different model in AI settings.`
+        } else if (description.includes('connection') || description.includes('connect')) {
+          helpfulDescription = `Cannot connect to AI service. Make sure Ollama is running on your system.`
+        } else if (description === 'Unable to correct the segment.' || !description) {
+          helpfulDescription = `AI correction failed. This could be due to model availability, network issues, or server load. Try again or switch to a different model.`
+        }
+        
+        toastError('AI correction failed', helpfulDescription)
+        // Close menu after showing error
+        setOpenMenuId(null)
+      }
+      console.error('🚨 Toast error called with:', 'AI correction failed', description)
     } finally {
       setCorrectingSegmentId(null)
     }

@@ -103,6 +103,8 @@ backend/.cache/
 
 test-screenshots/
 
+*/test_env/*
+
 .deps_installed
 
 .dev_runner_pids.json

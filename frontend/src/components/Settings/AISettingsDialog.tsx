@@ -53,6 +53,9 @@ export const AISettingsDialog = ({
   const [openrouterKey, setOpenrouterKey] = useState(() =>
     localStorage.getItem('openrouter_key') || ''
   )
+  const [openrouterTimeout, setOpenrouterTimeout] = useState(() =>
+    localStorage.getItem('openrouter_timeout') || '30'
+  )
 
   const handleSave = () => {
     // Save to localStorage (in production, should be saved to backend)
@@ -64,6 +67,7 @@ export const AISettingsDialog = ({
     localStorage.setItem('ollama_verify_ssl', ollamaVerifySSL.toString())
     localStorage.setItem('openrouter_model', openrouterModel)
     localStorage.setItem('openrouter_key', openrouterKey)
+    localStorage.setItem('openrouter_timeout', openrouterTimeout)
 
     onClose()
   }
@@ -359,6 +363,23 @@ export const AISettingsDialog = ({
                 >
                   openrouter.ai/models
                 </a>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Timeout (seconds)
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="300"
+                value={openrouterTimeout}
+                onChange={(e) => setOpenrouterTimeout(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg focus-ring bg-input text-input-foreground"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Request timeout for OpenRouter API calls (10-300 seconds)
               </p>
             </div>
           </div>

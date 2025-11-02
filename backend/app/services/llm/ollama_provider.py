@@ -4,9 +4,12 @@ Ollama LLM provider for local and external inference.
 import httpx
 import json
 import time
+import logging
 from typing import Dict, Any, Optional
 from .base import LLMProvider
 from .prompts import PromptBuilder
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(LLMProvider):
@@ -44,13 +47,16 @@ class OllamaProvider(LLMProvider):
         project_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Correct text using Ollama with logging."""
+        logger.debug(f"🦙 OllamaProvider.correct_text: timeout={self.timeout}s")
+        
         prompt = PromptBuilder.build_correction_prompt(text, context, correction_type)
         start_time = time.time()
 
         try:
-            # Configure HTTP client for external services
+            # Configure HTTP client with total timeout
+            logger.debug(f"🌐 Setting httpx timeout to {self.timeout} seconds")
             client_kwargs = {
-                'timeout': self.timeout,
+                'timeout': self.timeout,  # Total timeout for the entire request
                 'verify': self.verify_ssl,
                 'headers': self.headers
             }
@@ -76,6 +82,8 @@ class OllamaProvider(LLMProvider):
 
                 duration_ms = (time.time() - start_time) * 1000
 
+                logger.debug(f"✅ Ollama request completed in {duration_ms:.0f}ms")
+
                 # Log successful request
                 self._log_request(
                     prompt=prompt,
@@ -98,6 +106,22 @@ class OllamaProvider(LLMProvider):
 
         except (httpx.RequestError, httpx.HTTPStatusError) as e:
             duration_ms = (time.time() - start_time) * 1000
+            logger.error(f"❌ Ollama request failed after {duration_ms:.0f}ms: {e}")
+            
+            # Log failed request
+            self._log_request(
+                prompt=prompt,
+                response=str(e),
+                original_text=text,
+                context=context,
+                corrected_text=text,  # Return original on error
+                duration_ms=duration_ms,
+                segment_id=segment_id,
+                project_id=project_id,
+                status="error"
+            )
+            
+            raise ConnectionError(f"Ollama request failed: {e}")
 
             # Log error
             self._log_request(
@@ -216,7 +240,7 @@ class OllamaProvider(LLMProvider):
             self.db.commit()
         except Exception as e:
             # Don't fail the request if logging fails
-            print(f"Failed to log LLM request: {e}")
+            logger.warning(f"Failed to log LLM request: {e}")
 
     async def health_check(self) -> bool:
         """Check if Ollama is available (local or external)."""
@@ -234,7 +258,7 @@ class OllamaProvider(LLMProvider):
         except Exception as e:
             # Log the error for debugging external service issues
             if self.external:
-                print(f"External Ollama health check failed ({self.base_url}): {e}")
+                logger.warning(f"External Ollama health check failed ({self.base_url}): {e}")
             return False
 
     async def list_models(self) -> list:
@@ -256,7 +280,7 @@ class OllamaProvider(LLMProvider):
                 return [model.get('name', '') for model in models if model.get('name')]
         except Exception as e:
             if self.external:
-                print(f"External Ollama model listing failed ({self.base_url}): {e}")
+                logger.warning(f"External Ollama model listing failed ({self.base_url}): {e}")
             return []
 
     async def check_model_availability(self, model: str) -> bool:

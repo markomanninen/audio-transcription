@@ -31,12 +31,12 @@ class AudioFile(Base, TimestampMixin):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # bytes
-    duration: Mapped[float | None] = mapped_column(Float, nullable=True)  # seconds
+    duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # seconds
     format: Mapped[str] = mapped_column(String(10), nullable=False)  # mp3, wav, etc.
-    language: Mapped[str | None] = mapped_column(String(10), nullable=True)  # ISO 639-1 code (en, fi, sv, etc.) or None for auto-detect
-    parent_audio_file_id: Mapped[int | None] = mapped_column(ForeignKey("audio_files.id"), nullable=True)
-    split_start_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
-    split_end_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    language: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO 639-1 code (en, fi, sv, etc.) or None for auto-detect
+    parent_audio_file_id: Mapped[Optional[int]] = mapped_column(ForeignKey("audio_files.id"), nullable=True)
+    split_start_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    split_end_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     split_depth: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     split_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -47,26 +47,26 @@ class AudioFile(Base, TimestampMixin):
         nullable=False
     )
     transcription_progress: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     
     # Audit fields for performance tracking
-    transcription_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    transcription_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True) 
-    transcription_duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
-    model_used: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Whisper model size used
-    processing_stats: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string with performance metrics
+    transcription_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    transcription_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True) 
+    transcription_duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    model_used: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Whisper model size used
+    processing_stats: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string with performance metrics
     
     # Enhanced state tracking for resume functionality
     audio_transformed: Mapped[bool] = mapped_column(Integer, default=False, nullable=False)  # Audio preprocessing completed
-    audio_transformation_path: Mapped[str | None] = mapped_column(Text, nullable=True)  # Path to transformed audio file
-    whisper_model_loaded: Mapped[str | None] = mapped_column(Text, nullable=True)  # Currently loaded Whisper model
+    audio_transformation_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Path to transformed audio file
+    whisper_model_loaded: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Currently loaded Whisper model
     transcription_stage: Mapped[str] = mapped_column(Text, default='pending', nullable=False)  # Current processing stage
     last_processed_segment: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Last completed segment index
-    processing_checkpoint: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON checkpoint data
-    resume_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # Unique token for resume operations
-    transcription_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON metadata about transcription
+    processing_checkpoint: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON checkpoint data
+    resume_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Unique token for resume operations
+    transcription_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON metadata about transcription
     interruption_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Number of interruptions
-    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Last error timestamp
+    last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Last error timestamp
     recovery_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Number of recovery attempts
 
     # Relationships

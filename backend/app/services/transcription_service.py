@@ -406,7 +406,7 @@ class TranscriptionService:
         audio_file_id: int, 
         db: Session, 
         model_size: str = "tiny",
-        language: str | None = None,
+        language: Optional[str] = None,
         include_diarization: bool = True
     ) -> Dict[str, Any]:
         """Force restart a stuck transcription by cleaning up and resetting with new settings."""
@@ -599,7 +599,7 @@ class TranscriptionService:
                 },
             ]
 
-            segments: list[Segment] = []
+            segments: List[Segment] = []
             for index, segment_def in enumerate(sample_segments, start=1):
                 segment = Segment(
                     audio_file_id=audio_file_id,

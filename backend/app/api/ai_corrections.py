@@ -17,14 +17,18 @@ class SegmentCorrectionRequest(BaseModel):
     """Request model for correcting a single segment."""
     segment_id: int
     provider: str = "ollama"
+    model: Optional[str] = None
     correction_type: str = "all"
+    timeout: Optional[int] = None
 
 
 class BatchCorrectionRequest(BaseModel):
     """Request model for correcting multiple segments."""
     segment_ids: List[int]
     provider: str = "ollama"
+    model: Optional[str] = None
     correction_type: str = "all"
+    timeout: Optional[int] = None
 
 
 class CorrectionResponse(BaseModel):
@@ -124,10 +128,12 @@ async def correct_segment(
         result = await llm_service.correct_text(
             text=text_to_correct,
             provider=request.provider,
+            model=request.model,
             context=context,
             correction_type=request.correction_type,
             segment_id=segment.id,
-            project_id=project_id
+            project_id=project_id,
+            timeout=request.timeout
         )
 
         return CorrectionResponse(
@@ -240,10 +246,12 @@ async def correct_batch(
             result = await llm_service.correct_text(
                 text=text_to_correct,
                 provider=request.provider,
+                model=request.model,
                 context=context,
                 correction_type=request.correction_type,
                 segment_id=segment.id,
-                project_id=project_id
+                project_id=project_id,
+                timeout=request.timeout
             )
 
             results.append(CorrectionResponse(

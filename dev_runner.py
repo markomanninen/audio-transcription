@@ -69,15 +69,27 @@ class DevRunner:
         self.redis_port = self.ports['redis']
         self.ollama_port = self.ports['ollama']
         
-        # Process tracking
+        # Process tracking - environment-specific PID files
         self.processes: Dict[str, subprocess.Popen] = {}
-        self.pids_file = self.root_dir / ".dev_runner_pids.json"
+        env_suffix = self._get_environment_suffix()
+        self.pids_file = self.root_dir / f".dev_runner_pids_{env_suffix}.json"
         
         # Service URLs
         self.backend_url = f"http://localhost:{self.backend_port}"
         self.frontend_url = f"http://localhost:{self.frontend_port}"
         self.redis_url = f"redis://localhost:{self.redis_port}/0"
         self.ollama_url = f"http://localhost:{self.ollama_port}"
+
+    def _get_environment_suffix(self) -> str:
+        """Get environment suffix for PID files."""
+        if os.getenv('VITE_E2E_MODE') in ['1', 'true']:
+            return 'e2e'
+        elif os.getenv('NODE_ENV') == 'test':
+            return 'test'
+        elif os.getenv('DOCKER_ENV') in ['1', 'true']:
+            return 'docker'
+        else:
+            return 'dev'
 
     def _load_port_config(self) -> Dict[str, int]:
         """Load port configuration from central config file."""
@@ -608,9 +620,15 @@ class DevRunner:
             subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
             self.success("FFmpeg: OK")
         except (subprocess.CalledProcessError, FileNotFoundError):
-            self.error("FFmpeg not found")
-            self.info("Install with: brew install ffmpeg")
-            return False
+            # For test environment, FFmpeg is optional (AI corrections don't need it)
+            env = os.getenv('NODE_ENV', 'development')
+            if env == 'test':
+                self.warning("FFmpeg not found (optional for test environment)")
+                self.info("Install with: brew install ffmpeg (needed for transcription features)")
+            else:
+                self.error("FFmpeg not found")
+                self.info("Install with: brew install ffmpeg")
+                return False
         
         return True
 
@@ -900,15 +918,16 @@ class DevRunner:
                 except psutil.NoSuchProcess:
                     continue
         
-        # Stop any processes from previous runs
+        # Stop any processes from previous runs OF THE SAME ENVIRONMENT
         saved_pids = self.load_pids()
+        current_env = self._get_environment_suffix()
         for service, pid in saved_pids.items():
             if service.endswith('_port'):
                 continue
             try:
                 ps_proc = psutil.Process(pid)
                 if ps_proc.is_running():
-                    self.warning(f"Killing saved {service} process tree (PID {pid})")
+                    self.warning(f"Killing saved {service} process tree (PID {pid}) from {current_env} environment")
                     self.terminate_process_tree(ps_proc, service, wait_timeout=5)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
@@ -942,27 +961,30 @@ class DevRunner:
         self.success("Development services stopped")
 
     def aggressive_cleanup(self):
-        """Aggressively clean up all development processes."""
-        self.warning("Performing aggressive cleanup of all development processes...")
+        """Aggressively clean up development processes for current environment only."""
+        current_env = self._get_environment_suffix()
+        self.warning(f"Performing cleanup of {current_env} environment processes...")
         
         killed_count = 0
         
-        # Kill ALL uvicorn processes that are related to our app
+        # Only target processes on OUR environment's ports
+        target_backend_port = self.backend_port
+        target_frontend_port = self.frontend_port
+        
+        # Kill uvicorn processes on our backend port
         try:
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 cmdline = ' '.join(proc.info['cmdline'] or [])
                 if ('uvicorn' in proc.info['name'] or 'uvicorn' in cmdline):
-                    # Kill if it contains our app module OR is running on our ports
+                    # Kill if it contains our app module OR is running on our specific port
                     should_kill = False
                     if 'main:app' in cmdline:
-                        should_kill = True
-                    else:
-                        # Check if running on any of our backend ports
+                        # Check if it's running on our port
                         try:
                             connections = proc.net_connections()
                             for conn in connections:
                                 if (hasattr(conn, 'laddr') and conn.laddr and 
-                                    conn.laddr.port in [8000, 8001, 8002, 18200]):
+                                    conn.laddr.port == target_backend_port):
                                     should_kill = True
                                     break
                         except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
@@ -972,7 +994,7 @@ class DevRunner:
                         try:
                             proc.terminate()
                             proc.wait(timeout=3)
-                            self.warning(f"Killed uvicorn process (PID {proc.info['pid']})")
+                            self.warning(f"Killed {current_env} uvicorn process (PID {proc.info['pid']}) on port {target_backend_port}")
                             killed_count += 1
                         except (psutil.NoSuchProcess, psutil.TimeoutExpired):
                             try:
@@ -983,42 +1005,43 @@ class DevRunner:
         except Exception as e:
             self.warning(f"Error cleaning uvicorn processes: {e}")
         
-        # Kill ALL node/vite processes on development ports
+        # Kill node/vite processes on our frontend port
         try:
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 if proc.info['name'] in ['node', 'Node']:
                     cmdline = ' '.join(proc.info['cmdline'] or [])
                     if 'vite' in cmdline or 'dev' in cmdline:
-                        # Check if it's using any of our frontend ports
+                        # Check if it's using our frontend port
                         should_kill = False
                         try:
                             connections = proc.net_connections()
                             for conn in connections:
                                 if (hasattr(conn, 'laddr') and conn.laddr and 
-                                    conn.laddr.port in [5173, 5174, 5175, 18300]):
+                                    conn.laddr.port == target_frontend_port):
                                     should_kill = True
                                     break
                         except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.TimeoutExpired, AttributeError):
-                            # If we can't check connections, kill any node process with vite/dev in cmdline
-                            # that might be from our project
-                            if 'transcribe' in cmdline or any(port in cmdline for port in ['5173', '5174', '5175', '18300']):
-                                should_kill = True
+                            pass
                         
                         if should_kill:
                             try:
                                 proc.terminate()
                                 proc.wait(timeout=3)
-                                self.warning(f"Killed node/vite process (PID {proc.info['pid']})")
+                                self.warning(f"Killed {current_env} node/vite process (PID {proc.info['pid']}) on port {target_frontend_port}")
                                 killed_count += 1
                             except (psutil.NoSuchProcess, psutil.TimeoutExpired):
-                                pass
+                                try:
+                                    proc.kill()
+                                    killed_count += 1
+                                except psutil.NoSuchProcess:
+                                    pass
         except Exception as e:
             self.warning(f"Error cleaning node processes: {e}")
         
         if killed_count > 0:
-            self.success(f"Killed {killed_count} orphaned development processes")
+            self.success(f"Killed {killed_count} orphaned {current_env} environment processes")
         else:
-            self.info("No orphaned development processes found")
+            self.info(f"No orphaned {current_env} environment processes found")
 
     def check_services(self) -> Dict[str, bool]:
         """Check which services are currently running."""

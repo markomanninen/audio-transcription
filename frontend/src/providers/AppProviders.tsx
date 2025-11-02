@@ -37,6 +37,14 @@ const queryClient = new QueryClient({
         if (error.message?.includes('circuit breaker')) {
           return false
         }
+        // Don't retry timeout errors
+        if (error.message?.includes('timeout') || error.message?.includes('Request timeout')) {
+          return false
+        }
+        // Don't retry network errors that might be timeouts
+        if ((error as { code?: string }).code === 'ECONNABORTED') {
+          return false
+        }
         return failureCount < 1
       },
     }

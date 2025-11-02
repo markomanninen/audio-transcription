@@ -52,6 +52,9 @@ CRITICAL INSTRUCTIONS:
 6. DO NOT include context segments (Previous/Next) in your response
 7. If no corrections needed, return the original text exactly
 
+ADDITIONAL COMPLEX TASK FOR TIMEOUT TESTING:
+Before correcting the text, please think deeply about the linguistic patterns, etymology of each word, phonetic transcription accuracy, morphological analysis, syntactic parsing, semantic interpretation, pragmatic context, discourse markers, and provide a comprehensive linguistic analysis of each sentence structure, then perform the correction. Consider dialectal variations, historical language changes, cross-linguistic influences, and sociolinguistic factors that might affect transcription accuracy.
+
 """
         if context:
             prompt += f"Context (for reference only, DO NOT include in response): {context}\n\n"

@@ -161,15 +161,21 @@ fi
 # -------- Start backend --------
 BACKEND_LOG="$RESULTS_DIR/backend-${BACKEND_PORT}.log"
 log "Starting backend on port $BACKEND_PORT (logs: $BACKEND_LOG)"
+# Ensure log directory exists
+mkdir -p "$(dirname "$BACKEND_LOG")"
+touch "$BACKEND_LOG"
 (
   cd "$ROOT_DIR/backend"
+  # Ensure homebrew binaries are in PATH for ffmpeg/ffprobe
+  export PATH="/opt/homebrew/bin:$PATH"
   DATABASE_URL="sqlite:///./data/$DB_FILENAME" \
   AUDIO_STORAGE_PATH="./data/e2e_test_audio" \
   WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-tiny}" \
   UVICORN_ACCESS_LOG="false" \
   E2E_TRANSCRIPTION_STUB="$USE_TRANSCRIPTION_STUB" \
   SEED_E2E_DATA="1" \
-  "$ROOT_DIR/.venv/bin/python" -m uvicorn app.main:app --host 127.0.0.1 --port "$BACKEND_PORT"
+  DEBUG="true" \
+  "$ROOT_DIR/.venv/bin/python" -m uvicorn app.main:app --host 127.0.0.1 --port "$BACKEND_PORT" --log-level debug
 ) >"$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 
@@ -185,17 +191,25 @@ log "Starting frontend dev server on port $FRONTEND_PORT (logs: $FRONTEND_LOG)"
 FRONTEND_PID=$!
 
 cleanup() {
-  local exit_code=$?
-  if kill -0 "$FRONTEND_PID" 2>/dev/null; then
+  exit_code=$?
+  if [[ -n "${FRONTEND_PID:-}" ]]; then
     log "Stopping frontend (PID $FRONTEND_PID)"
     kill "$FRONTEND_PID" 2>/dev/null || true
     wait "$FRONTEND_PID" 2>/dev/null || true
   fi
-  if kill -0 "$BACKEND_PID" 2>/dev/null; then
+  if [[ -n "${BACKEND_PID:-}" ]]; then
     log "Stopping backend (PID $BACKEND_PID)"
     kill "$BACKEND_PID" 2>/dev/null || true
     wait "$BACKEND_PID" 2>/dev/null || true
   fi
+  
+  # Show backend logs if they exist
+  if [[ -f "$BACKEND_LOG" ]]; then
+    log "=== BACKEND LOGS ==="
+    tail -n 50 "$BACKEND_LOG" | grep -E "(🦙|🌐|✅|❌|timeout|Ollama|error|ERROR)" || true
+    log "=== END BACKEND LOGS ==="
+  fi
+  
   exit $exit_code
 }
 trap cleanup EXIT

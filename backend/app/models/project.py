@@ -16,7 +16,7 @@ class Project(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
 
     project_type: Mapped[str] = mapped_column(
         String(50),
@@ -25,7 +25,7 @@ class Project(Base, TimestampMixin):
         comment="Type of project: 'audio' or 'text'"
     )
 
-    content_type: Mapped[str | None] = mapped_column(
+    content_type: Mapped[Optional[str]] = mapped_column(
         String(50),
         nullable=True,
         default="general",

@@ -2,6 +2,7 @@
 LLM request/response logging model for debugging and monitoring.
 """
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy import String, Text, Integer, Float, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
@@ -25,21 +26,21 @@ class LLMLog(Base):
 
     # Request data
     prompt: Mapped[str] = mapped_column(Text)  # Full prompt sent
-    original_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # Original text being corrected
-    context: Mapped[str | None] = mapped_column(Text, nullable=True)  # Context provided
+    original_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Original text being corrected
+    context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Context provided
 
     # Response data
     response: Mapped[str] = mapped_column(Text)  # Raw response from LLM
-    corrected_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # Parsed corrected text
+    corrected_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Parsed corrected text
 
     # Metadata
     status: Mapped[str] = mapped_column(String(20), default="success")  # success, error
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)  # Request duration in milliseconds
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Request duration in milliseconds
 
     # Reference data
-    segment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Related segment ID if applicable
-    project_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Related project ID if applicable
+    segment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Related segment ID if applicable
+    project_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Related project ID if applicable
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))

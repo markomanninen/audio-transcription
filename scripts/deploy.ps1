@@ -8,17 +8,25 @@ if ($args[0] -eq "quick" -or $args.Count -eq 0) {
     Write-Host "Restarting services (code changes only)..." -ForegroundColor Yellow
     docker-compose restart backend frontend
     
-    Write-Host "Waiting for backend to be ready..." -ForegroundColor Yellow
-    do {
-        Start-Sleep -Seconds 2
-        try {
-            $response = Invoke-RestMethod -Uri "http://localhost:8000/health" -Method GET -TimeoutSec 5
-            $backendReady = $true
-        } catch {
-            Write-Host "." -NoNewline -ForegroundColor DarkGray
-            $backendReady = $false
-        }
-    } while (-not $backendReady)
+        Write-Host "Waiting for backend to be ready... (checking ports 8000, 8080, 8081)" -ForegroundColor Yellow
+        $backendReady = $false
+        $portsToCheck = @(8000, 8080, 8081)
+        do {
+            Start-Sleep -Seconds 2
+            foreach ($p in $portsToCheck) {
+                try {
+                    $uri = "http://localhost:${p}/health"
+                    $response = Invoke-RestMethod -Uri $uri -Method GET -TimeoutSec 3 -ErrorAction Stop
+                    if ($response) {
+                        Write-Host "\nBackend responded on port ${p}." -ForegroundColor Green
+                        $backendReady = $true
+                        break
+                    }
+                } catch {
+                    Write-Host "." -NoNewline -ForegroundColor DarkGray
+                }
+            }
+        } while (-not $backendReady)
     
     Write-Host ""
     Write-Host "Services restarted!" -ForegroundColor Green
@@ -31,15 +39,23 @@ elseif ($args[0] -eq "build") {
     docker-compose build
     docker-compose up -d
     
-    Write-Host "Waiting for backend to be ready..." -ForegroundColor Yellow
+    Write-Host "Waiting for backend to be ready... (checking ports 8000, 8080, 8081)" -ForegroundColor Yellow
+    $backendReady = $false
+    $portsToCheck = @(8000, 8080, 8081)
     do {
         Start-Sleep -Seconds 2
-        try {
-            $response = Invoke-RestMethod -Uri "http://localhost:8000/health" -Method GET -TimeoutSec 5
-            $backendReady = $true
-        } catch {
-            Write-Host "." -NoNewline -ForegroundColor DarkGray
-            $backendReady = $false
+        foreach ($p in $portsToCheck) {
+            try {
+                $uri = "http://localhost:${p}/health"
+                $response = Invoke-RestMethod -Uri $uri -Method GET -TimeoutSec 3 -ErrorAction Stop
+                if ($response) {
+                    Write-Host "\nBackend responded on port ${p}." -ForegroundColor Green
+                    $backendReady = $true
+                    break
+                }
+            } catch {
+                Write-Host "." -NoNewline -ForegroundColor DarkGray
+            }
         }
     } while (-not $backendReady)
     

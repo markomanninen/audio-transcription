@@ -118,4 +118,10 @@ For publishing both images in sequence:
 
 ```bash
 ./publish_all.sh
+
+Notes about the helper scripts:
+
+- The helper scripts (`publish_*`) prefer the modern `docker compose` command but will fall back to `docker-compose` if the newer CLI plugin is not available.
+- They attempt to locate the image built by compose and tag it for pushing. If you run into tagging errors, build locally and tag explicitly using `docker image ls` to locate the image id.
+- On Windows, run the bash publish scripts from WSL or Git Bash (they are regular bash scripts). PowerShell users can run `docker` and `docker-compose` commands directly or use WSL for the helper scripts.
 ```

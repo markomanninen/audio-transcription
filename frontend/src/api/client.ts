@@ -27,7 +27,7 @@ const CIRCUIT_BREAKER_TIMEOUT = 5000 // 5 seconds - quick recovery for restarts
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // Increased timeout for CPU-intensive transcription operations
+  timeout: 120000, // 2 minutes to support up to 60-second LLM timeouts plus overhead
   headers: {
     'Content-Type': 'application/json',
   },
