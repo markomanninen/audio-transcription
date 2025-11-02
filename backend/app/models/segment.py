@@ -1,12 +1,17 @@
-"""
-Segment model - represents a transcribed text segment with timing and speaker.
-"""
-from sqlalchemy import String, Integer, Float, ForeignKey, Text, Boolean
+from __future__ import annotations
+
+"""Segment model - represents a transcribed text segment with timing and speaker."""
+
+from sqlalchemy import Integer, Float, String, ForeignKey, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .base import Base, TimestampMixin
 
+if TYPE_CHECKING:
+    from .audio_file import AudioFile
+    from .speaker import Speaker
+    from .edit import Edit
 
 class Segment(Base, TimestampMixin):
     """A transcribed segment of audio with timing and speaker information."""

@@ -2,7 +2,6 @@
 Ollama LLM provider for local and external inference.
 """
 import httpx
-import json
 import time
 import logging
 from typing import Dict, Any, Optional

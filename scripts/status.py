@@ -18,7 +18,6 @@ import json
 import subprocess
 from datetime import datetime
 from urllib.request import urlopen, Request
-from urllib.error import URLError
 
 class TranscriptionMonitor:
     def __init__(self, base_url="http://localhost:8000"):

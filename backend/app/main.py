@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core import database
 from .core.logging_config import setup_logging
-from .services.transcription_singleton import initialize_transcription_service, cleanup_transcription_service
+from .services.transcription_singleton import cleanup_transcription_service
 from .api import upload, transcription, audio, export, ai_corrections, ai_analysis, llm_logs, ai_editor, projects, export_templates, test_helpers
 from .core.config import settings
 from .services.status_normalizer import normalize_transcription_statuses
@@ -222,7 +222,7 @@ async def health():
     try:
         storage_path = Path(settings.AUDIO_STORAGE_PATH)
         if storage_path.exists():
-            components["storage"] = {"status": "up", "message": f"Storage accessible"}
+            components["storage"] = {"status": "up", "message": "Storage accessible"}
         else:
             components["storage"] = {"status": "down", "message": "Storage path missing"}
     except Exception as e:
@@ -330,7 +330,7 @@ async def health():
         finally:
             db.close()
             
-    except Exception as e:
+    except Exception:
         # Don't fail health check on database issues
         components["database"] = {"status": "unknown", "message": "Could not check status"}
     

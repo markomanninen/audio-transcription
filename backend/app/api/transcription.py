@@ -20,7 +20,6 @@ from ..services.transcription_singleton import (
     is_transcription_service_ready,
     is_model_cached_on_disk,
 )
-from ..services.transcription_service import TranscriptionService
 from ..services.audio_service import AudioService
 from ..models.segment import Segment
 from ..models.speaker import Speaker
@@ -284,7 +283,7 @@ async def start_transcription_with_settings(
             print(f"[INITIALIZATION] About to initialize Whisper for file {audio_file_id}")
             logger.info(f"Whisper not ready - file {audio_file_id} queued and starting initialization...")
             try:
-                print(f"[INITIALIZATION] Starting background initialization...")
+                print("[INITIALIZATION] Starting background initialization...")
                 # Start initialization in background thread to avoid blocking API
                 import threading
                 init_thread = threading.Thread(
@@ -293,7 +292,7 @@ async def start_transcription_with_settings(
                     name="whisper-init"
                 )
                 init_thread.start()
-                print(f"[INITIALIZATION] Background initialization started")
+                print("[INITIALIZATION] Background initialization started")
                 logger.info("Background Whisper initialization started")
             except Exception as e:
                 print(f"[INITIALIZATION] Failed to start background initialization: {e}")

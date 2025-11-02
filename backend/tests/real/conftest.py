@@ -159,13 +159,10 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.main import app as fastapi_app
-from app.core import database as app_database
 from app.core.database import get_db
 from app.models.base import Base
 from app.models.project import Project
 from app.models.audio_file import AudioFile, TranscriptionStatus
-from app.models.segment import Segment
-from app.models.speaker import Speaker
 
 
 @pytest.fixture(scope="function")
@@ -260,7 +257,7 @@ def sample_audio_file(test_db, sample_project):
 
     if not test_audio_path:
         # Print available paths for debugging
-        print(f"Could not find test-audio-30s.mp3 in any of these locations:")
+        print("Could not find test-audio-30s.mp3 in any of these locations:")
         for path in possible_paths:
             print(f"  - {path} (exists: {os.path.exists(path)})")
 

@@ -1,7 +1,6 @@
 """
 Tests for prompt builder.
 """
-import pytest
 from app.services.llm.prompts import PromptBuilder
 
 

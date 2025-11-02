@@ -5,10 +5,8 @@ Tests transcription service methods with detailed progress tracking.
 """
 
 import pytest
-import tempfile
-import os
 import sys
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from datetime import datetime
 import logging
 
@@ -132,7 +130,7 @@ class TestProgressTracker:
         """Print test summary."""
         elapsed = datetime.now() - self.start_time
         print(f"\n{'='*60}")
-        print(f"📊 TEST SUMMARY")
+        print("📊 TEST SUMMARY")
         print(f"{'='*60}")
         print(f"🏃 Tests Run: {self.tests_run}")
         print(f"✅ Passed: {self.tests_passed}")
@@ -140,7 +138,7 @@ class TestProgressTracker:
         print(f"⏱️  Time: {elapsed.total_seconds():.1f}s")
         
         if self.tests_failed == 0:
-            print(f"🎉 ALL TESTS PASSED!")
+            print("🎉 ALL TESTS PASSED!")
         else:
             print(f"💥 {self.tests_failed} TESTS FAILED")
 
@@ -319,7 +317,7 @@ class TestEnhancedTranscriptionService:
             
             # Test token validation
             valid = transcription_service.validate_resume_token(1, token)
-            assert valid == True, "Token should be valid"
+            assert valid is True, "Token should be valid"
             
             progress.pass_test("Resume Token System", "Resume token system working correctly")
             

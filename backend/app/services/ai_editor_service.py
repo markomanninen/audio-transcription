@@ -1,12 +1,11 @@
 """
 Service for advanced AI-powered text editing features.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import json
 
 from .llm.llm_service import LLMService
 from .llm.prompts import PromptBuilder
-from ..models.project import Project
 from sqlalchemy.orm import Session
 
 class AIEditorService:

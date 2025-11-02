@@ -1,13 +1,10 @@
 """
 Global transcription service singleton to avoid repeated model downloads.
 """
-import re
-import subprocess
 import threading
 from typing import Optional, Dict, Any, List
 from .transcription_service import (
     TranscriptionService,
-    VALID_MODEL_SIZES,
     MODEL_PRIORITIES,
     normalize_model_name,
 )
@@ -196,7 +193,6 @@ def initialize_transcription_service() -> None:
         # Check if model cache exists before loading
         import os
         # Lazy import whisper to avoid blocking during module import
-        import whisper
         
         model_size = service.model_size
         cache_dir = os.path.expanduser("~/.cache/whisper")

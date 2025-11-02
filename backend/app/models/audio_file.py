@@ -1,6 +1,6 @@
-"""
-AudioFile model - represents an uploaded audio file.
-"""
+"""AudioFile model - represents an uploaded audio file."""
+from __future__ import annotations
+
 from sqlalchemy import String, Integer, Float, ForeignKey, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from typing import List, Optional
@@ -8,6 +8,11 @@ import enum
 from datetime import datetime
 
 from .base import Base, TimestampMixin
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .project import Project
+    from .segment import Segment
 
 
 class TranscriptionStatus(str, enum.Enum):

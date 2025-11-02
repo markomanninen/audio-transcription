@@ -2,8 +2,7 @@
 Export service for generating transcription outputs in various formats.
 """
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy.orm import Session
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -191,7 +190,7 @@ class ExportService:
             "    </style>",
             "</head>",
             "<body>",
-            f"    <h1>Transcription</h1>",
+            "    <h1>Transcription</h1>",
             "    <div class='metadata'>",
             f"        <p><strong>File:</strong> {audio_file.original_filename}</p>",
             f"        <p><strong>Duration:</strong> {self._format_duration(audio_file.duration)}</p>",
@@ -520,12 +519,12 @@ class ExportService:
                 continue
 
             # File header
-            html_parts.append(f"    <div class='file-section'>")
+            html_parts.append("    <div class='file-section'>")
             html_parts.append(f"        <h2>File {file_idx + 1}: {audio_file.original_filename}</h2>")
-            html_parts.append(f"        <div class='file-metadata'>")
+            html_parts.append("        <div class='file-metadata'>")
             html_parts.append(f"            Duration: {self._format_duration(audio_file.duration)} | ")
             html_parts.append(f"            Segments: {len(segments)}")
-            html_parts.append(f"        </div>")
+            html_parts.append("        </div>")
 
             # Add segments
             for segment in segments:
@@ -552,7 +551,7 @@ class ExportService:
                 html_parts.append(f"            <div class='text'>{text}</div>")
                 html_parts.append("        </div>")
 
-            html_parts.append(f"    </div>")
+            html_parts.append("    </div>")
 
             # Update cumulative offset for next file
             if audio_file.duration:

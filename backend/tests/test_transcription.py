@@ -3,8 +3,6 @@ Tests for transcription API endpoints.
 """
 import json
 import os
-import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -242,7 +240,6 @@ def test_transcription_service(mock_whisper, test_db, temp_audio_dir):
     assert segments[1].end_time == 10.0
 
     # Cleanup
-    import os
     for path in [temp_path, converted_path]:
         if os.path.exists(path):
             os.remove(path)

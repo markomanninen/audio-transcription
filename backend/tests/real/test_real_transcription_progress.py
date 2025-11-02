@@ -7,8 +7,6 @@ CURRENTLY SKIPPED due to FFmpeg configuration challenges in real test environmen
 import time
 import pytest
 
-from app.models.audio_file import AudioFile, TranscriptionStatus
-from app.services.transcription_service import TranscriptionService
 
 
 @pytest.mark.slow

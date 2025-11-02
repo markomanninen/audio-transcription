@@ -1,12 +1,16 @@
-"""
-Project model - represents a transcription or text project.
-"""
+"""Project model - represents a transcription or text project."""
+from __future__ import annotations
+
 from sqlalchemy import String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from .base import Base, TimestampMixin
-from .text_document import TextDocument
+
+if TYPE_CHECKING:
+    from .audio_file import AudioFile
+    from .speaker import Speaker
+    from .text_document import TextDocument
 
 
 class Project(Base, TimestampMixin):

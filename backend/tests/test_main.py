@@ -1,7 +1,6 @@
 """
 Tests for main application endpoints.
 """
-import pytest
 
 
 def test_root_endpoint(client):

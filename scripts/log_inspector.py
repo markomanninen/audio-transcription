@@ -13,10 +13,8 @@ Usage examples:
 
 import subprocess
 import argparse
-import sys
 import re
-from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional
 
 
 class LogInspector:

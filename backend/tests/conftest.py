@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 import tempfile
 import os
@@ -175,7 +175,6 @@ def test_engine():
     app_database.engine = original_engine
 
     # Remove database file
-    import os
     if os.path.exists(db_name):
         os.remove(db_name)
 

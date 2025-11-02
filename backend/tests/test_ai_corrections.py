@@ -4,8 +4,6 @@ Tests for AI correction endpoints.
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from app.models.segment import Segment
-from app.models.speaker import Speaker
 
 
 @pytest.fixture

@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.ai_editor_service import AIEditorService
-from app.models.llm_log import LLMLog
 
 
 client = TestClient(app)

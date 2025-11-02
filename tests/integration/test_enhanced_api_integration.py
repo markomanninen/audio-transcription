@@ -55,7 +55,7 @@ class ProgressTracker:
         elapsed = (datetime.now() - self.start_time).total_seconds()
         
         print(f"\n{'='*70}")
-        print(f"📊 API INTEGRATION TEST SUMMARY")
+        print("📊 API INTEGRATION TEST SUMMARY")
         print(f"{'='*70}")
         print(f"🏃 Total Tests: {self.total_tests}")
         print(f"✅ Passed: {self.passed}")
@@ -63,11 +63,11 @@ class ProgressTracker:
         print(f"⏱️  Total Time: {elapsed:.1f}s")
         
         if self.failed == 0:
-            print(f"🎉 ALL API TESTS PASSED!")
-            print(f"🔥 The enhanced API is working correctly!")
+            print("🎉 ALL API TESTS PASSED!")
+            print("🔥 The enhanced API is working correctly!")
         else:
             print(f"💥 {self.failed} TESTS FAILED")
-            print(f"🐛 Please review API implementation")
+            print("🐛 Please review API implementation")
         
         success_rate = (self.passed / self.total_tests) * 100 if self.total_tests > 0 else 0
         print(f"📈 Success Rate: {success_rate:.1f}%")

@@ -8,10 +8,9 @@ import os
 import sys
 import subprocess
 import time
-import json
 import requests
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import logging
 
 # Configure logging
@@ -80,7 +79,7 @@ class TestSuiteRunner:
     
     def check_backend_health(self, timeout: int = 5) -> bool:
         """Check if backend is healthy and ready for testing."""
-        print(f"\n🏥 CHECKING BACKEND HEALTH")
+        print("\n🏥 CHECKING BACKEND HEALTH")
         print("-" * 50)
         print(f"🌐 Testing connection to: {self.backend_url}")
         
@@ -90,7 +89,7 @@ class TestSuiteRunner:
                 
                 if response.status_code == 200:
                     health_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                    print(f"✅ Backend is healthy!")
+                    print("✅ Backend is healthy!")
                     print(f"📊 Status: {health_data.get('status', 'OK')}")
                     if 'timestamp' in health_data:
                         print(f"⏰ Timestamp: {health_data['timestamp']}")
@@ -98,9 +97,9 @@ class TestSuiteRunner:
                 else:
                     print(f"⚠️  Backend returned status {response.status_code}")
                     
-            except requests.exceptions.RequestException as e:
+            except requests.exceptions.RequestException:
                 if attempt == 0:
-                    print(f"🔄 Waiting for backend to start...")
+                    print("🔄 Waiting for backend to start...")
             
             time.sleep(1)
         
@@ -113,7 +112,7 @@ class TestSuiteRunner:
     
     def run_unit_tests(self) -> Dict[str, Any]:
         """Run unit tests with detailed progress tracking."""
-        print(f"\n🧪 RUNNING UNIT TESTS")
+        print("\n🧪 RUNNING UNIT TESTS")
         print("-" * 50)
         
         unit_test_file = os.path.join(self.tests_dir, "backend", "test_enhanced_transcription_unit.py")
@@ -176,7 +175,7 @@ class TestSuiteRunner:
     
     def run_integration_tests(self) -> Dict[str, Any]:
         """Run API integration tests with detailed progress tracking."""
-        print(f"\n🌐 RUNNING API INTEGRATION TESTS")
+        print("\n🌐 RUNNING API INTEGRATION TESTS")
         print("-" * 50)
         
         integration_test_file = os.path.join(self.tests_dir, "integration", "test_enhanced_api_integration.py")
@@ -240,7 +239,7 @@ class TestSuiteRunner:
     
     def run_e2e_tests(self) -> Dict[str, Any]:
         """Run end-to-end tests with detailed progress tracking."""
-        print(f"\n[TARGET] RUNNING END-TO-END TESTS")
+        print("\n[TARGET] RUNNING END-TO-END TESTS")
         print("-" * 50)
         
         e2e_test_file = os.path.join(self.tests_dir, "backend", "test_simple_e2e.py")
@@ -299,7 +298,7 @@ class TestSuiteRunner:
     
     def run_existing_backend_tests(self) -> Dict[str, Any]:
         """Run existing backend test files in tests/ directory."""
-        print(f"\n🔧 RUNNING EXISTING BACKEND TESTS")
+        print("\n🔧 RUNNING EXISTING BACKEND TESTS")
         print("-" * 50)
         
         backend_tests_dir = os.path.join(self.base_dir, "tests", "backend")
@@ -374,7 +373,7 @@ class TestSuiteRunner:
     
     def run_full_transcription_e2e_test(self) -> Dict[str, Any]:
         """Run the complete audio transcription end-to-end test."""
-        print(f"\n🎤 RUNNING FULL TRANSCRIPTION E2E TEST")
+        print("\n🎤 RUNNING FULL TRANSCRIPTION E2E TEST")
         print("-" * 50)
         
         full_e2e_test_file = os.path.join(self.tests_dir, "backend", "test_full_transcription_e2e.py")
@@ -415,10 +414,10 @@ class TestSuiteRunner:
             success = result.returncode == 0
             
             if success:
-                print(f"[PASS] Full transcription E2E test PASSED")
+                print("[PASS] Full transcription E2E test PASSED")
                 print("✅ Audio was created, uploaded, transcribed, and text extracted successfully!")
             else:
-                print(f"[FAIL] Full transcription E2E test FAILED")
+                print("[FAIL] Full transcription E2E test FAILED")
                 print("❌ Audio transcription pipeline has issues")
             
             return {
@@ -439,13 +438,13 @@ class TestSuiteRunner:
             print(f"[ERROR] Full E2E test error: {e}")
             return {"success": False, "error": str(e), "duration": duration}
         """Run existing backend tests for compatibility."""
-        print(f"\n🔄 RUNNING EXISTING BACKEND TESTS")
+        print("\n🔄 RUNNING EXISTING BACKEND TESTS")
         print("-" * 50)
         
         backend_tests_dir = os.path.join(self.base_dir, "backend", "tests")
         
         if not os.path.exists(backend_tests_dir):
-            print(f"ℹ️  No existing backend tests directory found")
+            print("ℹ️  No existing backend tests directory found")
             return {"success": True, "skipped": True, "duration": 0}
         
         print(f"📁 Testing directory: {backend_tests_dir}")
@@ -569,7 +568,7 @@ class TestSuiteRunner:
         print(f"⏱️  Total Duration: {total_duration:.1f}s ({total_duration/60:.1f} minutes)")
         print(f"🌐 Backend URL: {self.backend_url}")
         
-        print(f"\n📊 TEST SUITE RESULTS:")
+        print("\n📊 TEST SUITE RESULTS:")
         print("-" * 60)
         
         total_suites = len(self.test_results)
@@ -600,14 +599,14 @@ class TestSuiteRunner:
         print(f"📈 Summary: {passed_suites} passed, {failed_suites} failed, {skipped_suites} skipped")
         
         if failed_suites == 0:
-            print(f"\n🎉 ALL TESTS PASSED!")
-            print(f"🔥 The enhanced transcription system is working correctly!")
-            print(f"✨ You can now trust the restart/resume functionality!")
-            print(f"🚀 The system is ready for production use!")
+            print("\n🎉 ALL TESTS PASSED!")
+            print("🔥 The enhanced transcription system is working correctly!")
+            print("✨ You can now trust the restart/resume functionality!")
+            print("🚀 The system is ready for production use!")
         else:
             print(f"\n💥 {failed_suites} TEST SUITE(S) FAILED!")
-            print(f"🐛 Please review the implementation and fix issues.")
-            print(f"🔍 Check the detailed output above for specific failures.")
+            print("🐛 Please review the implementation and fix issues.")
+            print("🔍 Check the detailed output above for specific failures.")
         
         success_rate = (passed_suites / total_suites) * 100 if total_suites > 0 else 0
         print(f"📊 Overall Success Rate: {success_rate:.1f}%")

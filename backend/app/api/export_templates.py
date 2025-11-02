@@ -38,7 +38,7 @@ def create_export_template(template_data: ExportTemplateCreate, db: Session = De
         db.commit()
         db.refresh(new_template)
         return new_template
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=400, detail="Template with this name already exists.")
 
@@ -76,7 +76,7 @@ def update_export_template(template_id: int, template_data: ExportTemplateUpdate
         db.commit()
         db.refresh(template)
         return template
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=400, detail="Template with this name already exists.")
 

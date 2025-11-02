@@ -6,7 +6,7 @@ __pycache__/
 .Python
 backend/data/
 backend/.env
-backend/.pytest_cache/
+backend/.*_cache/
 backend/htmlcov/
 backend/.coverage
 backend/*.egg-info/

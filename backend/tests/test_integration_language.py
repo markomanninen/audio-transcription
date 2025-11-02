@@ -1,7 +1,6 @@
 """
 Integration tests for language auto-detection and transcription pipeline.
 """
-import pytest
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 

@@ -493,10 +493,10 @@ class TranscriptionService:
                 logger.info(f"🔄 Auto-deciding to RESUME transcription (found {status['segments_created']} existing segments)")
             elif status["is_stuck"] or status["status"] == "FAILED":
                 action = "restart"
-                logger.info(f"🔄 Auto-deciding to RESTART transcription (stuck or failed)")
+                logger.info("🔄 Auto-deciding to RESTART transcription (stuck or failed)")
             else:
                 action = "continue"
-                logger.info(f"Auto-deciding to CONTINUE transcription")
+                logger.info("Auto-deciding to CONTINUE transcription")
         
         # Execute the determined action
         if action == "resume":
@@ -516,7 +516,7 @@ class TranscriptionService:
                 logger.info(f"Fresh transcription completed with {len(segments)} segments")
                 return {
                     "action": "started_fresh",
-                    "message": f"No segments to resume, started fresh transcription",
+                    "message": "No segments to resume, started fresh transcription",
                     "segments": len(segments)
                 }
         
@@ -525,7 +525,7 @@ class TranscriptionService:
             restart_result = self.force_restart_transcription(audio_file_id, db)
             if "error" not in restart_result:
                 logger.info(f"Deleted {restart_result['deleted_segments']} existing segments")
-                logger.info(f"Starting fresh transcription...")
+                logger.info("Starting fresh transcription...")
                 segments = self.resume_or_transcribe_audio(audio_file_id, db, force_restart=False)
                 logger.info(f"Restart completed with {len(segments)} new segments")
                 return {
@@ -851,7 +851,6 @@ class TranscriptionService:
             import threading
             from contextlib import redirect_stderr
             from io import StringIO
-            import re
 
             progress_active = threading.Event()
             progress_active.set()

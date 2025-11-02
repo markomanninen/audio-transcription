@@ -2,12 +2,11 @@
 Tests for the force-restart transcription endpoint.
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from sqlalchemy.orm import Session
 
 from app.models.audio_file import AudioFile, TranscriptionStatus
 from app.models.project import Project
-from app.models.segment import Segment
 
 
 def _create_audio_file(db: Session, project: Project, status: TranscriptionStatus = TranscriptionStatus.PENDING) -> AudioFile:
@@ -34,7 +33,7 @@ class TestForceRestartEndpoint:
         # Mock the transcription service as not ready
         with patch('app.api.transcription.is_transcription_service_ready') as mock_ready:
             with patch('app.api.transcription.add_pending_transcription') as mock_add_pending:
-                with patch('app.api.transcription.initialize_transcription_service') as mock_init:
+                with patch('app.api.transcription.initialize_transcription_service'):
                     mock_ready.return_value = False
 
                     audio_file = _create_audio_file(test_db, sample_project)

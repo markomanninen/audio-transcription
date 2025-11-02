@@ -1,10 +1,14 @@
-"""
-Edit model - tracks edit history for segments.
-"""
+from __future__ import annotations
+
+"""Edit model - tracks edit history for segments."""
 from sqlalchemy import String, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 
 from .base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from .segment import Segment
 
 
 class Edit(Base, TimestampMixin):

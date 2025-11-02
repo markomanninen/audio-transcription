@@ -1,7 +1,6 @@
 """
 Tests for database models.
 """
-import pytest
 from app.models.project import Project
 from app.models.audio_file import AudioFile, TranscriptionStatus
 from app.models.speaker import Speaker

@@ -31,7 +31,7 @@ def create_realistic_voice_audio(text, duration, voice_profile, sample_rate=1600
     
     # Generate fundamental frequency with natural pitch variation
     pitch_variation = 1 + 0.1 * np.sin(2 * np.pi * 2 * t) + 0.05 * np.sin(2 * np.pi * 7 * t)
-    f0_modulated = f0 * pitch_variation
+    f0 * pitch_variation
     
     # Create voiced excitation (buzz-like source)
     excitation = np.zeros_like(t)
@@ -204,8 +204,8 @@ def create_two_voice_conversation_improved(filename: str = "sample_conversation_
     print(f"   Duration: {total_duration:.1f}s")
     print(f"   Size: {file_size:,} bytes")
     print(f"   Sample rate: {sample_rate} Hz")
-    print(f"   Two distinct voices (Alice: female, Bob: male) with formant synthesis")
-    print(f"   Optimized for speaker diarization and transcription testing")
+    print("   Two distinct voices (Alice: female, Bob: male) with formant synthesis")
+    print("   Optimized for speaker diarization and transcription testing")
 
 def main():
     """Main function to create improved sample audio."""
@@ -216,12 +216,12 @@ def main():
     
     try:
         create_two_voice_conversation_improved(filename)
-        print(f"\n[AUDIO] High-quality sample audio created successfully!")
+        print("\n[AUDIO] High-quality sample audio created successfully!")
         print(f"You can now upload '{filename}' to test speaker diarization and transcription.")
-        print(f"\nExpected results:")
-        print(f"- Two speakers should be detected (Alice and Bob)")
-        print(f"- Clear transcription of the conversation")
-        print(f"- Proper speaker attribution for each segment")
+        print("\nExpected results:")
+        print("- Two speakers should be detected (Alice and Bob)")
+        print("- Clear transcription of the conversation")
+        print("- Proper speaker attribution for each segment")
     except Exception as e:
         print(f"[ERROR] Error creating audio: {e}")
         sys.exit(1)

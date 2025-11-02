@@ -5,7 +5,6 @@ Tests all restart/resume functionality with proper progress tracking.
 """
 
 import time
-import json
 import os
 import tempfile
 import sys
@@ -283,7 +282,7 @@ class SimpleE2ETest:
         missing_fields = [field for field in required_fields if field not in status]
         
         self.assert_test(len(missing_fields) == 0, "Enhanced Status Fields", 
-                        f"All required fields present" if not missing_fields 
+                        "All required fields present" if not missing_fields 
                         else f"Missing fields: {missing_fields}")
     
     def test_4_auto_action(self):
@@ -301,7 +300,7 @@ class SimpleE2ETest:
         
         # Monitor progress for a short time
         for i in range(5):
-            status = self.get_status(self.test_file_id)
+            self.get_status(self.test_file_id)
             time.sleep(0.5)
         
         final_status = self.get_status(self.test_file_id)
@@ -394,7 +393,7 @@ class SimpleE2ETest:
             success_rate = (passed_tests / total_tests) * 100
             print(f"Success Rate: {success_rate:.1f}%")
         
-        print(f"\nDetailed Results:")
+        print("\nDetailed Results:")
         for i, result in enumerate(self.test_results, 1):
             status = "[PASS]" if result['success'] else "[FAIL]"
             print(f"  {i:2d}. {status} {result['test']}")
@@ -402,13 +401,13 @@ class SimpleE2ETest:
                 print(f"      {result['message']}")
         
         if failed_tests == 0 and total_tests > 0:
-            print(f"\n[SUCCESS] ALL TESTS PASSED!")
-            print(f"The enhanced transcription system is working correctly!")
-            print(f"You can now trust the restart/resume functionality!")
+            print("\n[SUCCESS] ALL TESTS PASSED!")
+            print("The enhanced transcription system is working correctly!")
+            print("You can now trust the restart/resume functionality!")
             return 0
         else:
-            print(f"\n[ERROR] SOME TESTS FAILED!")
-            print(f"Please review the implementation and fix issues.")
+            print("\n[ERROR] SOME TESTS FAILED!")
+            print("Please review the implementation and fix issues.")
             return 1
 
 def main():

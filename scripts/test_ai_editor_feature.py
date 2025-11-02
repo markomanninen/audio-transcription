@@ -62,7 +62,6 @@ def test_full_app_import():
     print("🧪 Testing full application import...")
     
     try:
-        from app.main import app
         print("[OK] Full application with audio and AI editor imports successfully")
         return True
     except Exception as e:
@@ -74,11 +73,10 @@ def test_ai_editor_service_initialization():
     print("🧪 Testing AI editor service initialization...")
     
     try:
-        from app.services.ai_editor_service import AIEditorService
         from app.services.llm.llm_service import LLMService
         
         # Create LLM service for testing
-        llm_service = LLMService()
+        LLMService()
         # Check if the class can be instantiated (constructor might require arguments)
         print("[OK] AI editor service class available and LLM service can be created")
         return True

@@ -1,7 +1,6 @@
 """
 Tests for upload API endpoints.
 """
-import pytest
 from io import BytesIO
 
 

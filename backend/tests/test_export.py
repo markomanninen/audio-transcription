@@ -1,12 +1,10 @@
 """
 Tests for export functionality.
 """
-import pytest
 
 from app.models.audio_file import AudioFile, TranscriptionStatus
 from app.models.segment import Segment
 from app.models.speaker import Speaker
-from app.models.project import Project
 
 
 def test_export_srt_success(client, test_db, sample_project, sample_audio_file, sample_segments, sample_speakers):
@@ -57,7 +55,7 @@ def test_export_srt_original_text(client, test_db, sample_project, sample_audio_
 def test_export_project_html_success(client, test_db, sample_project):
     """Test successful project export in HTML format."""
     # Create audio file with segments
-    audio_file = AudioFile(
+    AudioFile(
         project_id=sample_project.id,
         filename="file1.mp3",
         original_filename="file1.mp3",
@@ -261,7 +259,7 @@ def test_export_project_srt_success(client, test_db, sample_project):
 def test_export_project_html_success(client, test_db, sample_project):
     """Test successful project HTML export with multiple files."""
     # Create audio files and segments (similar to SRT test)
-    audio_file1 = AudioFile(
+    AudioFile(
         project_id=sample_project.id,
         filename="file1.mp3",
         original_filename="file1.mp3",

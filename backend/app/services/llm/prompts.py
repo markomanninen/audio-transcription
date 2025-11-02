@@ -1,7 +1,6 @@
 """
 Shared prompt templates and builders for LLM providers.
 """
-from typing import Dict
 
 
 class PromptBuilder:

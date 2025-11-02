@@ -6,9 +6,6 @@ Shows detailed progress indication during transcription operations.
 
 import requests
 import time
-import sys
-import json
-from datetime import datetime
 from typing import Dict, Any, Optional
 
 class TranscriptionMonitor:
@@ -105,7 +102,7 @@ class TranscriptionMonitor:
                             print(f"    🤖 Model: {status['whisper_model_loaded']}")
                         
                         if status.get('audio_transformed'):
-                            print(f"    [AUDIO] Audio transformed: ✅")
+                            print("    [AUDIO] Audio transformed: ✅")
                         
                         last_progress = current_progress
                         last_stage = current_stage

@@ -2,14 +2,12 @@
 Audio file serving endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-import os
 from pathlib import Path
 
 from ..core.database import get_db
 from ..models.audio_file import AudioFile
-from ..core.config import settings
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 

@@ -4,7 +4,7 @@ AI-powered text correction endpoints.
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 
 from ..core.database import get_db
 from ..models.segment import Segment

@@ -112,7 +112,6 @@ def test_apply_analysis_not_found(client, test_db):
 def test_weighted_keyword_scoring_lyrics(client, test_db, sample_project, sample_audio_file):
     """Test lyrics detection with verse/chorus keywords."""
     # Create segments with lyrics-like text
-    from app.models.segment import Segment
 
     lyrics_segments = [
         Segment(

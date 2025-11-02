@@ -1,11 +1,15 @@
-"""
-Speaker model - represents a speaker identified in the audio.
-"""
+"""Speaker model - represents a speaker identified in the audio."""
+from __future__ import annotations
+
 from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from .base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from .project import Project
+    from .segment import Segment
 
 
 class Speaker(Base, TimestampMixin):

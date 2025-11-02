@@ -26,16 +26,14 @@ Features:
 """
 
 import argparse
-import asyncio
 import json
 import os
-import platform
 import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import psutil
 import requests
@@ -757,7 +755,7 @@ class DevRunner:
             # Simple startup monitoring - just check if process and health endpoint work
             start_time = time.time()
             while time.time() - start_time < 10:  # Wait up to 10 seconds for startup
-                elapsed = time.time() - start_time
+                time.time() - start_time
                 
                 # Check if process died
                 if process.poll() is not None:
@@ -1305,7 +1303,7 @@ class DevRunner:
                     for service, process in list(self.processes.items()):
                         if process.poll() is not None:
                             self.error(f"{service} process died!")
-                            self.error(f"Please restart manually with: npm run dev:restart")
+                            self.error("Please restart manually with: npm run dev:restart")
                             # Exit immediately - don't continue running with dead services
                             sys.exit(1)
         

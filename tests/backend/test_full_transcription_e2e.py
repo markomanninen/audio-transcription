@@ -6,14 +6,12 @@ Tests complete transcription workflow: audio creation -> upload -> transcription
 
 import requests
 import time
-import json
 import os
 import tempfile
 import sys
 import subprocess
 import wave
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Optional
 
 class FullTranscriptionTest:
     """Complete end-to-end transcription test with real audio processing."""
@@ -498,7 +496,7 @@ engine.runAndWait()
         if success:
             self.log_progress(f"Overall result: SUCCESS (core transcription working: {core_tests_passed}/{core_tests_total})")
         else:
-            self.log_progress(f"Overall result: FAILURE (core issues detected)")
+            self.log_progress("Overall result: FAILURE (core issues detected)")
         
         return success
     
@@ -545,7 +543,7 @@ engine.runAndWait()
             
             # Success!
             total_time = time.time() - self.start_time
-            self.log_progress(f"=== FULL E2E TEST COMPLETED SUCCESSFULLY ===")
+            self.log_progress("=== FULL E2E TEST COMPLETED SUCCESSFULLY ===")
             self.log_progress(f"Total time: {total_time:.1f}s")
             self.log_progress(f"Transcribed text: '{transcribed_text}'")
             return True
