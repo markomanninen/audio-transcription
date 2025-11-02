@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-"""Segment model - represents a transcribed text segment with timing and speaker."""
-
-from sqlalchemy import Integer, Float, String, ForeignKey, Text, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional, TYPE_CHECKING
 
+from sqlalchemy import Integer, Float, ForeignKey, Text, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from .base import Base, TimestampMixin
+
+"""Segment model - represents a transcribed text segment with timing and speaker."""
 
 if TYPE_CHECKING:
     from .audio_file import AudioFile
