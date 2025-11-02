@@ -1,3 +1,30 @@
+"""Pytest configuration for backend tests.
+
+This conftest ensures tests run with a conservative default Whisper model size
+to avoid loading extremely large models in CI or local test runs.
+
+We only set the environment variable when it's not already provided so that
+tests or explicit scripts can override it (e.g., E2E scripts or real/test
+directories that intentionally want different behaviour).
+"""
+import os
+
+
+def pytest_load_initial_conftests(args, early_config, parser):
+    """Pytest hook run very early during startup (before tests/imports).
+
+    This ensures the environment variable is present before application
+    modules (which may create `settings` at import-time) are imported.
+    """
+    if not os.environ.get("WHISPER_MODEL_SIZE"):
+        os.environ["WHISPER_MODEL_SIZE"] = "medium"
+
+
+def pytest_configure(config):
+    # Fallback: if pytest_load_initial_conftests didn't run for some reason,
+    # ensure WHISPER_MODEL_SIZE is still set before tests execute.
+    if not os.environ.get("WHISPER_MODEL_SIZE"):
+        os.environ["WHISPER_MODEL_SIZE"] = "medium"
 """
 Test configuration and fixtures.
 """

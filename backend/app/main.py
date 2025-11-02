@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 from .core import database
 from .core.logging_config import setup_logging
 from .services.transcription_singleton import cleanup_transcription_service
@@ -280,8 +281,9 @@ async def health():
                     "message": f"Whisper model '{service.model_size}' ready",
                     "model_size": service.model_size
                 }
-            except:
-                # Fallback if getting service fails
+            except Exception as e:
+                # Fallback if getting service fails (log original exception)
+                logging.getLogger(__name__).debug(f"Ignored exception while getting whisper service: {e}")
                 components["whisper"] = {
                     "status": "up",
                     "message": "Whisper service ready",

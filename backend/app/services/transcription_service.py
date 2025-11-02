@@ -1,9 +1,6 @@
-"""
-Transcription service using Whisper.
-"""
-# Lazy import whisper to avoid blocking startup.
-# Export placeholder so tests can patch the module attribute.
-whisper = None  # Will be replaced with the actual module on first use
+"""Transcription service using Whisper."""
+from __future__ import annotations
+
 import time
 import os
 import psutil
@@ -20,6 +17,10 @@ from ..core import database
 from ..models.audio_file import AudioFile, TranscriptionStatus
 from ..models.segment import Segment
 from .audio_service import AudioService
+
+# Lazy import whisper to avoid blocking startup.
+# Export placeholder so tests can patch the module attribute.
+whisper = None  # Will be replaced with the actual module on first use
 
 logger = logging.getLogger(__name__)
 transcription_logger = get_transcription_logger()
@@ -190,7 +191,8 @@ class TranscriptionService:
                     recommendations.append("GPU acceleration available but not used. Set WHISPER_DEVICE=cuda for better performance.")
                 elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
                     recommendations.append("Apple Silicon GPU available but not used. Set WHISPER_DEVICE=mps for better performance.")
-            except:
+            except Exception:
+                # Best-effort: failure to import torch shouldn't block recommendations
                 pass
                 
         return recommendations
@@ -217,10 +219,28 @@ class TranscriptionService:
             return self.loaded_models[target_size]
 
         logger.info(f"Loading Whisper model: {target_size} (device: {self.device})")
-        model = whisper_module.load_model(
-            target_size,
-            device=self.device
-        )
+        # Attempt to load on the preferred device, but fall back to CPU on failure
+        try:
+            model = whisper_module.load_model(
+                target_size,
+                device=self.device
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to load Whisper model '{target_size}' on device '{self.device}': {e}. "
+                "Attempting to fall back to CPU."
+            )
+            try:
+                model = whisper_module.load_model(
+                    target_size,
+                    device="cpu"
+                )
+                # Use CPU for subsequent operations to avoid repeated failures
+                self.device = "cpu"
+                logger.info(f"Whisper model '{target_size}' loaded on CPU as fallback")
+            except Exception as e2:
+                logger.error(f"Failed to load Whisper model '{target_size}' on fallback CPU: {e2}")
+                raise
         self.loaded_models[target_size] = model
 
         # Always set self.model for the default/primary model size
@@ -261,7 +281,7 @@ class TranscriptionService:
                 "memory_mb": process.memory_info().rss / 1024 / 1024,
                 "threads": process.num_threads()
             }
-        except:
+        except Exception:
             return {"cpu_percent": 0, "memory_mb": 0, "threads": 0}
 
     def can_resume_transcription(self, audio_file_id: int, db: Session) -> bool:
@@ -927,7 +947,7 @@ class TranscriptionService:
                         try:
                             if original_update_func:
                                 tqdm_module.tqdm.update = original_update_func
-                        except:
+                        except Exception:
                             pass
 
             finally:
@@ -1042,8 +1062,8 @@ class TranscriptionService:
             # Get system state for debugging
             try:
                 system_check = self._check_system_readiness_for_transcription()
-                logger.error(f"System state at failure: Memory={system_check['memory']['available_gb']}GB, CPU={system_check['cpu']['usage_percent']}%")
-            except:
+                logger.error(f"System state at failure: Memory={system_check['memory']['available_gb']}GB, CPU={system_check['cpu']['usage_percent']}%")                                   
+            except Exception:
                 pass
             
             # Update status to failed with detailed error
