@@ -183,11 +183,91 @@ class ExportService:
             "        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }",
             "        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }",
             "        .metadata { color: #666; font-size: 0.9em; margin-bottom: 30px; }",
-            "        .segment { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; }",
-            "        .speaker { font-weight: bold; color: #007bff; }",
-            "        .timestamp { color: #666; font-size: 0.85em; }",
+            "        .controls { margin-bottom: 20px; padding: 15px; background: #e9ecef; border-radius: 5px; }",
+            "        .toggle-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-right: 10px; }",
+            "        .toggle-btn:hover { background: #0056b3; }",
+            "        .toggle-btn.inactive { background: #6c757d; }",
+            "        .segment { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; transition: all 0.3s ease; min-height: auto; }",
+            "        .header { display: flex; align-items: center; min-height: 1.2em; transition: all 0.3s ease; }",
+            "        .header:empty { min-height: 0; padding: 0; margin: 0; }",
+            "        .speaker { font-weight: bold; color: #007bff; transition: all 0.3s ease; }",
+            "        .speaker.hidden { opacity: 0; width: 0; height: 0; overflow: hidden; margin: 0; padding: 0; }",
+            "        .separator { margin: 0 8px; color: #666; transition: all 0.3s ease; }",
+            "        .separator.hidden { opacity: 0; width: 0; margin: 0; }",
+            "        .timestamp { color: #666; font-size: 0.85em; transition: all 0.3s ease; }",
+            "        .timestamp.hidden { opacity: 0; width: 0; height: 0; overflow: hidden; margin: 0; padding: 0; }",
             "        .text { margin-top: 5px; }",
             "    </style>",
+            "    <script>",
+            "        function toggleTimestamps() {",
+            "            const timestamps = document.querySelectorAll('.timestamp');",
+            "            const button = document.getElementById('timestamp-toggle');",
+            "            const isHidden = timestamps[0] && timestamps[0].classList.contains('hidden');",
+            "            ",
+            "            timestamps.forEach(timestamp => {",
+            "                if (isHidden) {",
+            "                    timestamp.classList.remove('hidden');",
+            "                    button.textContent = 'Hide Timestamps';",
+            "                    button.classList.remove('inactive');",
+            "                } else {",
+            "                    timestamp.classList.add('hidden');",
+            "                    button.textContent = 'Show Timestamps';",
+            "                    button.classList.add('inactive');",
+            "                }",
+            "            });",
+            "            updateSeparators();",
+            "        }",
+            "        ",
+            "        function toggleSpeakers() {",
+            "            const speakers = document.querySelectorAll('.speaker');",
+            "            const button = document.getElementById('speaker-toggle');",
+            "            const isHidden = speakers[0] && speakers[0].classList.contains('hidden');",
+            "            ",
+            "            speakers.forEach(speaker => {",
+            "                if (isHidden) {",
+            "                    speaker.classList.remove('hidden');",
+            "                    button.textContent = 'Hide Speakers';",
+            "                    button.classList.remove('inactive');",
+            "                } else {",
+            "                    speaker.classList.add('hidden');",
+            "                    button.textContent = 'Show Speakers';",
+            "                    button.classList.add('inactive');",
+            "                }",
+            "            });",
+            "            updateSeparators();",
+            "        }",
+            "        ",
+            "        function updateSeparators() {",
+            "            const separators = document.querySelectorAll('.separator');",
+            "            separators.forEach(separator => {",
+            "                const segment = separator.closest('.segment');",
+            "                const speaker = segment.querySelector('.speaker');",
+            "                const timestamp = segment.querySelector('.timestamp');",
+            "                ",
+            "                const speakerVisible = speaker && !speaker.classList.contains('hidden');",
+            "                const timestampVisible = timestamp && !timestamp.classList.contains('hidden');",
+            "                ",
+            "                if (speakerVisible && timestampVisible) {",
+            "                    separator.classList.remove('hidden');",
+            "                } else {",
+            "                    separator.classList.add('hidden');",
+            "                }",
+            "            });",
+            "            ",
+            "            // Update header visibility for dynamic segment height",
+            "            const headers = document.querySelectorAll('.header');",
+            "            headers.forEach(header => {",
+            "                const visibleContent = Array.from(header.children).some(child => ",
+            "                    !child.classList.contains('hidden') && child.textContent.trim() !== ''",
+            "                );",
+            "                if (!visibleContent) {",
+            "                    header.style.display = 'none';",
+            "                } else {",
+            "                    header.style.display = 'flex';",
+            "                }",
+            "            });",
+            "        }",
+            "    </script>",
             "</head>",
             "<body>",
             "    <h1>Transcription</h1>",
@@ -195,6 +275,14 @@ class ExportService:
             f"        <p><strong>File:</strong> {audio_file.original_filename}</p>",
             f"        <p><strong>Duration:</strong> {self._format_duration(audio_file.duration)}</p>",
             f"        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>",
+            "    </div>",
+            "    <div class='controls'>",
+            f"        <button id='timestamp-toggle' class='toggle-btn{' inactive' if not include_timestamps else ''}' onclick='toggleTimestamps()'>",
+            f"            {'Show Timestamps' if not include_timestamps else 'Hide Timestamps'}",
+            "        </button>",
+            f"        <button id='speaker-toggle' class='toggle-btn{' inactive' if not include_speakers else ''}' onclick='toggleSpeakers()'>",
+            f"            {'Show Speakers' if not include_speakers else 'Hide Speakers'}",
+            "        </button>",
             "    </div>",
         ]
 
@@ -205,17 +293,29 @@ class ExportService:
             html_parts.append("    <div class='segment'>")
 
             # Speaker and timestamp header
-            header_parts = []
-            if include_speakers and segment.speaker_id and segment.speaker_id in speakers_map:
+            header_html = ""
+            has_speaker = segment.speaker_id and segment.speaker_id in speakers_map
+            
+            if has_speaker:
                 speaker_name = speakers_map[segment.speaker_id]
-                header_parts.append(f"<span class='speaker'>{speaker_name}</span>")
+                speaker_class = "speaker" + ("" if include_speakers else " hidden")
+                header_html += f"<span class='{speaker_class}'>{speaker_name}</span>"
+
+            # Add separator that will be hidden/shown based on visibility of both elements
+            if has_speaker:
+                header_html += "<span class='separator'>|</span>"
 
             if include_timestamps:
                 timestamp = f"{self._format_time(segment.start_time)} - {self._format_time(segment.end_time)}"
-                header_parts.append(f"<span class='timestamp'>{timestamp}</span>")
+                timestamp_class = "timestamp" + ("" if include_timestamps else " hidden")
+                header_html += f"<span class='{timestamp_class}'>{timestamp}</span>"
+            else:
+                # Always include timestamp span but hidden by default if include_timestamps is False
+                timestamp = f"{self._format_time(segment.start_time)} - {self._format_time(segment.end_time)}"
+                header_html += f"<span class='timestamp hidden'>{timestamp}</span>"
 
-            if header_parts:
-                html_parts.append(f"        <div>{' | '.join(header_parts)}</div>")
+            if header_html:
+                html_parts.append(f"        <div class='header'>{header_html}</div>")
 
             html_parts.append(f"        <div class='text'>{text}</div>")
             html_parts.append("    </div>")
@@ -479,13 +579,93 @@ class ExportService:
             "        h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }",
             "        h2 { color: #444; margin-top: 40px; margin-bottom: 20px; border-left: 4px solid #28a745; padding-left: 15px; }",
             "        .metadata { color: #666; font-size: 0.9em; margin-bottom: 30px; }",
+            "        .controls { margin-bottom: 20px; padding: 15px; background: #e9ecef; border-radius: 5px; }",
+            "        .toggle-btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-right: 10px; }",
+            "        .toggle-btn:hover { background: #0056b3; }",
+            "        .toggle-btn.inactive { background: #6c757d; }",
             "        .file-section { margin-bottom: 40px; }",
-            "        .segment { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; }",
-            "        .speaker { font-weight: bold; color: #007bff; }",
-            "        .timestamp { color: #666; font-size: 0.85em; }",
+            "        .segment { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; transition: all 0.3s ease; min-height: auto; }",
+            "        .header { display: flex; align-items: center; min-height: 1.2em; transition: all 0.3s ease; }",
+            "        .header:empty { min-height: 0; padding: 0; margin: 0; }",
+            "        .speaker { font-weight: bold; color: #007bff; transition: all 0.3s ease; }",
+            "        .speaker.hidden { opacity: 0; width: 0; height: 0; overflow: hidden; margin: 0; padding: 0; }",
+            "        .separator { margin: 0 8px; color: #666; transition: all 0.3s ease; }",
+            "        .separator.hidden { opacity: 0; width: 0; margin: 0; }",
+            "        .timestamp { color: #666; font-size: 0.85em; transition: all 0.3s ease; }",
+            "        .timestamp.hidden { opacity: 0; width: 0; height: 0; overflow: hidden; margin: 0; padding: 0; }",
             "        .text { margin-top: 5px; }",
             "        .file-metadata { color: #888; font-size: 0.85em; margin-bottom: 15px; }",
             "    </style>",
+            "    <script>",
+            "        function toggleTimestamps() {",
+            "            const timestamps = document.querySelectorAll('.timestamp');",
+            "            const button = document.getElementById('timestamp-toggle');",
+            "            const isHidden = timestamps[0] && timestamps[0].classList.contains('hidden');",
+            "            ",
+            "            timestamps.forEach(timestamp => {",
+            "                if (isHidden) {",
+            "                    timestamp.classList.remove('hidden');",
+            "                    button.textContent = 'Hide Timestamps';",
+            "                    button.classList.remove('inactive');",
+            "                } else {",
+            "                    timestamp.classList.add('hidden');",
+            "                    button.textContent = 'Show Timestamps';",
+            "                    button.classList.add('inactive');",
+            "                }",
+            "            });",
+            "            updateSeparators();",
+            "        }",
+            "        ",
+            "        function toggleSpeakers() {",
+            "            const speakers = document.querySelectorAll('.speaker');",
+            "            const button = document.getElementById('speaker-toggle');",
+            "            const isHidden = speakers[0] && speakers[0].classList.contains('hidden');",
+            "            ",
+            "            speakers.forEach(speaker => {",
+            "                if (isHidden) {",
+            "                    speaker.classList.remove('hidden');",
+            "                    button.textContent = 'Hide Speakers';",
+            "                    button.classList.remove('inactive');",
+            "                } else {",
+            "                    speaker.classList.add('hidden');",
+            "                    button.textContent = 'Show Speakers';",
+            "                    button.classList.add('inactive');",
+            "                }",
+            "            });",
+            "            updateSeparators();",
+            "        }",
+            "        ",
+            "        function updateSeparators() {",
+            "            const separators = document.querySelectorAll('.separator');",
+            "            separators.forEach(separator => {",
+            "                const segment = separator.closest('.segment');",
+            "                const speaker = segment.querySelector('.speaker');",
+            "                const timestamp = segment.querySelector('.timestamp');",
+            "                ",
+            "                const speakerVisible = speaker && !speaker.classList.contains('hidden');",
+            "                const timestampVisible = timestamp && !timestamp.classList.contains('hidden');",
+            "                ",
+            "                if (speakerVisible && timestampVisible) {",
+            "                    separator.classList.remove('hidden');",
+            "                } else {",
+            "                    separator.classList.add('hidden');",
+            "                }",
+            "            });",
+            "            ",
+            "            // Update header visibility for dynamic segment height",
+            "            const headers = document.querySelectorAll('.header');",
+            "            headers.forEach(header => {",
+            "                const visibleContent = Array.from(header.children).some(child => ",
+            "                    !child.classList.contains('hidden') && child.textContent.trim() !== ''",
+            "                );",
+            "                if (!visibleContent) {",
+            "                    header.style.display = 'none';",
+            "                } else {",
+            "                    header.style.display = 'flex';",
+            "                }",
+            "            });",
+            "        }",
+            "    </script>",
             "</head>",
             "<body>",
             f"    <h1>Project: {project.name}</h1>",
@@ -501,6 +681,14 @@ class ExportService:
             f"        <p><strong>Files:</strong> {len(audio_files)}</p>",
             f"        <p><strong>Total Duration:</strong> {self._format_duration(total_duration)}</p>",
             f"        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>",
+            "    </div>",
+            "    <div class='controls'>",
+            f"        <button id='timestamp-toggle' class='toggle-btn{' inactive' if not include_timestamps else ''}' onclick='toggleTimestamps()'>",
+            f"            {'Show Timestamps' if not include_timestamps else 'Hide Timestamps'}",
+            "        </button>",
+            f"        <button id='speaker-toggle' class='toggle-btn{' inactive' if not include_speakers else ''}' onclick='toggleSpeakers()'>",
+            f"            {'Show Speakers' if not include_speakers else 'Hide Speakers'}",
+            "        </button>",
             "    </div>",
         ])
 
@@ -533,20 +721,34 @@ class ExportService:
                 html_parts.append("        <div class='segment'>")
 
                 # Speaker and timestamp header
-                header_parts = []
-                if include_speakers and segment.speaker_id and segment.speaker_id in speakers_map:
+                header_html = ""
+                has_speaker = segment.speaker_id and segment.speaker_id in speakers_map
+                
+                if has_speaker:
                     speaker_name = speakers_map[segment.speaker_id]
-                    header_parts.append(f"<span class='speaker'>{speaker_name}</span>")
+                    speaker_class = "speaker" + ("" if include_speakers else " hidden")
+                    header_html += f"<span class='{speaker_class}'>{speaker_name}</span>"
+
+                # Add separator that will be hidden/shown based on visibility of both elements
+                if has_speaker:
+                    header_html += "<span class='separator'>|</span>"
 
                 if include_timestamps:
                     # Adjust timestamps for project continuity
                     adj_start = segment.start_time + cumulative_offset
                     adj_end = segment.end_time + cumulative_offset
                     timestamp = f"{self._format_time(adj_start)} - {self._format_time(adj_end)}"
-                    header_parts.append(f"<span class='timestamp'>{timestamp}</span>")
+                    timestamp_class = "timestamp" + ("" if include_timestamps else " hidden")
+                    header_html += f"<span class='{timestamp_class}'>{timestamp}</span>"
+                else:
+                    # Always include timestamp span but hidden by default if include_timestamps is False
+                    adj_start = segment.start_time + cumulative_offset
+                    adj_end = segment.end_time + cumulative_offset
+                    timestamp = f"{self._format_time(adj_start)} - {self._format_time(adj_end)}"
+                    header_html += f"<span class='timestamp hidden'>{timestamp}</span>"
 
-                if header_parts:
-                    html_parts.append(f"            <div>{' | '.join(header_parts)}</div>")
+                if header_html:
+                    html_parts.append(f"            <div class='header'>{header_html}</div>")
 
                 html_parts.append(f"            <div class='text'>{text}</div>")
                 html_parts.append("        </div>")
