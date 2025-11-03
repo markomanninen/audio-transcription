@@ -120,3 +120,5 @@ test-screenshots/
 *assets*
 
 .coverage*
+
+tests/*/output

@@ -33,7 +33,15 @@ export default function ProjectExportDialog({ projectId, projectName, onClose }:
 
     setIsExporting(true)
     try {
-      const url = buildExportUrl(format)
+      let url: string
+      
+      if (format === 'zip') {
+        // Use the new project export endpoint for ZIP
+        url = `${apiBaseUrl}/api/upload/project/${projectId}/export`
+      } else {
+        // Use existing export endpoints for other formats
+        url = buildExportUrl(format)
+      }
 
       // Trigger download by opening URL
       const link = document.createElement('a')
@@ -111,6 +119,15 @@ export default function ProjectExportDialog({ projectId, projectName, onClose }:
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Choose Format</h3>
             <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => handleExport('zip')}
+                disabled={isExporting}
+                className="p-3 text-left border-2 border-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors disabled:opacity-50"
+              >
+                <div className="font-medium text-primary">🗂️ Complete Project (ZIP)</div>
+                <div className="text-xs text-muted-foreground">Full project with audio files, transcripts, and metadata</div>
+              </button>
+
               <button
                 onClick={() => handleExport('srt')}
                 disabled={isExporting}

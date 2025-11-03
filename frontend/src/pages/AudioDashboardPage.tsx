@@ -20,6 +20,7 @@ import CreateProjectDialog from '../components/Dashboard/CreateProjectDialog';
 import DeleteProjectDialog from '../components/Dashboard/DeleteProjectDialog';
 import ExportDialog from '../components/Export/ExportDialog';
 import ProjectExportDialog from '../components/Export/ProjectExportDialog';
+import ProjectImportDialog from '../components/Import/ProjectImportDialog';
 import { AISettingsDialog } from '../components/Settings/AISettingsDialog';
 import { AnalysisDialog } from '../components/AI/AnalysisDialog';
 import ThemeToggle from '../components/ThemeToggle';
@@ -51,6 +52,7 @@ export default function AudioDashboardPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showProjectExportDialog, setShowProjectExportDialog] = useState(false);
+  const [showProjectImportDialog, setShowProjectImportDialog] = useState(false);
   const [showAISettings, setShowAISettings] = useState(false);
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const [showLLMLogs, setShowLLMLogs] = useState(false);
@@ -303,6 +305,15 @@ export default function AudioDashboardPage() {
                   </button>
                   <button
                     onClick={() => {
+                      setShowProjectImportDialog(true);
+                      setShowToolsMenu(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-muted"
+                  >
+                    Import Project
+                  </button>
+                  <button
+                    onClick={() => {
                       setShowDeleteDialog(true);
                       setShowToolsMenu(false);
                     }}
@@ -455,6 +466,16 @@ export default function AudioDashboardPage() {
           projectId={projectId}
           projectName={currentProject?.name || ''}
           onClose={() => setShowProjectExportDialog(false)}
+        />
+      )}
+
+      {showProjectImportDialog && (
+        <ProjectImportDialog
+          onClose={() => setShowProjectImportDialog(false)}
+          onImportSuccess={(newProjectId) => {
+            setProjectId(newProjectId);
+            setSelectedFileId(null);
+          }}
         />
       )}
     </div>

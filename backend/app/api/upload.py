@@ -1,16 +1,21 @@
 """
 Upload API endpoints.
 """
+import os
+import tempfile
 from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Dict
 
 from ..core.database import get_db
 from ..services.audio_service import AudioService
+from ..services.project_export_import_service import ProjectExportImportService
 from ..models.project import Project
 from ..models.audio_file import AudioFile, TranscriptionStatus
+from ..schemas.project_export import ProjectImportRequest, ProjectImportResult, ProjectImportValidation
 
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -434,3 +439,149 @@ async def delete_file(
         "message": f"Successfully deleted {deleted_count} file(s) including all associated data",
         "deleted_files": deleted_count
     }
+
+
+@router.post("/project/{project_id}/export")
+async def export_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Export a complete project as a ZIP file.
+    
+    Args:
+        project_id: ID of the project to export
+        db: Database session
+        
+    Returns:
+        ZIP file download containing complete project data
+    """
+    try:
+        export_service = ProjectExportImportService()
+        zip_path, filename = export_service.export_project_to_zip(project_id, db)
+        
+        # Return the ZIP file for download
+        return FileResponse(
+            path=zip_path,
+            filename=filename,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Export failed: {str(e)}"
+        )
+
+
+@router.post("/project/import/validate")
+async def validate_project_import(
+    file: UploadFile = File(...),
+) -> ProjectImportValidation:
+    """
+    Validate a project import ZIP file without importing it.
+    
+    Args:
+        file: ZIP file to validate
+        
+    Returns:
+        Validation result with errors and warnings
+    """
+    if not file.filename or not file.filename.endswith('.zip'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be a ZIP file"
+        )
+    
+    # Save uploaded file to temporary location
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    try:
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+        
+        export_service = ProjectExportImportService()
+        validation = export_service.validate_import_zip(temp_file.name)
+        
+        return validation
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Validation failed: {str(e)}"
+        )
+    finally:
+        # Clean up temporary file
+        try:
+            os.unlink(temp_file.name)
+        except:
+            pass
+
+
+@router.post("/project/import", response_model=ProjectImportResult)
+async def import_project(
+    file: UploadFile = File(...),
+    project_name: Optional[str] = Form(None),
+    project_description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+) -> ProjectImportResult:
+    """
+    Import a project from a ZIP file.
+    
+    Args:
+        file: ZIP file containing project data
+        project_name: Optional new name for the imported project
+        project_description: Optional new description for the imported project
+        db: Database session
+        
+    Returns:
+        Import result with success status and details
+    """
+    if not file.filename or not file.filename.endswith('.zip'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be a ZIP file"
+        )
+    
+    # Save uploaded file to temporary location
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    try:
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+        
+        export_service = ProjectExportImportService()
+        result = export_service.import_project_from_zip(
+            temp_file.name, 
+            db,
+            new_project_name=project_name,
+            new_project_description=project_description
+        )
+        
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Import failed: {'; '.join(result.errors)}"
+            )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Import failed: {str(e)}"
+        )
+    finally:
+        # Clean up temporary file
+        try:
+            os.unlink(temp_file.name)
+        except:
+            pass
